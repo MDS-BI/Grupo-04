@@ -61,3 +61,41 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 - Si alguien escribe un correo sin "@" o sin dominio, el cliente no se guarda y aparece el aviso de correo mal escrito.
 - Un monto estimado negativo no se acepta; se pide un valor igual o mayor a cero.
 - Si falta el producto en un ticket, no se puede guardar: hay que indicar a qué máquina se le hizo la mantención o cuál falló.
+
+## Requisitos
+
+### Requisitos Funcionales
+
+- **FR-001**: El sistema debe permitir registrar un cliente con nombre, correo, teléfono, tipo de cliente (persona o empresa) y fecha de registro.
+- **FR-002**: El sistema no debe guardar un cliente si falta el nombre o el correo, y debe indicar cuál de los dos falta.
+- **FR-003**: El sistema debe rechazar un correo que no tenga el formato básico, o sea que le falte el "@" o el dominio.
+- **FR-004**: El sistema debe permitir editar y eliminar clientes, pidiendo confirmación antes de borrar.
+- **FR-005**: El sistema debe permitir crear una oportunidad asociada a un cliente, con monto estimado, fecha de cierre y etapa.
+- **FR-006**: Una oportunidad no puede quedar sin cliente ni sin etapa, y su monto tiene que ser igual o mayor a cero.
+- **FR-007**: El sistema debe permitir cambiar la etapa de una oportunidad entre Contacto inicial, Negociación, Ganada y Perdida, y mostrar la etapa nueva en la lista.
+- **FR-008**: El sistema debe permitir registrar un ticket con cliente, producto, motivo (soporte, reclamo o consulta), descripción, prioridad y estado.
+- **FR-009**: El sistema debe mostrar los tickets de cada cliente y permitir pasarlos de "En proceso" a "Resuelto".
+- **FR-010**: El sistema debe guardar solo los datos de contacto necesarios del cliente y no debe permitir exportar el listado completo, para cuidar la información personal.
+- **FR-011**: El sistema no debe usar la ubicación geográfica del cliente para ordenar ni para priorizar oportunidades y tickets.
+
+### Entidades Clave
+
+- **Cliente**: la empresa o persona a la que se le vende. Guarda nombre, correo, teléfono, tipo de cliente y fecha de registro. De acá cuelgan las oportunidades y los tickets.
+- **Oportunidad de venta**: una cotización en curso de un cliente, con su monto estimado, fecha de cierre y etapa.
+- **Ticket de soporte**: una falla, reclamo o consulta de un cliente sobre un producto, con descripción, prioridad y estado.
+- **Producto** y **Empleado**: ya vienen definidos en otros módulos del sistema. En el CRM solo se usan como referencia, para saber de qué máquina se habla y quién atiende al cliente.
+
+## Criterios de Éxito
+
+### Resultados Medibles
+
+- **SC-001**: Un ejecutivo de ventas alcanza a registrar un cliente nuevo en menos de 1 minuto.
+- **SC-002**: Desde la ficha de un cliente se puede crear una oportunidad en menos de 30 segundos.
+- **SC-003**: El 100% de las oportunidades y de los tickets quedan asociados a un cliente, sin registros sueltos.
+
+## Suposiciones
+
+- Se trabaja sin servidor: los datos quedan guardados en el mismo navegador donde se usa el módulo.
+- Por ahora lo usa una persona del equipo a la vez; los permisos por rol quedan para más adelante.
+- Los productos y los empleados ya existen en los otros módulos, así que acá no se crean, solo se referencian.
+- Los clientes son empresas y pymes de la Región del Biobío.
