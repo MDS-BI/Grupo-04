@@ -1,0 +1,44 @@
+erDiagram
+    employees ||--o{ customers : responsable
+    employees ||--o{ leads : responsable
+    employees ||--o{ opportunities : responsable
+    employees ||--o{ interactions : responsable
+    employees ||--o{ support_tickets : atiende
+    customers ||--o{ support_tickets : solicita
+    products ||--o{ support_tickets : refiere
+    employees {
+        string employee_id PK
+        string name
+        string role
+        boolean active
+    }
+    products {
+        string product_id PK
+        string code UK
+        string name
+        boolean active
+    }
+    customers {
+        string entity_id UK
+        string assigned_employee_id FK
+    }
+    leads {
+        string id PK
+        string assigned_employee_id FK
+    }
+    opportunities {
+        string id PK
+        string assigned_employee_id FK
+    }
+    interactions {
+        string id PK
+        string assigned_employee_id FK
+    }
+    support_tickets {
+        string id PK
+        string entity_id FK
+        string product_id FK
+        string assigned_employee_id FK
+        string status
+        string priority
+    }

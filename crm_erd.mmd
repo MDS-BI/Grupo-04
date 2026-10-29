@@ -1,0 +1,48 @@
+erDiagram
+    customers ||--o{ contacts : tiene
+    customers ||--o{ leads : recibe
+    customers ||--o{ opportunities : negocia
+    customers ||--o{ interactions : registra
+    leads o|--o| opportunities : origina
+    opportunity_stages ||--o{ opportunities : clasifica
+    contacts o|--o{ interactions : participa
+    opportunities o|--o{ interactions : contextualiza
+    customers {
+        string id PK
+        string entity_id UK
+        string name
+        string assigned_employee_id FK
+    }
+    contacts {
+        string id PK
+        string entity_id FK
+        string name
+    }
+    leads {
+        string id PK
+        string entity_id FK
+        string status
+        string assigned_employee_id FK
+    }
+    opportunities {
+        string id PK
+        string entity_id FK
+        string lead_id FK,UK
+        string status FK
+        number subtotal
+        string endDate
+        string assigned_employee_id FK
+    }
+    opportunity_stages {
+        string stage_id PK
+        int order
+        boolean terminal
+    }
+    interactions {
+        string id PK
+        string entity_id FK
+        string contact_id FK
+        string opportunity_id FK
+        string assigned_employee_id FK
+        string follow_up_date
+    }
