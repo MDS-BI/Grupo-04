@@ -317,3 +317,4 @@ Una sola empresa, un único navegador y moneda CLP. Se usa la fecha local del di
 localStorage no proporciona control de acceso ni seguridad equivalente a un sistema empresarial: cualquier persona con acceso al perfil del navegador puede consultar los datos y estos pueden perderse al borrar el almacenamiento. Antes de uso real se necesitarían autenticación, permisos, backend seguro, respaldo y una política de tratamiento y retención de datos.
 
 Los indicadores son descriptivos. Un monto elevado no demuestra mayor probabilidad de compra; un registro sin contacto no demuestra desinterés. No se puntúa a clientes por atributos personales ni se elaboran rankings de desempeño de ejecutivos. La tasa de cierre se interpreta junto con el número de casos cerrados y no como inferencia causal.
+holi
