@@ -11,18 +11,36 @@ El módulo tiene que resolver un problema bien concreto: hoy las cotizaciones qu
 
 ## Escenarios de Usuario y Pruebas
 
-### Historia de Usuario 1 - Registrar y ver clientes (Prioridad: P1)
+## Historia de Usuario 1 — Registrar clientes y prospectos (Prioridad: P1) 
 
-Como ejecutivo de ventas, quiero registrar los datos de contacto de una empresa para poder encontrarlos rápido cuando le mande una cotización.
+Como ejecutivo comercial, quiero registrar empresas clientes y prospectos con sus datos de identificación, clasificación, responsable comercial y contacto principal, cuando esté disponible, para centralizar la cartera y disponer de información organizada para el seguimiento comercial. 
 
-**Por qué esta prioridad**: sin clientes guardados el resto deja de tener sentido, porque tanto las oportunidades como los tickets van siempre asociados a un cliente.
+**Por qué esta prioridad**: El registro de clientes y prospectos constituye la base del módulo. Sin una empresa registrada, no es posible vincular oportunidades comerciales ni organizar su seguimiento. Por ello, esta funcionalidad es indispensable para el funcionamiento mínimo del módulo. 
 
-**Prueba Independiente**: se abre el módulo, se agrega una empresa con nombre, correo y teléfono, y aparece en la lista de clientes.
+**Prueba independiente**: Un usuario puede abrir la gestión de Clientes, registrar una empresa ficticia con nombre, código único, tipo, responsable y origen de captación, y encontrarla en la pantalla de búsqueda. Al consultar su detalle y recargar la aplicación en el mismo navegador, los datos guardados permanecen disponibles. Esta prueba puede realizarse sin crear oportunidades comerciales. 
 
-**Escenarios de Aceptación**:
+**Escenarios de aceptación**: 
 
-1. **Dado** que estoy en la lista de clientes, **cuando** completo el formulario con nombre, correo, teléfono y tipo de cliente (persona o empresa), **entonces** el cliente queda guardado y aparece en la lista con su fecha de registro.
-2. **Dado** que estoy agregando un cliente, **cuando** dejo el nombre o el correo en blanco, **entonces** el sistema no deja guardar y me avisa qué dato falta.
+1. Dado que el ejecutivo comercial está en la gestión de Clientes, cuando selecciona la opción de crear un nuevo cliente, entonces se muestra un formulario vacío con los campos obligatorios claramente identificados.
+
+2. Dado un formulario de nuevo cliente, cuando el ejecutivo completa nombre de la empresa, código único, tipo, responsable comercial y origen de captación con valores válidos y guarda el registro, entonces el sistema confirma la creación y permite encontrar la empresa en la pantalla de búsqueda y consultar sus datos. 
+
+3. Dado que se registra una empresa que aún no ha comprado, cuando el ejecutivo selecciona el tipo Prospecto y guarda el formulario válido, entonces la empresa queda identificada como prospecto y disponible para vincular oportunidades comerciales. 
+
+4. Dado que el ejecutivo dispone de información del contacto principal, cuando registra su nombre, un correo con formato válido y un teléfono, entonces esos datos quedan asociados a la empresa y se muestran al consultar su detalle. 
+
+5. Dado que aún no se dispone de información del contacto principal, cuando el ejecutivo deja esos campos opcionales vacíos y completa los obligatorios, entonces el sistema permite guardar y señala en el detalle que la información de contacto está incompleta. 
+
+6. Dado un formulario con uno o más campos obligatorios vacíos o compuestos únicamente por espacios, cuando el ejecutivo intenta guardar, entonces el sistema impide la creación, identifica los campos que debe completar y conserva los datos introducidos para corregirlos. 
+
+7. Dado un cliente con código CLI-001 ya registrado, cuando el ejecutivo intenta crear otro con el código cli-001, entonces el sistema rechaza el duplicado al comparar los códigos sin espacios al inicio o al final y sin distinguir mayúsculas de minúsculas, conserva el formulario y no altera el registro existente. 
+
+8. Dado un correo informado con formato inválido o un valor de tipo, responsable u origen que no pertenece a las opciones configuradas, cuando el ejecutivo intenta guardar, entonces el sistema explica qué debe corregir y no crea el registro. 
+
+9. Dado un cliente o prospecto guardado correctamente, cuando el ejecutivo cambia de pantalla y recarga la aplicación en el mismo navegador, entonces el registro conserva sus datos y continúa disponible en la búsqueda. 
+
+10. Dado que el almacenamiento del navegador no permite guardar el registro, cuando el ejecutivo intenta confirmar la creación, entonces el sistema informa que la operación no se completó, conserva los datos del formulario y no muestra una confirmación de éxito. 
+ 
 
 ---
 
