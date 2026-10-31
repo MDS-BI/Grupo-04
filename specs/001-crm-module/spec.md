@@ -21,11 +21,11 @@ Como ejecutivo comercial, quiero registrar empresas clientes y prospectos con su
 
 **Escenarios de aceptación**: 
 
-1. Dado que el ejecutivo comercial está en la gestión de Clientes, cuando selecciona la opción de crear un nuevo cliente, entonces se muestra un formulario vacío con los campos obligatorios claramente identificados.
+1. Dado que el ejecutivo comercial está en la gestión de clientes, cuando selecciona la opción de crear un nuevo cliente, entonces se muestra un formulario vacío con los campos obligatorios claramente identificados.
 
 2. Dado un formulario de nuevo cliente, cuando el ejecutivo completa nombre de la empresa, código único, tipo, responsable comercial y origen de captación con valores válidos y guarda el registro, entonces el sistema confirma la creación y permite encontrar la empresa en la pantalla de búsqueda y consultar sus datos. 
 
-3. Dado que se registra una empresa que aún no ha comprado, cuando el ejecutivo selecciona el tipo Prospecto y guarda el formulario válido, entonces la empresa queda identificada como prospecto y disponible para vincular oportunidades comerciales. 
+3. Dado que se registra una empresa que aún no ha comprado, cuando el ejecutivo selecciona el tipo prospecto y guarda el formulario válido, entonces la empresa queda identificada como prospecto y disponible para vincular oportunidades comerciales. 
 
 4. Dado que el ejecutivo dispone de información del contacto principal, cuando registra su nombre, un correo con formato válido y un teléfono, entonces esos datos quedan asociados a la empresa y se muestran al consultar su detalle. 
 
