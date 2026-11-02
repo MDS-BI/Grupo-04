@@ -149,6 +149,211 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 - Los productos y los empleados ya existen en los otros módulos, así que acá no se crean, solo se referencian.
 - Los clientes son empresas y pymes de la Región del Biobío.
 
+- ### Historia de Usuario 3 — Registrar una oportunidad comercial (Prioridad: P1)
+
+**Identificador:** HU-03  
+**Actor principal:** Ejecutivo de ventas  
+**Módulo:** Customer Relationship Management (CRM)  
+**Estado:** Propuesta para incorporar a la especificación; implementación y pruebas pendientes.
+
+> **Como** ejecutivo de ventas, **quiero** registrar una oportunidad comercial asociada a un cliente, **para** hacer seguimiento de una posible venta de equipamiento industrial.
+
+
+**Justificación de la prioridad P1:** registrar oportunidades es una función central del CRM. Sin ella no existe un registro sobre el cual consultar el avance de las negociaciones ni organizar las posibles ventas.
+
+#### Alcance
+
+Incluye abrir el formulario, seleccionar un cliente existente, ingresar y validar los datos, guardar la oportunidad y comprobar su disponibilidad posterior. El resultado es una oportunidad en estado **Nueva**, vinculada a un único cliente.
+
+La edición, los cambios de etapa, las cotizaciones con partidas o envíos, las alarmas, la facturación y los tickets de posventa corresponden a funcionalidades distintas. El registro de la oportunidad no confirma una venta ni genera una cotización. El equipamiento requerido se describe en el asunto y las notas, sin exigir un catálogo de productos ni una integración con inventario.
+
+El MVP es solo frontend: persiste los datos en el mismo navegador mediante el almacenamiento local previsto por el proyecto. El ejecutivo es un perfil de uso; esta historia no presupone autenticación, permisos reales ni sincronización entre equipos.
+
+#### Precondiciones y dependencias
+
+- Existe al menos un cliente registrado en el CRM; la gestión de clientes es una dependencia funcional.
+- El catálogo de responsables de demostración está disponible.
+- El almacenamiento se puede leer y su estructura es válida. Un problema de almacenamiento debe informarse, sin reiniciar los datos automáticamente.
+- Para probar esta historia de manera independiente se puede precargar un cliente sintético, sin implementar el resto del proceso comercial.
+
+#### Datos del formulario y reglas de validación
+
+| Dato visible | Campo del modelo | Obligatoriedad | Regla |
+|---|---|---|---|
+| Cliente asociado | `entity_id` | Obligatorio | Seleccionar un cliente existente, identificado por nombre y código. Guardar su `entity_id`, no su nombre ni su RUT. |
+| Asunto / equipamiento de interés | `opportunityTitle` | Obligatorio | Texto no vacío después de quitar espacios iniciales y finales; debe describir la posible venta. |
+| Folio de oportunidad | `folio` | Obligatorio | Introducido manualmente; entero mayor que cero. La pareja `series` + `folio` debe ser única en todo el módulo. |
+| Serie | `series` | Automático | Valor fijo `OPP`; no editable al crear y sin validez tributaria. |
+| Fecha de apertura | `startDate` | Obligatoria | Fecha real de calendario, almacenada como `YYYY-MM-DD`. |
+| Fecha estimada de cierre | `endDate` | Obligatoria | Fecha real, igual o posterior a la apertura. Una fecha vencida es válida; no se exige que sea posterior a hoy. |
+| Monto estimado (CLP) | `totalAmount` | Obligatorio | Número finito, entero y mayor o igual que cero. Cero es válido; vacío, negativo, decimal o texto no lo son. |
+| Moneda | `currency` | Automático | Valor fijo `CLP`. |
+| Ejecutivo responsable | `opportunityOwner` | Obligatorio | Selección de una opción válida del catálogo configurado. |
+| Notas / necesidad del cliente | `notes` | Opcional | Texto libre para características del equipo, contexto o último contacto; se muestra como texto, sin ejecutar HTML o scripts. |
+| Etapa comercial | `status` | Automático | Valor inicial `Nueva`. No se permite seleccionar una etapa diferente durante el registro. |
+| Identificador interno | `id` | Automático | Único, generado por el sistema y distinto del folio comercial. |
+| Fecha y hora de creación y actualización | `createdAt`, `updatedAt` | Automático | Marcas de tiempo ISO 8601; ambas representan el momento de creación en el alta inicial. |
+
+**Reglas complementarias:**
+
+- Un cliente puede tener varias oportunidades y cada oportunidad pertenece a exactamente un cliente.
+- Se permite asociar oportunidades a clientes de tipo Prospecto, Activo o Inactivo, conforme al modelo actual; crear una oportunidad no cambia el tipo del cliente.
+- El responsable de la oportunidad se selecciona explícitamente y puede diferir del responsable del cliente.
+- El monto estimado es una expectativa comercial, no un ingreso contable. No se calcula a partir de impuestos, descuentos o cantidades de otros campos del template.
+- No se exige motivo de pérdida al registrar, porque la etapa inicial es Nueva.
+- Dos oportunidades pueden compartir cliente y asunto si sus folios son distintos; la duplicidad se controla por serie y folio.
+- Las validaciones se aplican tanto al formulario como a la capa de dominio/almacenamiento del frontend.
+
+#### Flujo principal
+
+1. El ejecutivo selecciona **Nueva oportunidad** desde el panel o el área Oportunidades.
+2. El sistema presenta el formulario de creación sin datos residuales de otro registro, con serie OPP, moneda CLP y etapa Nueva.
+3. El ejecutivo selecciona el cliente mediante su nombre y código.
+4. Ingresa asunto, folio, fechas, monto estimado y responsable; opcionalmente añade notas.
+5. Selecciona **Guardar oportunidad**.
+6. El sistema valida los campos, la existencia del cliente y la unicidad de la pareja serie/folio.
+7. Si todo es válido, genera los identificadores y marcas de tiempo y persiste el registro completo.
+8. Solo después de guardar correctamente, muestra **“Oportunidad registrada correctamente”** y permite consultar el registro, su cliente y sus datos.
+
+#### Criterios de aceptación
+
+**CA-03-01 — Registro exitoso y asociación correcta**
+
+- **Dado** un cliente existente y un formulario con todos los datos obligatorios válidos,
+- **cuando** el ejecutivo guarda la oportunidad,
+- **entonces** se crea exactamente un registro con los datos ingresados, asociado al `entity_id` seleccionado, con identificador único, serie OPP, moneda CLP, etapa Nueva y marcas de tiempo generadas; se confirma el guardado y el registro queda disponible para consulta.
+
+**CA-03-02 — Campos obligatorios incompletos**
+
+- **Dado** que falta cliente, asunto, folio, fecha de apertura, fecha de cierre, monto o responsable, o que el asunto contiene solo espacios,
+- **cuando** se intenta guardar,
+- **entonces** se identifican los campos que requieren corrección mediante mensajes visibles, se conserva el resto del formulario y no se crea una oportunidad.
+
+**CA-03-03 — Ausencia de clientes**
+
+- **Dado** que no existen clientes registrados,
+- **cuando** el ejecutivo intenta crear una oportunidad,
+- **entonces** se explica que primero debe registrar un cliente, se ofrece acceso a esa acción y se impide guardar una oportunidad sin cliente.
+
+**CA-03-04 — Cliente inexistente o referencia desactualizada**
+
+- **Dado** que el cliente seleccionado ya no existe al momento de guardar o se proporciona un identificador inexistente,
+- **cuando** se valida la oportunidad,
+- **entonces** se rechaza la creación, se informa el problema y se solicita seleccionar un cliente válido, sin generar registros huérfanos ni asociar la oportunidad a otro cliente automáticamente.
+
+**CA-03-05 — Folio válido y único**
+
+- **Dado** un folio vacío, no entero, menor o igual que cero, o una pareja OPP/folio ya registrada para cualquier cliente,
+- **cuando** se intenta guardar,
+- **entonces** se rechaza el registro y se explica el error del folio.
+- **Dado** un cliente con una oportunidad existente,
+- **cuando** se registra otra con un folio válido y diferente,
+- **entonces** se permite el alta aunque el asunto coincida.
+
+**CA-03-06 — Validación del monto**
+
+- **Dado** un monto vacío, negativo, decimal, no numérico o no finito,
+- **cuando** se intenta guardar,
+- **entonces** se rechaza el valor y se solicita un entero no negativo en CLP.
+- **Dado** un monto igual a cero y los demás datos válidos,
+- **cuando** se guarda,
+- **entonces** se acepta el registro y se conserva el cero como monto estimado.
+
+**CA-03-07 — Consistencia de fechas**
+
+- **Dado** una fecha inexistente o una fecha estimada de cierre anterior a la apertura,
+- **cuando** se intenta guardar,
+- **entonces** se rechaza el registro con un mensaje asociado a las fechas.
+- **Dado** fechas reales con cierre igual o posterior a la apertura,
+- **cuando** se guarda con los demás campos válidos,
+- **entonces** se aceptan y se conservan los días ingresados sin desplazamientos por zona horaria, incluso si el cierre ya está vencido.
+
+**CA-03-08 — Responsable válido y etapa inicial**
+
+- **Dado** un responsable ausente o ajeno al catálogo,
+- **cuando** se intenta guardar,
+- **entonces** se exige seleccionar una opción válida.
+- **Dado** un intento de crear la oportunidad con una etapa distinta de Nueva,
+- **cuando** se valida en la capa de dominio/almacenamiento,
+- **entonces** se rechaza el intento; una creación válida siempre empieza en Nueva.
+
+**CA-03-09 — Persistencia y consulta**
+
+- **Dado** un registro guardado correctamente,
+- **cuando** el ejecutivo navega a otra vista y después recarga la aplicación en el mismo navegador y origen, sin borrar su almacenamiento,
+- **entonces** la oportunidad conserva su identificador, cliente, folio y demás datos, y continúa disponible en la consulta de oportunidades o del cliente asociado.
+
+**CA-03-10 — Cancelación y cambios sin guardar**
+
+- **Dado** un formulario modificado,
+- **cuando** el ejecutivo cancela o intenta cambiar de vista,
+- **entonces** se solicita elegir entre continuar editando o descartar los cambios; continuar mantiene los datos y descartar abandona el formulario sin crear registros ni modificar oportunidades existentes.
+
+**CA-03-11 — Error de almacenamiento**
+
+- **Dado** que el almacenamiento está lleno, no disponible o contiene datos corruptos,
+- **cuando** se intenta guardar,
+- **entonces** se informa que no se pudo registrar la oportunidad, no se muestra una confirmación de éxito ni se sobrescriben silenciosamente los datos previos, y los datos ingresados permanecen disponibles en el formulario para corregir o reintentar.
+
+**CA-03-12 — Envío repetido**
+
+- **Dado** un formulario válido,
+- **cuando** el ejecutivo hace doble clic en Guardar o repite el envío de la misma serie y folio,
+- **entonces** existe como máximo una oportunidad persistida con esa pareja y no se duplican registros.
+
+**CA-03-13 — Texto seguro y uso con teclado**
+
+- **Dado** un asunto o notas que contienen etiquetas HTML o texto similar a un script,
+- **cuando** se guardan y consultan,
+- **entonces** se muestran como texto sin ejecutarse.
+- **Dado** un ejecutivo que utiliza solo teclado,
+- **cuando** completa y envía el formulario,
+- **entonces** puede alcanzar los controles, identificar el foco y conocer los campos obligatorios y sus errores mediante etiquetas y mensajes asociados.
+
+**CA-03-14 — Formulario obsoleto por cambios en otra pestaña**
+
+- **Dado** que otra pestaña modifica los datos mientras el formulario permanece abierto,
+- **cuando** la aplicación detecta el cambio del almacenamiento,
+- **entonces** informa que los datos cambiaron y bloquea el guardado obsoleto hasta actualizar la vista, advirtiendo antes de descartar lo ingresado. Esto no implica soporte multiusuario transaccional.
+
+#### Prueba independiente de la historia
+
+Usar exclusivamente datos sintéticos. Precargar un cliente llamado **Industrias Biobío Demo**, código **CLI-DEMO-003**, y el responsable **Ejecutivo A**. Verificar previamente que el folio 3001 no exista.
+
+| Campo | Valor de prueba |
+|---|---|
+| Asunto | Adquisición de compresor industrial para planta de producción |
+| Folio | 3001 |
+| Fecha de apertura | 2026-11-02 |
+| Fecha estimada de cierre | 2026-11-30 |
+| Monto estimado | 8500000 CLP |
+| Responsable | Ejecutivo A |
+| Notas | Cliente solicita evaluar un compresor para ampliar su capacidad productiva. Pendiente precisar características técnicas. |
+
+**Resultado esperado:** se crea una sola oportunidad OPP/3001, asociada al cliente seleccionado y en estado Nueva. Sus datos permanecen al navegar y recargar. Repetir el folio debe fallar. También deben verificarse monto cero, campos vacíos, fechas invertidas, cliente inexistente y cancelación, según los criterios anteriores.
+
+**Meta de uso propuesta:** un usuario puede completar un registro válido en menos de tres minutos desde el formulario vacío, disponiendo de los datos del caso. Esta meta debe medirse; no representa un resultado ya obtenido.
+
+#### Datos y justificación para el modelo entidad-relación
+
+- **Cliente (Entity):** conserva los datos maestros de la empresa compradora.
+- **Oportunidad (Document):** representa una posible venta y contiene los datos definidos en esta historia.
+- **Relación:** Cliente 1 a N Oportunidades; `Document.entity_id` referencia `Entity.entity_id`. No se duplican los datos completos del cliente dentro de cada oportunidad.
+- **Identidad:** el `id` identifica técnicamente el registro; la pareja serie/folio permite reconocerlo comercialmente sin confundirlo con una factura.
+- **Seguimiento:** responsable, fechas, asunto, notas y estado aportan el contexto inicial necesario para continuar la negociación.
+- **Análisis:** el monto puede contribuir a la suma de oportunidades abiertas; no expresa probabilidad de cierre ni ingresos efectivos. No se exige capturar atributos personales o información bancaria.
+
+#### Definición de terminado
+
+- [ ] El formulario y la consulta permiten completar el flujo principal con datos sintéticos.
+- [ ] Se verifican todos los criterios CA-03-01 a CA-03-14 y se documentan los resultados reales.
+- [ ] La validación evita referencias huérfanas y duplicados de serie/folio.
+- [ ] El registro permanece después de navegar y recargar el mismo navegador.
+- [ ] Los errores y cancelaciones no crean registros ni muestran éxitos falsos.
+- [ ] La especificación, el modelo de datos, las tareas y el MER describen los mismos campos y relación.
+- [ ] Se documenta cómo ejecutar y demostrar esta funcionalidad en el frontend.
+
+
 ## Historia de Usuario 6 — Usar terminología comercial consistente (Prioridad: P1)
 
 Como ejecutivo comercial, quiero que las pantallas, formularios, botones y mensajes utilicen los términos cliente y oportunidad de manera consistente, para comprender las operaciones del CRM y distinguir la información de cada empresa de sus posibles ventas.
