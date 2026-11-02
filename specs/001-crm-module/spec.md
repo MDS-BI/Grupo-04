@@ -353,6 +353,26 @@ Usar exclusivamente datos sintéticos. Precargar un cliente llamado **Industrias
 - [ ] La especificación, el modelo de datos, las tareas y el MER describen los mismos campos y relación.
 - [ ] Se documenta cómo ejecutar y demostrar esta funcionalidad en el frontend.
 
+### Historia de Usuario 4 — Gestionar clientes y oportunidades (Prioridad: P1)
+
+Como **ejecutivo comercial**, quiero **actualizar la etapa de una oportunidad comercial**, para **conocer el avance de la negociación y distinguir las ventas pendientes de las ganadas o perdidas**.
+
+**Por qué esta prioridad:** Es necesaria para completar el ciclo comercial del CRM y hacer seguimiento continuo al estado de las ventas.
+
+**Prueba independiente:** Ejecutar transiciones entre etapas de una oportunidad existente y verificar restricciones, persistencia tras recargar y el registro del motivo en caso de pérdida. Esta prueba puede realizarse sin afectar otras historias.
+
+**Escenarios de aceptación:**
+
+1. **Dado** que el usuario edita una oportunidad, **cuando** cambia su etapa, **entonces** permite avanzar de forma secuencial en el flujo *Prospecto → Calificado → Propuesta → Ganado*.
+
+2. **Dado** que una oportunidad está en cualquier etapa abierta, **cuando** el usuario decide cerrarla sin éxito, **entonces** permite marcarla como *Perdido*.
+
+3. **Dado** que se marca una oportunidad como *Perdido*, **cuando** se intenta guardar, **entonces** el sistema solicita obligatoriamente ingresar un motivo de pérdida.
+
+4. **Dado** que se guarda el cambio de etapa, **cuando** se actualiza o recarga la página, **entonces** el sistema conserva el estado modificado.
+
+5. **Dado** un intento de cambio no válido o salto de etapa no permitido, **cuando** se ejecuta la acción, **entonces** el sistema rechaza la transición e indica la restricción.
+ 
 
 ## Historia de Usuario 6 — Usar terminología comercial consistente (Prioridad: P1)
 
