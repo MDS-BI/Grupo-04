@@ -44,19 +44,43 @@ Como ejecutivo comercial, quiero registrar empresas clientes y prospectos con su
 
 ---
 
-### Historia de Usuario 2 - Seguir las oportunidades de venta (Prioridad: P1)
+### Historia de Usuario 2 — Buscar clientes y consultar su ficha (Prioridad: P1)
 
-Como ejecutivo de ventas, quiero crear una oportunidad para un cliente con su monto estimado, fecha de cierre y etapa, para saber cuánta plata está en juego y en qué quedó cada cotización.
+Como ejecutivo de ventas, quiero buscar un cliente por su nombre o código y consultar su ficha, para encontrar rápidamente la información necesaria antes de contactarlo.
 
-**Por qué esta prioridad**: este es el problema que plantea el enunciado. Mientras nadie sepa en qué etapa va cada cotización, la empresa va a seguir perdiendo ventas.
+La búsqueda se realiza con un único criterio que se compara tanto con el nombre como con el código del cliente o prospecto. Los resultados se actualizan automáticamente a medida que el ejecutivo escribe el criterio.
 
-**Prueba Independiente**: se elige un cliente, se crea una oportunidad con monto, fecha y etapa, y queda en la lista de oportunidades de ese cliente.
+**Por qué esta prioridad**: La búsqueda y la consulta de la ficha permiten reutilizar los clientes ya registrados y acceder a su información sin recorrer manualmente la cartera. Es una capacidad necesaria para el trabajo comercial diario.
 
-**Escenarios de Aceptación**:
+**Prueba independiente**: Con clientes previamente registrados, buscar por nombre completo, por una parte del nombre y por código; seleccionar un resultado y comprobar que se muestra su ficha. Verificar los mensajes de "sin criterio" y "sin coincidencias", y confirmar que los datos almacenados no cambian.
 
-1. **Dado** que estoy en la ficha de un cliente, **cuando** creo una oportunidad con monto estimado, fecha de cierre y etapa (Contacto inicial, Negociación, Ganada o Perdida), **entonces** la oportunidad se guarda ligada a ese cliente.
-2. **Dado** que la oportunidad ya existe, **cuando** le cambio la etapa a Ganada o Perdida, **entonces** la lista la muestra con la etapa nueva.
-3. **Dado** que estoy creando una oportunidad, **cuando** pongo un monto negativo o me olvido de elegir el cliente, **entonces** el sistema no deja guardar y muestra el error.
+**Escenarios de aceptación**:
+
+1. **Dado** que existen clientes registrados, **cuando** el ejecutivo busca por el nombre completo de uno de ellos, **entonces** el resultado incluye a ese cliente.
+
+2. **Dado** que existen clientes registrados, **cuando** el ejecutivo busca por una parte del nombre, **entonces** se muestran los clientes cuyos nombres contienen esa parte.
+
+3. **Dado** que existen clientes registrados, **cuando** el ejecutivo busca por el código completo de un cliente, **entonces** se muestra el cliente correspondiente.
+
+4. **Dado** que el ejecutivo introduce un criterio de nombre o código con mayúsculas o minúsculas distintas a las almacenadas, **cuando** busca, **entonces** la búsqueda devuelve las mismas coincidencias.
+
+5. **Dado** que varios clientes coinciden con el criterio, **cuando** el ejecutivo consulta los resultados, **entonces** se muestran todos los clientes coincidentes.
+
+6. **Dado** que la búsqueda produce coincidencias, **cuando** el ejecutivo selecciona un resultado, **entonces** se muestra la ficha del cliente con todos los datos registrados.
+
+7. **Dado** que la búsqueda no produce coincidencias, **cuando** el ejecutivo consulta los resultados, **entonces** se muestra un mensaje claro de que no hay coincidencias.
+
+8. **Dado** que el ejecutivo no ha ingresado ningún criterio, **cuando** abre la búsqueda, **entonces** se muestra un mensaje que indica que debe ingresar un criterio.
+
+9. **Dado** un cliente consultado, **cuando** el ejecutivo vuelve a la búsqueda o recarga la aplicación, **entonces** la información del cliente permanece sin cambios.
+
+10. **Dado** un cliente sin información de contacto principal, **cuando** el ejecutivo abre su ficha, **entonces** se muestra la información disponible del cliente sin bloquear la consulta.
+
+11. **Dado** un prospecto registrado, **cuando** el ejecutivo busca por su nombre o código, **entonces** el prospecto también aparece en los resultados y puede abrirse su ficha.
+
+12. **Dado** un cliente cuyo nombre contiene tildes o diéresis, **cuando** el ejecutivo busca escribiendo esas palabras sin tilde, **entonces** el cliente aparece entre los resultados.
+
+13. **Dado** un cliente con datos registrados, **cuando** el ejecutivo abre su ficha, **entonces** se muestran nombre, código, tipo, responsable comercial, origen de captación, correo, teléfono, contacto principal y fecha de registro; los campos opcionales vacíos se indican como “sin información”.
 
 ---
 
@@ -84,17 +108,24 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema debe permitir registrar un cliente con nombre, correo, teléfono, tipo de cliente (persona o empresa) y fecha de registro.
-- **FR-002**: El sistema no debe guardar un cliente si falta el nombre o el correo, y debe indicar cuál de los dos falta.
+- **FR-001**: El sistema debe permitir registrar un cliente con nombre, código, correo, teléfono, tipo de cliente y fecha de registro.
+- **FR-002**: El sistema no debe guardar un cliente si falta el nombre o el código, y debe indicar cuál de los dos falta.
 - **FR-003**: El sistema debe rechazar un correo que no tenga el formato básico, o sea que le falte el "@" o el dominio.
 - **FR-004**: El sistema debe permitir editar y eliminar clientes, pidiendo confirmación antes de borrar.
-- **FR-005**: El sistema debe permitir crear una oportunidad asociada a un cliente, con monto estimado, fecha de cierre y etapa.
-- **FR-006**: Una oportunidad no puede quedar sin cliente ni sin etapa, y su monto tiene que ser igual o mayor a cero.
-- **FR-007**: El sistema debe permitir cambiar la etapa de una oportunidad entre Contacto inicial, Negociación, Ganada y Perdida, y mostrar la etapa nueva en la lista.
-- **FR-008**: El sistema debe permitir registrar un ticket con cliente, producto, motivo (soporte, reclamo o consulta), descripción, prioridad y estado.
-- **FR-009**: El sistema debe mostrar los tickets de cada cliente y permitir pasarlos de "En proceso" a "Resuelto".
-- **FR-010**: El sistema debe guardar solo los datos de contacto necesarios del cliente y no debe permitir exportar el listado completo, para cuidar la información personal.
-- **FR-011**: El sistema no debe usar la ubicación geográfica del cliente para ordenar ni para priorizar oportunidades y tickets.
+- **FR-005**: El sistema debe permitir buscar clientes por su nombre completo.
+- **FR-006**: El sistema debe permitir buscar clientes por una parte del nombre.
+- **FR-007**: El sistema debe permitir buscar clientes por su código.
+- **FR-008**: La búsqueda no debe distinguir entre mayúsculas y minúsculas.
+- **FR-009**: El sistema debe mostrar los clientes que coincidan con el criterio ingresado.
+- **FR-010**: El sistema debe permitir seleccionar un resultado para consultar la ficha del cliente.
+- **FR-011**: La ficha debe mostrar la información disponible del cliente seleccionado.
+- **FR-012**: El sistema debe mostrar un mensaje claro cuando no existan coincidencias.
+- **FR-013**: El sistema debe mostrar un mensaje cuando no se haya ingresado ningún criterio de búsqueda.
+- **FR-014**: La búsqueda y la consulta no deben modificar ni eliminar información de los clientes.
+- **FR-015**: El sistema debe permitir registrar un ticket con cliente, producto, motivo (soporte, reclamo o consulta), descripción, prioridad y estado.
+- **FR-016**: El sistema debe mostrar los tickets de cada cliente y permitir pasarlos de "En proceso" a "Resuelto".
+- **FR-017**: El sistema debe guardar solo los datos de contacto necesarios del cliente y no debe permitir exportar el listado completo, para cuidar la información personal.
+- **FR-018**: El sistema no debe usar la ubicación geográfica del cliente para ordenar ni para priorizar oportunidades y tickets.
 
 ### Entidades Clave
 
