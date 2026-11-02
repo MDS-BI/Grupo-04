@@ -117,3 +117,22 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 - Por ahora lo usa una persona del equipo a la vez; los permisos por rol quedan para más adelante.
 - Los productos y los empleados ya existen en los otros módulos, así que acá no se crean, solo se referencian.
 - Los clientes son empresas y pymes de la Región del Biobío.
+
+## Historia de Usuario 6 — Usar terminología comercial consistente (Prioridad: P1)
+
+Como ejecutivo comercial, quiero que las pantallas, formularios, botones y mensajes utilicen los términos cliente y oportunidad de manera consistente, para comprender las operaciones del CRM y distinguir la información de cada empresa de sus posibles ventas.
+
+**Por qué esta prioridad:** La terminología comercial permite identificar claramente qué información se registra y qué acción se está realizando. Utilizar cliente y oportunidad evita confusiones con los términos genéricos entidad y documento del módulo base y facilita el uso diario del CRM. 
+
+**Prueba independiente:** Con un perfil configurado que establezca entidad → cliente y documento → oportunidad, un usuario recorre el panel, la gestión de clientes, la gestión de oportunidades y la búsqueda. Verifica que los encabezados, botones, formularios y mensajes emplean los términos comerciales, tanto en singular como en plural. Con una empresa ficticia y una oportunidad vinculada, comprueba que la navegación y los datos guardados mantienen su comportamiento.
+
+**Escenarios de aceptación:**
+1. Dado un perfil CRM que define los términos cliente/clientes y oportunidad/oportunidades, cuando se inicia la aplicación, entonces las etiquetas de dominio visibles se obtienen de esa configuración y utilizan la terminología comercial correspondiente.
+2. Dado que el ejecutivo consulta el panel y la barra lateral, cuando revisa las opciones de navegación, las acciones rápidas y las tarjetas de estadísticas, entonces encuentra etiquetas coherentes como clientes, oportunidades, nuevo cliente y nueva oportunidad, sin referencias a entidades o documentos para esas funciones.
+3. Dado que el ejecutivo abre un formulario de creación o edición, cuando consulta su encabezado, campos y botones de acción, entonces el sistema identifica claramente si está trabajando con un cliente o una oportunidad y utiliza el singular o plural según corresponda.
+4. Dado que una operación genera una confirmación, un error de validación o una solicitud de eliminación, cuando el sistema muestra el mensaje, entonces utiliza el término comercial del registro afectado y explica la acción de forma clara.
+5. Dado que no existen clientes u oportunidades, o que una búsqueda no devuelve coincidencias, cuando se muestra el estado vacío, entonces el mensaje utiliza la terminología CRM e indica cómo continuar, por ejemplo, “No hay clientes registrados” o “No se encontraron oportunidades”.
+6. Dado que el ejecutivo consulta los resultados de búsqueda o el detalle de un cliente, cuando revisa sus oportunidades asociadas, entonces los títulos y etiquetas distinguen al cliente de sus oportunidades y mantienen los mismos términos que las pantallas de gestión.
+7. Dado un cliente guardado con una oportunidad vinculada, cuando el ejecutivo navega entre Panel, clientes, oportunidades y buscar, entonces cada opción abre la vista correspondiente y se conservan los identificadores, los datos y la relación entre ambos registros.
+8. Dado que la terminología CRM está configurada, cuando el usuario recarga la aplicación en el mismo navegador, entonces las pantallas vuelven a mostrar los términos configurados y los registros guardados permanecen disponibles sin modificaciones causadas por el cambio de etiquetas.
+9. Dado que el módulo base se inicia sin mapeos de terminología, cuando se muestran sus pantallas, entonces utiliza los términos predeterminados entidad/entidades y documento/documentos sin errores, conservando el comportamiento de navegación.
