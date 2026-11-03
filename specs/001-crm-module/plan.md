@@ -1,6 +1,6 @@
 # Plan de implementación: módulo CRM
 
-**Rama**: `001-crm-module` | **Fecha**: 2026-11-03 | **Especificación**: [spec.md](spec.md) | **Modelo**: [data-model.md](data-model.md)
+**Feature**: `001-crm-module` | **Fecha**: 2026-11-03 | **Especificación**: [spec.md](spec.md) | **Modelo**: [data-model.md](data-model.md) | **Investigación**: [research.md](research.md) | **Validación**: [quickstart.md](quickstart.md)
 
 ## Resumen
 
@@ -21,7 +21,7 @@ El código base **existe en el historial** del repositorio: `src/` e `index.html
 | Escala de aceptación | 500 clientes y 1000 oportunidades |
 | Restricción | Solo frontend; sin correo real, backend ni sincronización multiusuario |
 | Moneda y calendario | CLP, fechas de calendario local; marcas ISO 8601 |
-| Entregable | MVP frontend + cuatro archivos Speckit + MER + README + demo |
+| Entregable | MVP frontend + seis archivos Speckit (`spec`, `plan`, `research`, `data-model`, `quickstart`, `tasks`) + MER + README + demo |
 
 ## Verificación de la constitución
 
@@ -38,13 +38,41 @@ La constitución del proyecto existe en `.specify/memory/constitution.md`, versi
 
 **Desviaciones**: no se identifican desviaciones deliberadas. Cualquier excepción se documentará aquí antes de implementar.
 
+### Re-evaluación posterior al diseño (Fase 1)
+
+Tras generar `research.md`, `data-model.md`, `contracts/entity-storage.md` y `quickstart.md`, se revisaron los cuatro principios:
+
+| Principio | Resultado del diseño | Estado |
+|---|---|---|
+| I. Code Quality & Maintainability | La separación en `crm-rules.js`, `crm-metrics.js`, `storage.js` y `module-config.js` evita duplicar reglas y mantiene el contrato base. No se introducen abstracciones sin uso. | Pasa el diseño |
+| II. Test-First & Verification | Cada decisión de dominio de `research.md` tiene una prueba unitaria o de integración prevista; el test-first sigue siendo una obligación de implementación. | Pasa el diseño; verificación pendiente |
+| III. User Experience Consistency | `quickstart.md` cubre estados vacíos, mensajes, terminología, navegación y teclado; los criterios de aceptación siguen siendo la fuente de verdad. | Pasa el diseño |
+| IV. Performance & Reliability | La búsqueda en memoria y el recálculo de indicadores son viables para 500/1000 registros; la medición de 500 ms y los escenarios de cuota, JSON corrupto y pestaña obsoleta están en la guía de validación. | Pasa el diseño; medición pendiente |
+
+No se requieren excepciones ni entradas en “Seguimiento de complejidad”. Las pruebas ejecutadas siguen siendo la condición para declarar cumplimiento total.
+
+## Decisiones de investigación (Fase 0)
+
+`research.md` resuelve las decisiones técnicas y sus alternativas. Las que condicionan el diseño son:
+
+- Restaurar el código base desde `dea57da` (y los tests desde `borrador`) antes de modificarlo.
+- Mantener Vite + JavaScript ES2022 sin framework.
+- Persistir en `localStorage` con las claves base, `schemaVersion` explícita y una instantánea validada por escritura.
+- Separar reglas puras (`crm-rules.js`, `crm-metrics.js`) del almacenamiento y compartir la validación entre formulario y persistencia.
+- Tratar las fechas como cadenas `YYYY-MM-DD` locales y el folio como único por `series + folio`.
+- Modelar el ciclo de vida como máquina de estados con estados finales y cascada atómica.
+- Detectar cambios de otra pestaña con el evento `storage` y bloquear guardados obsoletos.
+- Validar con Vitest + jsdom, con enfoque test-first, y renderizar todo texto de forma segura y accesible.
+
 ## Arquitectura y estructura propuesta
 
 ```text
 specs/001-crm-module/
   spec.md
   plan.md
+  research.md
   data-model.md
+  quickstart.md
   tasks.md
   contracts/
     entity-storage.md
@@ -105,7 +133,7 @@ Se usan variables categóricas (tipo, origen, responsable, etapa), fechas y mont
 | Rendimiento | 20 búsquedas con 500/1000 registros; al menos 19 bajo 500 ms; registrar equipo y navegador |
 | Accesibilidad | Recorrido completo con teclado, foco visible, etiquetas y errores asociados |
 | Compilación | Ejecutar los scripts reales de `package.json` (`npm test`, `npm run build`); guardar resultados |
-| Documental | Coherencia de entidades, campos, estados, indicadores y MER entre `spec.md`, `plan.md`, `data-model.md` y el contrato |
+| Documental | Coherencia de entidades, campos, estados, indicadores y MER entre `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md` y el contrato |
 
 Los resultados deben anotarse en la sección “Evidencias y registro de cambios” del `README.md` cuando exista implementación. No se declaran pruebas ejecutadas que no se hayan corrido.
 

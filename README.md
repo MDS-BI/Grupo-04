@@ -143,7 +143,9 @@ La parte técnica se desarrolla con asistencia de IA, conforme al feedback del c
 
 - [Especificación](specs/001-crm-module/spec.md)
 - [Plan](specs/001-crm-module/plan.md)
+- [Investigación técnica](specs/001-crm-module/research.md)
 - [Modelo de datos](specs/001-crm-module/data-model.md)
+- [Inicio rápido y validación](specs/001-crm-module/quickstart.md)
 - [Contrato de almacenamiento](specs/001-crm-module/contracts/entity-storage.md)
 - [Checklist](specs/001-crm-module/checklists/requirements.md)
 - [MER (Mermaid, en `data-model.md`)](specs/001-crm-module/data-model.md)

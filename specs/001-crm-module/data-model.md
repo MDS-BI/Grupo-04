@@ -258,6 +258,8 @@ Agregar tablas `Usuario`, `Contacto` y `Actividad` cuando exista backend, con au
 | Documento | Qué aporta |
 |---|---|
 | `spec.md` | Historias, criterios de aceptación, FR, NFR y SC |
-| `plan.md` | Arquitectura, estrategia, cronograma y validación |
+| `plan.md` | Arquitectura, estrategia técnica y validación |
+| `research.md` | Decisiones técnicas, justificación y alternativas |
+| `quickstart.md` | Escenarios ejecutables de validación de punta a punta |
 | `contracts/entity-storage.md` | Contrato de almacenamiento y perfil CRM |
 | `README.md` | Integrantes, ejecución, pruebas y evidencias |
