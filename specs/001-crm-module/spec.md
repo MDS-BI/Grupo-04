@@ -149,7 +149,7 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 - Los productos y los empleados ya existen en los otros módulos, así que acá no se crean, solo se referencian.
 - Los clientes son empresas y pymes de la Región del Biobío.
 
-- ### Historia de Usuario 3 — Registrar una oportunidad comercial (Prioridad: P1)
+- ### Historia de Usuario 4 — Registrar una oportunidad comercial (Prioridad: P1)
 
 **Identificador:** HU-03  
 **Actor principal:** Ejecutivo de ventas  
@@ -353,7 +353,7 @@ Usar exclusivamente datos sintéticos. Precargar un cliente llamado **Industrias
 - [ ] La especificación, el modelo de datos, las tareas y el MER describen los mismos campos y relación.
 - [ ] Se documenta cómo ejecutar y demostrar esta funcionalidad en el frontend.
 
-### Historia de Usuario 4 — Gestionar clientes y oportunidades (Prioridad: P1)
+### Historia de Usuario 5 — Gestionar clientes y oportunidades (Prioridad: P1)
 
 Como **ejecutivo comercial**, quiero **actualizar la etapa de una oportunidad comercial**, para **conocer el avance de la negociación y distinguir las ventas pendientes de las ganadas o perdidas**.
 
