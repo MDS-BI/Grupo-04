@@ -1,34 +1,50 @@
-# Lista de Verificación de Calidad de la Especificación: Módulo Base de Software de Planificación de Recursos Empresariales (ERP)
+# Lista de verificación de calidad de la especificación: Módulo CRM
 
-**Propósito**: Validar la completitud y calidad de la especificación antes de proceder a la planificación
-**Creada**: 2026-07-08
-**Funcionalidad**: [Enlace a spec.md](spec.md)
+**Propósito**: validar la completitud y calidad de `spec.md` antes de planificar e implementar.
+**Creada**: 2026-11-03
+**Funcionalidad**: [spec.md](../spec.md)
+**Estado**: En revisión
 
-## Calidad del Contenido
+## Calidad del contenido
 
-- [x] Sin detalles de implementación (lenguajes, frameworks, APIs)
-- [x] Enfocada en el valor para el usuario y las necesidades del negocio
-- [x] Escrita para partes interesadas no técnicas
-- [x] Todas las secciones obligatorias completadas
+- [x] La especificación está enfocada en el valor para el usuario y las necesidades del negocio.
+- [x] Está escrita para partes interesadas no técnicas en las historias y criterios de aceptación.
+- [x] Todas las secciones obligatorias están completas.
+- [ ] Los criterios de aceptación no contienen detalles de implementación.
+  - **Nota**: el curso solicita una parte técnica por historia. Para compatibilizar ambos requisitos, los detalles técnicos están separados en “Notas técnicas” y en el “Anexo técnico”; los CA siguen siendo funcionales.
+- [x] Las notas técnicas están identificadas como anexo y no reemplazan los CA.
 
-## Completitud de los Requisitos
+## Completitud de los requisitos
 
-- [x] No quedan marcadores [NEEDS CLARIFICATION]
-- [x] Los requisitos son comprobables y sin ambigüedades
-- [x] Los criterios de éxito son medibles
-- [x] Los criterios de éxito son agnósticos a la tecnología (sin detalles de implementación)
-- [x] Todos los escenarios de aceptación están definidos
-- [x] Los casos límite están identificados
-- [x] El alcance está claramente delimitado
-- [x] Dependencias y suposiciones identificadas
+- [x] No quedan marcadores `[NEEDS CLARIFICATION]`.
+- [x] Los requisitos funcionales son comprobables y trazables a historias y criterios.
+- [x] Los criterios de éxito son medibles y tienen protocolo de medición.
+- [x] Los criterios de éxito son agnósticos a la tecnología.
+- [x] Todos los escenarios de aceptación están definidos.
+- [x] Los casos límite están identificados.
+- [x] El alcance está delimitado: MVP P1 y tickets P2.
+- [x] Las dependencias y suposiciones están identificadas.
+- [x] Los requisitos no funcionales están definidos (accesibilidad, rendimiento, persistencia, privacidad y seguridad de renderizado).
 
-## Preparación de la Funcionalidad
+## Preparación de la funcionalidad
 
-- [x] Todos los requisitos funcionales tienen criterios de aceptación claros
-- [x] Los escenarios de usuario cubren los flujos principales
-- [x] La funcionalidad cumple los resultados medibles definidos en los Criterios de Éxito
-- [x] No hay filtración de detalles de implementación en la especificación
+- [x] Todos los requisitos funcionales tienen criterios de aceptación o referencia a una historia.
+- [x] Los escenarios de usuario cubren los flujos principales.
+- [ ] La funcionalidad cumple los resultados medibles definidos en los criterios de éxito.
+  - **Nota**: pendiente de medir con la versión integrada; los SC son metas, no resultados obtenidos.
+- [ ] No hay filtración de detalles de implementación en los criterios de aceptación.
+  - **Nota**: algunos CA nombran campos del modelo (`entity_id`, `targetDate`, `lossReason`, `ModuleConfig`) para mantener la trazabilidad. Se acepta como desviación consciente y se revisará al cerrar la especificación.
+- [x] La especificación, el plan y el modelo de datos usan el mismo ciclo de vida y los mismos nombres de campo.
+- [x] El modelo de datos define cliente, oportunidad y ticket (P2), con claves y restricciones.
+- [x] El contrato de almacenamiento distingue el comportamiento base del perfil CRM.
+
+## Pendientes conocidos
+
+- [ ] `tasks.md` debe regenerarse desde las historias y requisitos; el equipo lo hará por su cuenta.
+- [ ] Los nombres de los integrantes deben completarse en la tabla de organización por integrante.
+- [ ] La versión integrada debe ejecutar `npm test` y `npm run build` y registrar los resultados reales.
+- [ ] El diagrama Mermaid de `data-model.md` debe coincidir con las tablas de entidades y relaciones.
 
 ## Notas
 
-- La especificación está lista para la planificación y la implementación.
+La especificación está en revisión. No se declara “lista para implementación” hasta que `tasks.md` exista como grafo trazable y la versión integrada tenga evidencia de pruebas.

@@ -10,7 +10,7 @@
 
 Una empresa que vende insumos a otras empresas necesita reunir los datos de sus clientes, saber quién atiende cada cuenta y dar seguimiento a sus posibles ventas. Al depender de planillas y anotaciones separadas puede duplicar clientes, olvidar contactos y perder visibilidad sobre negociaciones abiertas.
 
-El MVP propuesto centraliza clientes y oportunidades, asigna responsables y permite consultar próximas fechas de contacto e indicadores descriptivos. La empresa de referencia es **Comercial Andina Demo**, una empresa ficticia B2B utilizada únicamente para concretar el diseño. No se afirma que este caso haya sido investigado ni validado con una empresa real.
+El MVP propuesto centraliza clientes y oportunidades, asigna responsables y permite consultar próximas fechas de contacto e indicadores descriptivos. El caso de diseño es genérico y usa únicamente datos sintéticos. No se afirma que este caso haya sido investigado ni validado con una empresa real.
 
 ## Cliente, usuarios y alcance del compromiso
 
@@ -96,7 +96,7 @@ Como **desarrollador**, quiero declarar nombre, etiquetas, campos y estados en m
 
 **Escenarios de aceptación**:
 
-1. **Dado** el perfil CRM válido, **cuando** inicio la aplicación, **entonces** se muestra CRM — Comercial Andina Demo.
+1. **Dado** el perfil CRM válido, **cuando** inicio la aplicación, **entonces** se muestra CRM — Clientes y Oportunidades.
 2. **Dado** una clave personalizada que colisiona con un campo base, **cuando** cargo la configuración, **entonces** se informa del conflicto sin sobrescribir datos.
 3. **Dado** el módulo base sin perfil, **cuando** lo inicio, **entonces** continúa disponible su comportamiento genérico de respaldo.
 

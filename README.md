@@ -1,68 +1,134 @@
-FALTA MODIFICAR PARA AGREGAR INTEGRANTES Y DESCRIPCION DEL MODULO
+# CRM — Clientes y Oportunidades
 
-# ERP Software Base Module (Vite + Vanilla JS)
+Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades y consultar un panel con indicadores descriptivos. Los tickets de soporte son P2 y se implementan en la segunda iteración.
 
-Minimal single-page app serving as an Enterprise Resource Planning (ERP) software base module. It provides the common foundation for building custom ERP modules: master data management (Entities) and linked transactional documents (Documents) with create/edit/delete/search, validation, and browser localStorage persistence — using Vite and vanilla HTML, CSS, and JavaScript.
+> **Estado**: documentación en revisión. El código base se restaurará desde el commit `dea57da` (`src/` e `index.html`) y los tests base desde la rama `borrador`. La primera versión integrada de prueba se registra en la sección de evidencias.
 
-The user interface is fully in **Spanish** (default terms: Entidad / Documento; module name: Módulo Base ERP), including labels, validation messages, empty states, and dialogs.
+## Integrantes
 
-Entities carry standard ERP master-data fields (name, code, tax ID, email, phone, address, category, target date, credit limit, payment terms). Documents use series + folio numbering and carry a monetary breakdown (subtotal, discount, tax, total), currency, payment terms, notes, quantity, dates, and status.
+| Integrante | Rol | Historias asignadas |
+|---|---|---|
+| `[completar]` | Documentación / ajustes | `[completar]` |
+| `[completar]` | Implementación | `[completar]` |
+| `[completar]` | Implementación | `[completar]` |
+| `[completar]` | Pruebas / demo | `[completar]` |
+| `[completar]` | Pruebas / demo | `[completar]` |
+| `[completar]` | Coordinación | `[completar]` |
 
-The app presents itself as a coherent ERP workspace:
+Agregar o quitar filas según la cantidad real de integrantes. La asignación por historia está en `specs/001-crm-module/spec.md`, sección “Organización por integrante”.
 
-- **Workspace shell** — every screen lives inside a branded chrome: a top bar with a logo (an SVG monogram derived from the module name) and module name, plus a persistent sidebar of module buttons (Panel, Entidades, Documentos, Búsqueda). The active module is highlighted (`aria-current="page"`), and the sidebar collapses to an icon rail on narrow viewports.
-- **Home dashboard** — the entry screen offers quick-action buttons for key ERP tasks (new entity, new document, open management areas, find records) and live statistic cards showing record counts.
-- **Design tokens** — styling is driven by CSS custom properties in `src/styles.css`, so branding changes apply globally.
+## Problema y alcance
 
-## Setup
+La empresa vende equipos industriales a otras empresas de la Región del Biobío y pierde ventas porque las cotizaciones quedan repartidas entre correos y planillas. El CRM centraliza clientes, oportunidades y seguimiento. Es una demo con datos sintéticos: no hay backend, autenticación ni permisos reales.
 
-Install dependencies and run the dev server:
+- **P1**: clientes, oportunidades, búsqueda, ciclo de vida, panel, terminología y persistencia.
+- **P2**: tickets de soporte.
+- **Fuera del MVP**: correo real, campañas, facturación, cotizaciones con partidas, predicción y sincronización multiusuario.
+
+## Estructura del repositorio
+
+```text
+specs/001-crm-module/
+  spec.md
+  plan.md
+  data-model.md
+  tasks.md
+  contracts/entity-storage.md
+  checklists/requirements.md
+src/
+  main.js
+  app.js
+  storage.js
+  module-config.js
+  crm-rules.js
+  crm-metrics.js
+  styles.css
+  components/
+tests/
+  unit/
+  integration/
+```
+
+## Requisitos
+
+- Node.js y npm.
+- Navegador moderno.
+
+## Instalación y ejecución
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 (or the URL Vite prints).
+Abrir la URL que imprime Vite (por defecto `http://localhost:5173`).
 
-## Tests
-
-Run the full test suite (unit + integration) with:
+## Pruebas y build
 
 ```bash
 npm test
-```
-
-Or a one-off run without watch mode:
-
-```bash
 npx vitest run
+npm run build
 ```
 
-## Building Custom Modules
+Registrar en la sección de evidencias la fecha, el comando y el resultado real. No declarar pruebas que no se hayan ejecutado.
 
-Custom ERP modules built on this base define:
+## Configuración del módulo
 
-- What an **Entity** represents (e.g., customer, product, asset) plus domain-specific fields.
-- What a **Document** represents (e.g., order, invoice, contract).
-- Module-specific labels and validation rules.
+Toda la adaptación vive en `src/module-config.js`:
 
-The base module handles identity generation, timestamps, referential integrity between entities and documents, cascade deletion, navigation, and search. See `specs/001-erp-base-module/` for the full specification.
+- `moduleName`: `CRM — Clientes y Oportunidades`.
+- `labels`: Cliente/Clientes y Oportunidad/Oportunidades.
+- `customFields`: `contactName`, `accountOwner`, `acquisitionSource`, `opportunityTitle`, `opportunityOwner`, `lossReason`.
+- `statusLifecycle`: Nueva → Contactada → Propuesta → Negociación → Ganada / Perdida.
+- `theme.accentColor`: `#0F766E`.
 
-## Tailoring via Configuration
+Catálogos: tipo de cliente (Prospecto, Activo, Inactivo), responsables (Ejecutivo A, Ejecutivo B), orígenes (Sitio web, Referido, Contacto directo, Otro) y prioridades de ticket (Alta, Media, Baja). El detalle está en `specs/001-crm-module/data-model.md`.
 
-All tailoring lives in one place: the `userConfig` object at the top of `src/module-config.js`. Developers edit this single export; no core code changes are required. Available knobs:
+## Persistencia
 
-- `moduleName` — display name shown in the top bar, dashboard, and document title; also derives the logo monogram.
-- `labels` — rename Entity/Document terms across every screen, including sidebar buttons, quick actions, forms, and messages. Spanish articles and agreements (el/la, seleccionado/a) are derived from the first word of each configured term.
-- `customFields` — declare extra fields per record type with `target` (`entity` or `document`), `key`, `label`, `type` (`text`, `number`, `date`, or `select`), optional `required`, and `options` for selects. Keys must not collide with base field names (see `specs/001-erp-base-module/data-model.md`). Values persist alongside records and appear in search results.
-- `statusLifecycle` — restrict document statuses to a configured list of `statuses` with permitted `transitions` between them. Without it, status stays a free-form field.
-- `theme.accentColor` — a hex color (e.g., `"#0f62fe"`) applied across the shell as highlights and primary controls. Invalid values fall back to the default.
+- `erp_base_module:entities`: clientes.
+- `erp_base_module:documents`: oportunidades.
+- `erp_base_module:tickets`: tickets (P2, propuesto).
+- `erp_base_module:schemaVersion`: versión de esquema (propuesto).
 
-If the configuration is invalid (unknown types, bad keys, transitions referencing unknown statuses, non-hex accent colors), the app shows the problems in a banner and falls back to defaults instead of breaking.
+Los datos viven en el `localStorage` del navegador. Borrar el perfil del navegador elimina la persistencia. No hay respaldo central ni acceso simultáneo.
 
-## Notes
+## Demo
 
-- Data is persisted to `localStorage` under the keys `erp_base_module:entities` and `erp_base_module:documents`.
-- Deleting an entity also deletes its documents (cascade).
-- This project intentionally uses vanilla HTML, CSS, and JavaScript for simplicity.
+Datos sintéticos sugeridos:
+
+| Dato | Valor |
+|---|---|
+| Cliente | Empresa Demo 1 |
+| Código | CLI-DEMO-003 |
+| Tipo | Prospecto |
+| Responsable | Ejecutivo A |
+| Origen | Referido |
+| Oportunidad | Adquisición de compresor industrial |
+| Folio | 3001 |
+| Fechas | 2026-11-02 → 2026-11-30 |
+| Monto | 8.500.000 CLP |
+
+Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → volver al panel → recargar. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente y cancelación.
+
+## Evidencias y registro de cambios
+
+| Fecha | Cambio | Comando / evidencia | Resultado |
+|---|---|---|---|
+| 2026-11-03 | Consolidación documental y modelo de datos | Revisión de `spec.md`, `plan.md`, `data-model.md` | Pendiente de validación del equipo |
+| Pendiente | Restauración del código base | `npm test`, `npm run build` | Pendiente |
+| Pendiente | Primera versión integrada | Demo y pruebas | Pendiente |
+
+## Uso de IA
+
+La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso. Registrar qué se generó con IA, qué se revisó manualmente y qué se verificó con pruebas. No se inventan reuniones, aportes, pruebas ni validación empresarial.
+
+## Documentación
+
+- [Especificación](specs/001-crm-module/spec.md)
+- [Plan](specs/001-crm-module/plan.md)
+- [Modelo de datos](specs/001-crm-module/data-model.md)
+- [Contrato de almacenamiento](specs/001-crm-module/contracts/entity-storage.md)
+- [Checklist](specs/001-crm-module/checklists/requirements.md)
+- [MER (Mermaid, en `data-model.md`)](specs/001-crm-module/data-model.md)
