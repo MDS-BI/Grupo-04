@@ -40,11 +40,11 @@
 
 ## Pendientes conocidos
 
-- [ ] `tasks.md` debe regenerarse desde las historias y requisitos; el equipo lo hará por su cuenta.
+- [x] `tasks.md` regenerado desde las historias y requisitos, con T069 (usabilidad).
 - [ ] Los nombres de los integrantes deben completarse en la tabla de organización por integrante.
 - [ ] La versión integrada debe ejecutar `npm test` y `npm run build` y registrar los resultados reales.
 - [ ] El diagrama Mermaid de `data-model.md` debe coincidir con las tablas de entidades y relaciones.
 
 ## Notas
 
-La especificación está en revisión. No se declara “lista para implementación” hasta que `tasks.md` exista como grafo trazable y la versión integrada tenga evidencia de pruebas.
+La especificación está en revisión. `tasks.md` ya existe como grafo trazable; no se declara “lista para implementación” hasta que la versión integrada tenga evidencia de pruebas.

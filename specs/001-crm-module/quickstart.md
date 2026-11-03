@@ -60,12 +60,13 @@ Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fe
 
 1. Con al menos tres clientes registrados, buscar por nombre completo, por una parte del nombre y por código.
 2. Repetir la búsqueda cambiando mayúsculas y minúsculas y omitiendo tildes en un nombre que las tenga.
-3. Aplicar filtros de tipo, responsable y origen; comprobar que se combinan con AND y que existe una acción para limpiarlos.
-4. Abrir la búsqueda sin criterio y luego buscar un texto inexistente.
-5. Abrir la ficha de un cliente con y sin contacto principal.
-6. Anotar el contenido almacenado antes y después de buscar y abrir fichas.
+3. Buscar por el asunto y por el folio de una oportunidad; comprobar que el resultado aparece en la sección de oportunidades con su cliente vinculado.
+4. Aplicar filtros de tipo, responsable y origen; comprobar que se combinan con AND y que existe una acción para limpiarlos.
+5. Abrir la búsqueda sin criterio y luego buscar un texto inexistente.
+6. Abrir la ficha de un cliente con y sin contacto principal.
+7. Anotar el contenido almacenado antes y después de buscar y abrir fichas.
 
-**Resultado esperado**: se muestran todos los coincidentes; aparecen los mensajes “Ingresa un criterio” y “Sin coincidencias”; los campos opcionales vacíos se muestran como “sin información” y la fecha de próximo contacto como “Sin programar”; la búsqueda y la consulta no modifican el almacenamiento.
+**Resultado esperado**: se muestran todos los coincidentes; los resultados de clientes y oportunidades se distinguen y la oportunidad muestra su cliente vinculado; aparecen los mensajes “Ingresa un criterio” y “Sin coincidencias”; los campos opcionales vacíos se muestran como “sin información” y la fecha de próximo contacto como “Sin programar” o el estado correspondiente; la búsqueda y la consulta no modifican el almacenamiento.
 
 ## Escenario 3 — Registrar una oportunidad
 
@@ -102,15 +103,17 @@ Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fe
 1. Abrir la oportunidad OPP/3001 y avanzar: Nueva → Contactada → Propuesta → Negociación → Ganada.
 2. Crear otra oportunidad y marcarla **Perdida** sin motivo; confirmar el rechazo.
 3. Repetir la pérdida con un motivo no vacío; confirmar que se guarda.
-4. Intentar un salto no permitido (por ejemplo, Nueva → Ganada) y reabrir una oportunidad Ganada o Perdida.
+4. Intentar un salto no permitido (por ejemplo, Nueva → Ganada o Propuesta → Ganada) y reabrir una oportunidad Ganada o Perdida.
 5. Editar asunto, fechas, monto, responsable, notas o folio conservando el estado final.
 6. Eliminar una oportunidad con confirmación y cancelar en otro intento.
 
 **Resultado esperado**: solo se aceptan las transiciones declaradas; `lossReason` es obligatorio al pasar a Perdida; Ganada y Perdida son finales y no se reabren; editar conserva `id`, `entity_id` y la unicidad del folio; eliminar una oportunidad no elimina al cliente y cancelar no modifica datos.
 
-## Escenario 5 — Consultar el panel
+## Escenario 5 — Consultar el panel (P2)
 
 **Objetivo**: comprobar `US-07`, `FR-024`, `CA-07-01` a `CA-07-08`.
+
+**Alcance**: segunda iteración; no bloquea el MVP P1.
 
 1. Abrir el panel con almacenamiento vacío.
 2. Crear dos oportunidades abiertas por 100000 y 200000 CLP y una ganada por 50000 CLP.
@@ -155,16 +158,23 @@ Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fe
 | Varias pestañas | Abrir dos pestañas, modificar en una y guardar en la otra | Aviso y bloqueo del guardado obsoleto hasta actualizar |
 | Seguridad de renderizado | Guardar asunto o notas con etiquetas HTML o texto tipo script | Se muestran como texto, sin ejecutarse |
 | Accesibilidad | Recorrer formularios, listas y mensajes solo con teclado | Controles alcanzables, foco visible, etiquetas y errores asociados |
+| Contraste | Revisar texto normal y controles sobre el fondo | Contraste suficiente; si se declara WCAG AA, verificar 4.5:1 en texto normal y 3:1 en texto grande/UI |
+| Compatibilidad | Probar en los navegadores declarados y en una pantalla estrecha | La interfaz funciona en al menos Chrome y Firefox actuales; registrar los navegadores realmente usados |
 | Rendimiento | Cargar 500 clientes y 1000 oportunidades; medir 20 búsquedas | Al menos 19 de 20 bajo 500 ms; registrar navegador y equipo |
 | Referencias huérfanas | Eliminar un cliente con oportunidades y tickets, y cancelar | Cascada atómica solo con confirmación; cancelar no modifica nada |
 | Terminología | Revisar todas las vistas y estados vacíos | Cliente/Clientes y Oportunidad/Oportunidades, con fallback genérico |
+
+## Medición de usabilidad (opcional)
+
+Si el equipo ejecuta el protocolo de `plan.md`, usar 5 participantes y 4 tareas (crear, editar, eliminar y buscar). Registrar participantes anonimizados, tiempos de SC-001 a SC-003 y tasa de éxito de SC-004. Si no se realiza, declararlo como pendiente en `README.md`; no inventar participantes ni resultados.
 
 ## Criterios de salida
 
 - `npm test -- --run` termina sin fallos y el resultado queda registrado.
 - `npm run build` termina correctamente y el resultado queda registrado.
-- Los escenarios 1 a 6 se ejecutan con datos sintéticos y sus resultados se anotan en `README.md`.
-- Los tickets del escenario 7 se validan al cerrar la segunda iteración.
+- Para el MVP P1 se ejecutan los escenarios 1, 2, 3, 4 y 6 con datos sintéticos y sus resultados se anotan en `README.md`.
+- El escenario 5 (panel) y el escenario 7 (tickets) se validan al cerrar la segunda iteración.
+- La medición de usabilidad se ejecuta o se declara explícitamente como pendiente.
 - Cualquier requisito no verificado se declara como pendiente; no se reporta como cumplido.
 
 ## Referencias

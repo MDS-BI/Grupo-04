@@ -14,8 +14,8 @@ El módulo tiene que resolver un problema bien concreto: hoy las cotizaciones qu
 
 ## Alcance y decisiones de alcance
 
-- **MVP de la primera versión integrada**: clientes, oportunidades, búsqueda, ciclo de vida, panel con indicadores, terminología y persistencia local.
-- **Segunda iteración**: tickets de soporte (P2), que igual quedan especificados aquí y en `data-model.md` para no dejarlos a medias.
+- **MVP de la primera versión integrada (iteración 1, P1)**: clientes, oportunidades, búsqueda, ciclo de vida, terminología y persistencia local.
+- **Segunda iteración (P2)**: tickets de soporte (US-03) y panel con indicadores (US-07), que igual quedan especificados aquí y en `data-model.md` para no dejarlos a medias.
 - **Fuera del MVP**: envío de correos o WhatsApp, automatizaciones externas, campañas, agenda con alarmas, registro estructurado de cada interacción, cotizaciones con partidas, facturación, predicción de ventas, sincronización entre computadores y acceso simultáneo.
 - **Solo frontend**: los datos viven en `localStorage` del mismo navegador. No hay backend, autenticación ni permisos reales.
 - **Datos sintéticos**: la demo usa únicamente empresas, contactos y oportunidades ficticios. No se afirma que el caso haya sido investigado ni validado con una empresa real.
@@ -31,8 +31,8 @@ Cada historia tiene un responsable de documentación y de implementación. Compl
 | US-02 | Buscar clientes y consultar su ficha | P1 | 1 | `[integrante]` | FR-008…FR-012 | CA-02-01…CA-02-17 |
 | US-03 | Registrar tickets de soporte | P2 | 2 | `[integrante]` | FR-025, FR-026 | CA-03-01…CA-03-08 |
 | US-04 | Registrar una oportunidad comercial | P1 | 1 | `[integrante]` | FR-014…FR-019 | CA-04-01…CA-04-14 |
-| US-05 | Gestionar oportunidades y ciclo de vida | P1 | 2 | `[integrante]` | FR-020…FR-023 | CA-05-01…CA-05-11 |
-| US-06 | Usar terminología comercial consistente | P1 | 2 | `[integrante]` | FR-029, FR-030 | CA-06-01…CA-06-12 |
+| US-05 | Gestionar oportunidades y ciclo de vida | P1 | 1 | `[integrante]` | FR-020…FR-023 | CA-05-01…CA-05-11 |
+| US-06 | Usar terminología comercial consistente | P1 | 1 | `[integrante]` | FR-029, FR-030 | CA-06-01…CA-06-12 |
 | US-07 | Consultar el panel CRM | P2 | 2 | `[transversal]` | FR-024 | CA-07-01…CA-07-08 |
 | Transversal | Privacidad, persistencia, seguridad, rendimiento y accesibilidad | P1 | 1–2 | `[transversal]` | FR-027, FR-028, FR-031…FR-036 | NFR-001…NFR-009 |
 
@@ -59,14 +59,14 @@ Como ejecutivo comercial, quiero registrar empresas clientes y prospectos con su
 9. **CA-01-09** — Dado un cliente o prospecto guardado correctamente, cuando el ejecutivo cambia de pantalla y recarga la aplicación en el mismo navegador, entonces el registro conserva sus datos y continúa disponible en la búsqueda.
 10. **CA-01-10** — Dado que el almacenamiento del navegador no permite guardar el registro, cuando el ejecutivo intenta confirmar la creación, entonces el sistema informa que la operación no se completó, conserva los datos del formulario y no muestra una confirmación de éxito.
 11. **CA-01-11** — Dado un cliente existente, cuando el ejecutivo modifica nombre, contacto, tipo, responsable u origen y guarda, entonces se conservan `id` y `entity_id`, se validan los mismos campos obligatorios y no se permite duplicar el código de otro cliente.
-12. **CA-01-12** — Dado un cliente con oportunidades asociadas, cuando el ejecutivo solicita eliminarlo, entonces se informa cuántas oportunidades se eliminarán, se exige confirmación explícita y, si confirma, la eliminación del cliente y de sus oportunidades es atómica; si cancela, nada se modifica.
+12. **CA-01-12** — Dado un cliente con oportunidades o tickets asociados, cuando el ejecutivo solicita eliminarlo, entonces se informa cuántas oportunidades y cuántos tickets se eliminarán, se exige confirmación explícita y, si confirma, la eliminación del cliente, de sus oportunidades y de sus tickets es atómica; si cancela, nada se modifica.
 13. **CA-01-13** — Dado un cliente sin fecha de próximo contacto, cuando el ejecutivo la deja vacía, entonces se permite guardar y el detalle muestra “Sin programar”; cuando ingresa una fecha real, se guarda como `targetDate` y se muestra como “Próximo contacto”.
 14. **CA-01-14** — Dado que la configuración del módulo define los catálogos de tipo, responsable y origen, cuando el ejecutivo abre el formulario, entonces las opciones visibles provienen de `ModuleConfig` y cualquier valor ajeno se rechaza.
 
 **Notas técnicas (implementación asistida por IA)**:
 
 - Campos y tipos: ver `data-model.md`, entidad Cliente. Obligatorios: `name`, `code`, `category`, `accountOwner`, `acquisitionSource`. Opcionales: `email`, `phone`, `contactName`, `description`, `targetDate`. Generados: `id`, `entity_id`, `createdAt`, `updatedAt`.
-- Persistencia: `src/storage.js` con `loadEntities`, `saveEntities`, `addEntity`, `updateEntity`, `deleteEntity` y `deleteDocumentsForEntity`; claves `erp_base_module:entities` y `erp_base_module:documents`.
+- Persistencia: `src/storage.js` con `loadEntities`, `saveEntities`, `addEntity`, `updateEntity`, `deleteEntity`, `deleteDocumentsForEntity`, `deleteTicketsForEntity`; claves `erp_base_module:entities`, `erp_base_module:documents` y `erp_base_module:tickets`.
 - Validación: `src/crm-rules.js` con `normalizeCode`, `validateClient`, `isValidEmail` y `isValidCatalogValue`. La validación se comparte entre formulario y almacenamiento.
 - Interfaz: `src/components/entity-form.js`, `src/components/entity-list.js` y `src/components/search-bar.js`.
 - Configuración: `src/module-config.js` con `labels`, `customFields`, catálogos y `theme`.
@@ -100,7 +100,7 @@ La búsqueda se realiza con un único criterio que se compara tanto con el nombr
 12. **CA-02-12** — Dado un cliente cuyo nombre contiene tildes o diéresis, cuando el ejecutivo busca escribiendo esas palabras sin tilde, entonces el cliente aparece entre los resultados.
 13. **CA-02-13** — Dado un cliente con datos registrados, cuando el ejecutivo abre su ficha, entonces se muestran nombre, código, tipo, responsable comercial, origen de captación, correo, teléfono, contacto principal, próximo contacto y fecha de registro; los campos opcionales vacíos se indican como “sin información”.
 14. **CA-02-14** — Dado un conjunto de resultados, cuando el ejecutivo combina el texto con filtros de tipo, responsable u origen, entonces los filtros se aplican con AND y se ofrece una acción para limpiarlos.
-15. **CA-02-15** — Dado que el ejecutivo busca por asunto o folio de una oportunidad, cuando consulta el resultado, entonces se muestra también el cliente vinculado.
+15. **CA-02-15** — Dado que el ejecutivo busca por asunto o folio de una oportunidad, cuando consulta el resultado, entonces se muestra en la sección de oportunidades con su cliente vinculado, distinguiéndolo de los resultados de clientes.
 16. **CA-02-16** — Dado un cliente con oportunidades, cuando el ejecutivo abre su ficha, entonces ve la lista de oportunidades con asunto, etapa, monto, responsable y notas, sin editar desde la ficha.
 17. **CA-02-17** — Dado que el ejecutivo usa solo teclado, cuando recorre la búsqueda, los resultados y la ficha, entonces puede alcanzar los controles, identificar el foco y leer los mensajes de estado.
 
@@ -145,7 +145,7 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 
 ### Historia de Usuario 4 — Registrar una oportunidad comercial (Prioridad: P1)
 
-**Identificador**: HU-04
+**Identificador**: US-04
 **Actor principal**: Ejecutivo de ventas
 **Módulo**: Customer Relationship Management (CRM)
 **Estado**: En revisión; implementación y pruebas pendientes.
@@ -333,7 +333,7 @@ Usar exclusivamente datos sintéticos. Precargar un cliente llamado **Empresa De
 - Persistencia: `src/storage.js` con `loadDocuments`, `saveDocuments`, `addDocument`, `updateDocument` y `deleteDocument`; `entity_id` debe existir en `erp_base_module:entities`.
 - Interfaz: `src/components/document-form.js` y `src/components/document-list.js`; el cliente se selecciona por nombre y código.
 - Fechas: comparar cadenas `YYYY-MM-DD` construidas con año, mes y día locales; no convertir a UTC.
-- Pruebas: `tests/unit/crm-rules.test.js` y `tests/integration/create-opportunity.test.js`.
+- Pruebas: `tests/unit/opportunity-rules.test.js` y `tests/integration/create-opportunity.test.js`.
 
 #### Datos y justificación para el modelo entidad-relación
 
@@ -372,7 +372,7 @@ Como **ejecutivo comercial**, quiero **editar una oportunidad y actualizar su et
 4. **CA-05-04** — Dado una oportunidad en Negociación, cuando la marca como Ganada, entonces el estado se actualiza y la oportunidad deja de contar como abierta.
 5. **CA-05-05** — Dado una oportunidad en cualquier etapa abierta (Nueva, Contactada, Propuesta o Negociación), cuando el usuario decide cerrarla sin éxito, entonces permite marcarla como Perdida.
 6. **CA-05-06** — Dado que se marca una oportunidad como Perdida, cuando se intenta guardar sin motivo, entonces el sistema exige obligatoriamente un `lossReason` no vacío y no guarda.
-7. **CA-05-07** — Dado un intento de salto no permitido (por ejemplo, Nueva → Ganada) o de reapertura de una oportunidad Ganada o Perdida, cuando se ejecuta la acción, entonces el sistema rechaza la transición en la interfaz y en la capa de almacenamiento, e indica la restricción.
+7. **CA-05-07** — Dado un intento de salto no permitido (por ejemplo, Nueva → Ganada o Propuesta → Ganada) o de reapertura de una oportunidad Ganada o Perdida, cuando se ejecuta la acción, entonces el sistema rechaza la transición en la interfaz y en la capa de almacenamiento, e indica la restricción.
 8. **CA-05-08** — Dado una oportunidad Ganada o Perdida, cuando el usuario edita notas, asunto, fechas, monto o responsable conservando el estado, entonces se permite guardar y no se reabre.
 9. **CA-05-09** — Dado una oportunidad existente, cuando el usuario edita asunto, fechas, monto, responsable, notas o folio, entonces se conservan `id` y `entity_id`, se validan las mismas reglas de US-04 y el folio sigue siendo único.
 10. **CA-05-10** — Dado una oportunidad existente, cuando el usuario solicita eliminarla, entonces se pide confirmación explícita, se elimina solo la oportunidad y el cliente permanece intacto; cancelar no modifica datos.
@@ -455,7 +455,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **Campos vacíos y espacios**: recortar texto; comparar códigos con trim y mayúsculas; no confundir monto cero con campo vacío.
 - **Fechas imposibles**: rechazar, incluso si el navegador deja introducirlas; comparar fechas de calendario sin convertirlas a medianoche UTC.
 - **Contacto opcional**: permitir email y teléfono vacíos y señalar información incompleta en el detalle.
-- **Eliminar un cliente**: confirmar número de oportunidades y aclarar la irreversibilidad en la aplicación; cancelar no muta datos.
+- **Eliminar un cliente**: confirmar número de oportunidades y tickets, aclarar la irreversibilidad en la aplicación; cancelar no muta datos.
 - **Estado final**: mantenerlo al editar otros campos; no ofrecer reapertura en el MVP.
 - **JSON corrupto o cuota agotada**: mostrar error recuperable; no reiniciar automáticamente ni afirmar que se guardó.
 - **Varias pestañas**: detectar cambios con el evento `storage` y solicitar recarga antes de guardar un formulario obsoleto; no prometer concurrencia transaccional.
@@ -474,12 +474,12 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **FR-004**: El sistema DEBE validar el correo cuando esté presente, exigiendo al menos “@” y dominio; si está vacío, el cliente se guarda y el detalle indica contacto incompleto.
 - **FR-005**: El sistema DEBE validar `category`, `accountOwner` y `acquisitionSource` contra los catálogos de `ModuleConfig` y rechazar valores ajenos.
 - **FR-006**: El sistema DEBE permitir editar un cliente conservando `id` y `entity_id`, aplicando las mismas validaciones y la unicidad de código.
-- **FR-007**: El sistema DEBE eliminar un cliente solo con confirmación explícita, informando cuántas oportunidades se eliminarán, y ejecutar la eliminación del cliente y sus oportunidades como una operación atómica; cancelar no modifica nada.
+- **FR-007**: El sistema DEBE eliminar un cliente solo con confirmación explícita, informando cuántas oportunidades y cuántos tickets se eliminarán, y ejecutar la eliminación del cliente, sus oportunidades y sus tickets como una operación atómica; cancelar no modifica nada.
 - **FR-008**: El sistema DEBE buscar clientes con un único criterio comparado con nombre o código, sin distinguir mayúsculas, tildes ni espacios al inicio o al final.
 - **FR-009**: El sistema DEBE mostrar todos los clientes coincidentes, permitir seleccionar uno y consultar su ficha con los campos registrados y los estados “sin información” y “sin programar”.
 - **FR-010**: El sistema DEBE mostrar un mensaje cuando no se haya ingresado criterio y otro cuando no existan coincidencias.
 - **FR-011**: La búsqueda y la consulta DEBEN ser de solo lectura: no modifican ni eliminan clientes, oportunidades ni tickets.
-- **FR-012**: El sistema DEBE permitir filtrar resultados por tipo, responsable y origen, combinados con AND, y ofrecer limpiar filtros; también DEBE buscar oportunidades por asunto o folio mostrando el cliente vinculado.
+- **FR-012**: El sistema DEBE permitir filtrar resultados por tipo, responsable y origen, combinados con AND, y ofrecer limpiar filtros; también DEBE buscar oportunidades por asunto o folio mostrando el cliente vinculado en una sección identificada, sin mezclarlas sin etiqueta con los resultados de clientes.
 - **FR-013**: El sistema DEBE guardar una `targetDate` opcional por cliente y distinguir “Vencido”, “Para hoy”, “Programado” y “Sin programar” usando el día local.
 - **FR-014**: El sistema DEBE registrar oportunidades con cliente existente, `opportunityTitle`, `folio`, `series = OPP`, `startDate`, `endDate`, `totalAmount`, `currency = CLP`, `opportunityOwner`, `status = Nueva` y `notes` opcional; DEBE ofrecer el alta desde el panel, el área Oportunidades y la ficha del cliente.
 - **FR-015**: El sistema DEBE validar la unicidad global de la pareja `series + folio` al crear y editar, excluyendo el registro actual.
@@ -491,7 +491,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **FR-021**: El sistema DEBE aplicar el ciclo `Nueva → Contactada → Propuesta → Negociación → Ganada`, permitir `Perdida` desde cualquier estado abierto y rechazar saltos no declarados en interfaz y almacenamiento.
 - **FR-022**: El sistema DEBE exigir `lossReason` no vacío al pasar a `Perdida` y tratar `Ganada` y `Perdida` como estados finales.
 - **FR-023**: El sistema DEBE impedir reabrir oportunidades cerradas en el MVP y permitir editar otros campos conservando el estado.
-- **FR-024**: El sistema DEBE mostrar los seis indicadores del panel con las fórmulas de `data-model.md`, recalcularlos al volver al panel y después de cada mutación, y no persistir totales derivados.
+- **FR-024**: El sistema DEBE mostrar los seis indicadores del panel con las fórmulas de `data-model.md`, recalcularlos al volver al panel y después de cada mutación, y no persistir totales derivados. “Seguimientos vencidos” y “Contactos para hoy” excluyen clientes `Inactivo`.
 - **FR-025**: El sistema DEBE registrar tickets con cliente, producto, motivo (soporte, reclamo o consulta), descripción, prioridad y estado; `productId` es una referencia externa y `productName` un respaldo de demo.
 - **FR-026**: El sistema DEBE mostrar los tickets por cliente y permitir `En proceso → Resuelto`; no se permite reapertura en el MVP y la prioridad se limita a Alta, Media o Baja.
 - **FR-027**: El sistema DEBE guardar solo los datos de contacto necesarios del cliente y NO DEBE ofrecer exportación del listado completo.
@@ -524,12 +524,12 @@ El detalle de campos, tipos y relaciones está en `data-model.md`.
 
 ## Requisitos no funcionales
 
-- **NFR-001 Accesibilidad**: la interfaz debe poder usarse con teclado, con foco visible, etiquetas asociadas a los campos, errores anunciados y contraste suficiente. Las imágenes decorativas no deben transmitir información sin alternativa textual.
+- **NFR-001 Accesibilidad**: la interfaz debe poder usarse con teclado, con foco visible, etiquetas asociadas a los campos, errores anunciados y contraste suficiente. Como objetivo verificable se adopta WCAG 2.1 AA: 4.5:1 para texto normal y 3:1 para texto grande y controles de interfaz. Las imágenes decorativas no deben transmitir información sin alternativa textual.
 - **NFR-002 Rendimiento**: con 500 clientes y 1000 oportunidades, la búsqueda debe actualizarse en menos de 500 ms en al menos 19 de 20 mediciones; el panel debe recalcular sin bloquear la interfaz. Registrar navegador, equipo y mediciones.
 - **NFR-003 Persistencia y recuperación**: ante cuota agotada, JSON corrupto o pestaña obsoleta, conservar la información previa, mostrar un error recuperable y no reiniciar el almacenamiento automáticamente.
 - **NFR-004 Seguridad de renderizado**: todo texto ingresado se muestra como texto; no se inyecta HTML ni se ejecutan scripts.
 - **NFR-005 Privacidad y minimización**: solo datos de contacto necesarios, sin exportación masiva, sin datos bancarios ni contraseñas, y sin usar ubicación geográfica para ordenar o priorizar.
-- **NFR-006 Compatibilidad**: navegadores modernos de escritorio y móvil; Vite y Vanilla JS según el template base.
+- **NFR-006 Compatibilidad**: navegadores modernos de escritorio y móvil; como mínimo Chrome y Firefox actuales, con Edge y Safari cuando estén disponibles. Vite y Vanilla JS según el template base. Registrar los navegadores realmente probados.
 - **NFR-007 Integridad**: las operaciones de cascada y las transiciones de estado deben ser atómicas a nivel de la instantánea en memoria; no se aceptan escrituras parciales.
 - **NFR-008 Versionado**: el esquema CRM debe tener versión explícita y cualquier migración debe ser visible y confirmada, nunca silenciosa.
 - **NFR-009 Evidencia**: cada iteración debe registrar pruebas ejecutadas, resultados y decisiones; no se declaran pruebas no ejecutadas.
@@ -580,7 +580,7 @@ Esta sección satisface el requerimiento del curso de incluir la parte técnica 
 - Claves documentadas por el template base: `erp_base_module:entities` y `erp_base_module:documents`.
 - Clave propuesta para tickets: `erp_base_module:tickets`.
 - Clave propuesta para versión de esquema: `erp_base_module:schemaVersion`.
-- Operaciones base: `loadEntities`, `saveEntities`, `addEntity`, `updateEntity`, `deleteEntity`, `deleteDocumentsForEntity`; `loadDocuments`, `saveDocuments`, `addDocument`, `updateDocument`, `deleteDocument`; para P2, `loadTickets`, `saveTickets`, `addTicket`, `updateTicket`.
+- Operaciones base: `loadEntities`, `saveEntities`, `addEntity`, `updateEntity`, `deleteEntity`, `deleteDocumentsForEntity`; `loadDocuments`, `saveDocuments`, `addDocument`, `updateDocument`, `deleteDocument`; para P2, `loadTickets`, `saveTickets`, `addTicket`, `updateTicket`, `deleteTicketsForEntity`.
 - La validación de dominio se ejecuta antes de escribir. Si la escritura falla, no se actualiza la instantánea en memoria ni se muestra éxito.
 
 ### Configuración del módulo (`ModuleConfig`)
@@ -592,7 +592,7 @@ Esta sección satisface el requerimiento del curso de incluir la parte técnica 
 | `labels.document` / `documents` | Oportunidad / Oportunidades |
 | `customFields` | `contactName` (entity/text/opcional), `accountOwner` (entity/select/obligatorio), `acquisitionSource` (entity/select/obligatorio), `opportunityTitle` (document/text/obligatorio), `opportunityOwner` (document/select/obligatorio), `lossReason` (document/text/condicional) |
 | `statusLifecycle.statuses` | Nueva, Contactada, Propuesta, Negociación, Ganada, Perdida |
-| `statusLifecycle.transitions` | Nueva → Contactada, Perdida; Contactada → Propuesta, Perdida; Propuesta → Negociación, Ganada, Perdida; Negociación → Ganada, Perdida; Ganada → ∅; Perdida → ∅ |
+| `statusLifecycle.transitions` | Nueva → Contactada, Perdida; Contactada → Propuesta, Perdida; Propuesta → Negociación, Perdida; Negociación → Ganada, Perdida; Ganada → ∅; Perdida → ∅ |
 | `theme.accentColor` | `#0F766E` |
 
 Catálogos de demostración:
@@ -623,7 +623,7 @@ Las fórmulas exactas están en `data-model.md`, sección “Variables e indicad
 
 ### Estrategia de pruebas
 
-- **Unitarias**: `tests/unit/crm-rules.test.js`, `tests/unit/crm-metrics.test.js`, `tests/unit/lifecycle.test.js`, `tests/unit/ticket-rules.test.js`, `tests/unit/storage.test.js`, `tests/unit/module-config.test.js`.
+- **Unitarias**: `tests/unit/crm-rules.test.js`, `tests/unit/opportunity-rules.test.js`, `tests/unit/search.test.js`, `tests/unit/crm-metrics.test.js`, `tests/unit/lifecycle.test.js`, `tests/unit/ticket-rules.test.js`, `tests/unit/storage.test.js`, `tests/unit/module-config.test.js`.
 - **Integración**: `tests/integration/create-edit-delete-client.test.js`, `tests/integration/create-opportunity.test.js`, `tests/integration/opportunity-lifecycle.test.js`, `tests/integration/search-clients.test.js`, `tests/integration/dashboard.test.js`, `tests/integration/relabeling.test.js`, `tests/integration/tickets.test.js`.
 - **Regla test-first**: cada regla de negocio debe tener su prueba antes o junto con la implementación; no se considera terminada una historia sin pruebas que pasen.
 - **Evidencia**: registrar en `plan.md` o en el README la fecha, el comando ejecutado y el resultado real. No declarar pruebas no ejecutadas.
@@ -637,7 +637,7 @@ El curso permite desarrollar la parte técnica con IA. Registrar en el README o 
 - [ ] La especificación, `plan.md`, `data-model.md`, el contrato y el MER describen las mismas entidades, campos y estados.
 - [ ] Las historias P1 tienen criterios de aceptación verificables y pruebas asociadas.
 - [ ] Las validaciones de cliente, oportunidad, folio, fechas, ciclo de vida y tickets se comparten entre interfaz y almacenamiento.
-- [ ] El panel muestra los seis indicadores con las fórmulas acordadas.
+- [ ] El panel (P2) muestra los seis indicadores con las fórmulas acordadas.
 - [ ] La terminología CRM se aplica en todas las vistas y existe fallback genérico.
 - [ ] La versión integrada se ejecuta con `npm test` y `npm run build` y los resultados quedan registrados.
 - [ ] Los tickets P2 están especificados y modelados, aunque se implementen en la segunda iteración.

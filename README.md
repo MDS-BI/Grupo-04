@@ -1,6 +1,6 @@
 # CRM — Clientes y Oportunidades
 
-Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades y consultar un panel con indicadores descriptivos. Los tickets de soporte son P2 y se implementan en la segunda iteración.
+Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades y consultar un panel con indicadores descriptivos. Los tickets de soporte y el panel son P2 y se implementan en la segunda iteración.
 
 > **Estado**: documentación en revisión. El código base se restaurará desde el commit `dea57da` (`src/` e `index.html`) y los tests base desde la rama `borrador`. La primera versión integrada de prueba se registra en la sección de evidencias.
 
@@ -21,8 +21,8 @@ Agregar o quitar filas según la cantidad real de integrantes. La asignación po
 
 La empresa vende equipos industriales a otras empresas de la Región del Biobío y pierde ventas porque las cotizaciones quedan repartidas entre correos y planillas. El CRM centraliza clientes, oportunidades y seguimiento. Es una demo con datos sintéticos: no hay backend, autenticación ni permisos reales.
 
-- **P1**: clientes, oportunidades, búsqueda, ciclo de vida, panel, terminología y persistencia.
-- **P2**: tickets de soporte.
+- **P1**: clientes, oportunidades, búsqueda, ciclo de vida, terminología y persistencia.
+- **P2**: tickets de soporte y panel con indicadores.
 - **Fuera del MVP**: correo real, campañas, facturación, cotizaciones con partidas, predicción y sincronización multiusuario.
 
 ## Cronograma y división del trabajo
@@ -38,15 +38,17 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 |---|---|---|---|
 | A — Ajustes previos | Coherencia de `spec.md`, `plan.md`, `data-model.md`, contrato, checklist y README; regeneración de tareas | `[integrante]` | 1 |
 | B — Incremental | Restauración del código, `ModuleConfig`, reglas, formularios, búsqueda, ciclo de vida, panel y terminología | `[integrante]` | 1–2 |
-| C — P2 | Tickets de soporte: entidad, formulario, estados y pruebas | `[integrante]` | 2–3 |
+| C — P2 | Tickets de soporte y panel con indicadores: entidad, formulario, estados, métricas y pruebas | `[integrante]` | 2–3 |
 
-## Estructura del repositorio
+## Estructura prevista del repositorio
 
 ```text
 specs/001-crm-module/
   spec.md
   plan.md
+  research.md
   data-model.md
+  quickstart.md
   tasks.md
   contracts/entity-storage.md
   checklists/requirements.md
@@ -59,9 +61,20 @@ src/
   crm-metrics.js
   styles.css
   components/
+    custom-fields.js
+    entity-detail.js
+    search-results.js
+    shell.js
+    dashboard.js
+    entity-form.js
+    entity-list.js
+    document-form.js
+    document-list.js
+    search-bar.js
 tests/
   unit/
   integration/
+  performance/
 ```
 
 ## Requisitos
@@ -125,7 +138,7 @@ Datos sintéticos sugeridos:
 | Fechas | 2026-11-02 → 2026-11-30 |
 | Monto | 8.500.000 CLP |
 
-Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → volver al panel → recargar. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente y cancelación.
+Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → recargar. El panel y los tickets se validan en la segunda iteración. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente y cancelación.
 
 ## Evidencias y registro de cambios
 

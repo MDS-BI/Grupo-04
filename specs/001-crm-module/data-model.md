@@ -109,7 +109,7 @@ Se conserva el contrato base de `customFields`: `target`, `key`, `label`, `type`
 |---|---|
 | Nueva | Contactada, Perdida |
 | Contactada | Propuesta, Perdida |
-| Propuesta | Negociación, Ganada, Perdida |
+| Propuesta | Negociación, Perdida |
 | Negociación | Ganada, Perdida |
 | Ganada | Ninguno |
 | Perdida | Ninguno |

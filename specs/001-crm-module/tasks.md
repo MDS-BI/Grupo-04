@@ -72,14 +72,14 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 ### Pruebas de la Historia 1
 
 - [ ] T016 [P] [US1] Escribir `tests/unit/crm-rules.test.js` con `validateClient`, `normalizeCode`, `isValidEmail`, `isValidCatalogValue` y `getTargetDateStatus` (incluye código duplicado con espacios y minúsculas, campos solo con espacios y contacto incompleto)
-- [ ] T017 [P] [US1] Escribir `tests/integration/create-edit-delete-client.test.js`: alta válida, rechazo de duplicados, edición preservando identificadores, eliminación con confirmación y cancelación, y persistencia tras recarga
+- [ ] T017 [P] [US1] Escribir `tests/integration/create-edit-delete-client.test.js`: alta válida, rechazo de duplicados, edición preservando identificadores, eliminación con confirmación (cascada solo de oportunidades en esta fase) y cancelación, y persistencia tras recarga
 
 ### Implementación de la Historia 1
 
 - [ ] T018 [US1] Implementar en `src/crm-rules.js` `validateClient(client, context)`: obligatorios `name`, `code`, `category`, `accountOwner`, `acquisitionSource`; `email` válido si existe; catálogos desde `ModuleConfig`; código único normalizado con exclusión del registro actual; `targetDate` opcional válida
 - [ ] T019 [US1] Implementar `src/components/entity-form.js`: formulario de alta/edición con obligatorios marcados, errores por campo asociados con `aria-describedby`, conservación de lo ingresado y bloqueo de guardado inválido
-- [ ] T020 [US1] Implementar `src/components/entity-list.js`: selector de clientes, resumen (código, tipo, responsable, origen, próximo contacto) y estado vacío “No hay clientes registrados” con acción para crear
-- [ ] T021 [US1] Conectar en `src/app.js` la vista Clientes: alta desde “Nuevo cliente”, edición conservando `id`/`entity_id`, eliminación con confirmación que informa cuántas oportunidades se eliminarán, cascada atómica, mensaje de éxito solo tras persistir y error de almacenamiento con formulario conservado
+- [ ] T020 [US1] Implementar `src/components/entity-list.js`: selector de clientes, resumen (código, tipo, responsable, origen, próximo contacto) con los estados “Vencido”, “Para hoy”, “Programado” y “Sin programar” calculados por `getTargetDateStatus`, y estado vacío “No hay clientes registrados” con acción para crear
+- [ ] T021 [US1] Conectar en `src/app.js` la vista Clientes: alta desde “Nuevo cliente”, edición conservando `id`/`entity_id`, eliminación con confirmación que informa cuántas oportunidades y tickets se eliminarán (si existen), cascada atómica, mensaje de éxito solo tras persistir y error de almacenamiento con formulario conservado
 - [ ] T022 [US1] Hacer que `src/storage.js` invoque `validateClient` antes de `addEntity`/`updateEntity` y rechace códigos duplicados tras `normalizeCode`, sin alterar el registro existente
 
 **Punto de control**: US1 completa y verificable por sí sola.
@@ -95,15 +95,15 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 ### Pruebas de la Historia 2
 
 - [ ] T023 [P] [US2] Escribir `tests/unit/search.test.js` para `searchClients` (nombre y código, insensible a mayúsculas y diacríticos) y `searchOpportunities` (asunto y folio con cliente asociado), incluidos filtros combinados con AND
-- [ ] T024 [P] [US2] Escribir `tests/integration/search-clients.test.js`: resultados múltiples, selección de resultado, ficha con campos vacíos, prospectos incluidos y prueba de no mutación del almacenamiento
+- [ ] T024 [P] [US2] Escribir `tests/integration/search-clients.test.js`: resultados múltiples de clientes y de oportunidades por asunto/folio, cliente vinculado visible, selección de resultado, ficha con campos vacíos, prospectos incluidos y prueba de no mutación del almacenamiento
 
 ### Implementación de la Historia 2
 
 - [ ] T025 [US2] Implementar en `src/crm-rules.js` `searchClients(criterion, filters)` y `searchOpportunities(criterion, filters)` con normalización `trim → minúsculas → sin diacríticos` y filtros AND por `category`, `accountOwner`, `acquisitionSource`
 - [ ] T026 [US2] Implementar `src/components/search-bar.js`: criterio único, actualización automática al escribir, filtros de tipo/responsable/origen y acción “Limpiar filtros”
-- [ ] T027 [US2] Extender `src/components/entity-list.js` para renderizar resultados de búsqueda con los estados “Ingresa un criterio” y “Sin coincidencias”, sin escrituras en `localStorage`
-- [ ] T028 [US2] Crear `src/components/entity-detail.js` con la ficha de cliente (`name`, `code`, `category`, `accountOwner`, `acquisitionSource`, `email`, `phone`, `contactName`, `targetDate`, `createdAt`), “sin información” y “Sin programar”, y la lista de oportunidades asociadas en solo lectura
-- [ ] T029 [US2] Conectar en `src/app.js` la vista Buscar: criterio, resultados, selección, ficha y mensajes de estado, garantizando que buscar y consultar no mutan el almacenamiento
+- [ ] T027 [US2] Crear `src/components/search-results.js` para renderizar resultados de clientes y una sección identificada de oportunidades (asunto, folio, cliente vinculado), con los estados “Ingresa un criterio” y “Sin coincidencias”, sin escrituras en `localStorage`; no cargar esta responsabilidad en `entity-list.js`
+- [ ] T028 [US2] Crear `src/components/entity-detail.js` con la ficha de cliente (`name`, `code`, `category`, `accountOwner`, `acquisitionSource`, `email`, `phone`, `contactName`, `targetDate`, `createdAt`), “sin información”, y “Sin programar” o el estado correspondiente de `targetDate`, y la lista de oportunidades asociadas en solo lectura
+- [ ] T029 [US2] Conectar en `src/app.js` la vista Buscar: criterio, resultados de clientes y oportunidades, selección, ficha y mensajes de estado, garantizando que buscar y consultar no mutan el almacenamiento; definir que al seleccionar una oportunidad se muestra su detalle con el cliente vinculado
 
 **Punto de control**: US1 y US2 funcionan por separado y en conjunto.
 
@@ -140,7 +140,7 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 5
 
-- [ ] T037 [P] [US5] Escribir `tests/unit/lifecycle.test.js`: `canTransition` y `nextStatuses` para toda la matriz, estados finales, `lossReason` obligatorio al entrar en Perdida y rechazo de reapertura
+- [ ] T037 [P] [US5] Escribir `tests/unit/lifecycle.test.js`: `canTransition` y `nextStatuses` para toda la matriz, estados finales, rechazo de `Propuesta → Ganada`, `lossReason` obligatorio al entrar en Perdida y rechazo de reapertura
 - [ ] T038 [P] [US5] Escribir `tests/integration/opportunity-lifecycle.test.js`: avance completo, pérdida con y sin motivo, salto no permitido, edición conservando estado, eliminación con y sin confirmación y persistencia tras recarga
 
 ### Implementación de la Historia 5
@@ -184,7 +184,7 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 ### Pruebas de la Historia 3
 
 - [ ] T048 [P] [US3] Escribir `tests/unit/ticket-rules.test.js`: `validateTicket` (cliente y producto obligatorios, motivo del catálogo, descripción no vacía, prioridad Alta/Media/Baja) y transición `En proceso → Resuelto` sin reapertura
-- [ ] T049 [P] [US3] Escribir `tests/integration/tickets.test.js`: alta, cliente sin producto, prioridad inválida, cambio a Resuelto, rechazo de reapertura, tickets en la ficha del cliente y persistencia tras recarga
+- [ ] T049 [P] [US3] Escribir `tests/integration/tickets.test.js`: alta, cliente sin producto, prioridad inválida, cambio a Resuelto, rechazo de reapertura, tickets en la ficha del cliente, cascada cliente + tickets al eliminar y persistencia tras recarga
 
 ### Implementación de la Historia 3
 
@@ -225,13 +225,14 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 - [ ] T060 [P] Escribir `tests/unit/security-render.test.js`: asunto, notas, descripción y nombre con etiquetas HTML o texto tipo script se muestran como texto (`textContent`), sin ejecución
 - [ ] T061 [P] Escribir `tests/integration/storage-risks.test.js`: cuota agotada, JSON corrupto, versión de esquema incompatible y pestaña obsoleta (evento `storage`) sin éxito falso ni sobrescritura
-- [ ] T062 [P] Escribir `tests/integration/accessibility.test.js`: etiquetas asociadas, `aria-describedby` en errores, foco visible, orden de tabulación y mensajes de estado legibles en formularios y listas
+- [ ] T062 [P] Escribir `tests/integration/accessibility.test.js`: etiquetas asociadas, `aria-describedby` en errores, foco visible, orden de tabulación, contraste suficiente y mensajes de estado legibles en formularios y listas; incluir una comprobación en pantalla estrecha y registrar el navegador usado
 - [ ] T063 [P] Crear `tests/performance/search-performance.test.js` con 500 clientes y 1000 oportunidades, medir 20 búsquedas y registrar navegador, equipo y resultado (meta: 19 de 20 bajo 500 ms) en `README.md`
 - [ ] T064 Auditar y corregir `src/app.js` y `src/components/` para cumplir privacidad y minimización: sin exportación masiva del listado y sin ordenar ni priorizar por ubicación geográfica (`FR-027`, `FR-028`, `NFR-005`)
 - [ ] T065 Actualizar `README.md` con integrantes responsables por historia, instrucciones de ejecución, comandos de prueba, tabla de evidencias y registro del uso de IA
-- [ ] T066 Ejecutar manualmente los escenarios 1 a 7 de `specs/001-crm-module/quickstart.md` con datos sintéticos y anotar resultados reales (incluidos los pendientes) en `README.md`
+- [ ] T066 Ejecutar manualmente los escenarios 1 a 4 y 6 de `specs/001-crm-module/quickstart.md` para el MVP P1; validar los escenarios 5 y 7 al cerrar la segunda iteración. Anotar resultados reales (incluidos los pendientes) en `README.md`
 - [ ] T067 Ejecutar `npm test -- --run` y `npm run build`, corregir fallos y registrar fecha, comando y resultado real en `README.md`
 - [ ] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores
+- [ ] T069 Ejecutar el protocolo de usabilidad de `plan.md`: 5 participantes, 4 tareas (crear, editar, eliminar, buscar) y medición de SC-001 a SC-003; registrar participantes anonimizados, tiempos, tasa de éxito y resultados reales o declarar la medición como pendiente en `README.md` (meta SC-004: al menos 18 de 20 tareas completadas)
 
 ---
 
@@ -294,13 +295,14 @@ No ejecutar en paralelo tareas que editan el mismo archivo: `src/crm-rules.js` (
 
 ## Estrategia de implementación
 
-### MVP primero (US1 + US2)
+### Primer incremento demostrable (US1 + US2)
 
 1. Completar Fase 1 (Setup).
 2. Completar Fase 2 (Foundational) — bloqueante.
 3. Implementar US1 (T016–T022).
 4. **DETENERSE y VALIDAR**: alta, edición, búsqueda mínima y persistencia de clientes.
 5. Demostrar el registro de clientes como primer incremento entregable.
+   El MVP P1 completo se alcanza al cerrar US-06 (Fase 7); US-03 y US-07 son P2.
 
 ### Entrega incremental
 
@@ -310,8 +312,8 @@ No ejecutar en paralelo tareas que editan el mismo archivo: `src/crm-rules.js` (
 4. US4 → oportunidades registradas.
 5. US5 → ciclo de vida comercial completo.
 6. US6 → terminología y accesibilidad consistentes.
-7. US3 → tickets de posventa (segunda iteración).
-8. US7 → panel con indicadores.
+7. US3 → tickets de posventa (P2, segunda iteración).
+8. US7 → panel con indicadores (P2, segunda iteración).
 9. Polish → requisitos transversales, evidencia y documentación.
 
 Cada incremento debe terminar con `npm test -- --run` y `npm run build` en verde, y con el resultado registrado en `README.md`. No se declara una historia terminada sin pruebas ejecutadas.

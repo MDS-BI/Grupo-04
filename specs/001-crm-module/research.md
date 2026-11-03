@@ -76,7 +76,7 @@ Este documento resuelve las decisiones técnicas necesarias antes del diseño. E
 
 ## Ciclo de vida como máquina de estados explícita
 
-**Decisión**: declarar estados y transiciones en `ModuleConfig` y validarlas con `canTransition(from, to)` y `nextStatuses(status)` en `crm-rules.js`. `Ganada` y `Perdida` son finales; `lossReason` es obligatorio solo al entrar en `Perdida`.
+**Decisión**: declarar estados y transiciones en `ModuleConfig` y validarlas con `canTransition(from, to)` y `nextStatuses(status)` en `crm-rules.js`. `Ganada` y `Perdida` son finales; `lossReason` es obligatorio solo al entrar en `Perdida`. El salto `Propuesta → Ganada` no está permitido: se debe pasar por `Negociación`.
 
 **Justificación**: una tabla de transiciones es fácil de probar, mantener y mostrar en la interfaz. Evita saltos no declarados y reaperturas accidentales, y mantiene una única fuente de verdad para la interfaz y el almacenamiento (`FR-021` a `FR-023`).
 

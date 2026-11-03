@@ -17,7 +17,7 @@ El código base **existe en el historial** del repositorio: `src/` e `index.html
 | Persistencia | `localStorage`, una empresa y un perfil de navegador |
 | Claves base | `erp_base_module:entities`, `erp_base_module:documents` (documentadas en el README) |
 | Pruebas | Vitest y jsdom, reutilizando `vitest.config.mjs` |
-| Plataforma | Navegadores modernos; escritorio y adaptación móvil |
+| Plataforma | Navegadores modernos; Chrome y Firefox actuales como mínimo, Edge y Safari si están disponibles; escritorio y adaptación móvil |
 | Escala de aceptación | 500 clientes y 1000 oportunidades |
 | Restricción | Solo frontend; sin correo real, backend ni sincronización multiusuario |
 | Moneda y calendario | CLP, fechas de calendario local; marcas ISO 8601 |
@@ -87,16 +87,20 @@ src/
   components/
     shell.js
     dashboard.js
+    custom-fields.js
     entity-form.js
     entity-list.js
+    entity-detail.js
     document-form.js
     document-list.js
     search-bar.js
+    search-results.js
     ticket-form.js      # P2
     ticket-list.js      # P2
 tests/
   unit/
   integration/
+  performance/
 README.md
 ```
 
@@ -114,7 +118,7 @@ README.md
 2. **Configurar `ModuleConfig`**: etiquetas Cliente/Oportunidad, campos propios, catálogos, color y ciclo de vida. No redeclarar campos base. Conservar el respaldo genérico del cargador.
 3. **Reglas de dominio**: código único, folio `series/folio`, monto, fechas, estado inicial, motivo de pérdida, transiciones, cascada y búsqueda normalizada. Compartirlas entre formularios y almacenamiento.
 4. **Formularios y selectores CRM**: cliente, oportunidad y ticket P2; cascada confirmada, control de cambios sin guardar y validación accesible.
-5. **Búsqueda, detalle y panel**: búsqueda por nombre/código, filtros, detalle con oportunidades asociadas y seis indicadores recalculados.
+5. **Búsqueda, detalle y panel**: búsqueda por nombre/código, filtros, detalle con oportunidades asociadas y seis indicadores recalculados (panel P2, no bloquea el MVP).
 6. **Terminología y accesibilidad**: etiquetas CRM en todas las vistas, estados vacíos, mensajes y navegación por teclado.
 7. **Verificación**: pruebas unitarias, integración, riesgos de almacenamiento, seguridad de renderizado, rendimiento y build. Documentar resultados reales y corregir fallos antes de declarar tareas implementadas.
 
@@ -129,9 +133,9 @@ Se usan variables categóricas (tipo, origen, responsable, etapa), fechas y mont
 | Unitario | Identificadores preservados, unicidad de código y folio, fechas, transiciones, pérdida, cascada, búsqueda normalizada e indicadores |
 | Integración | Crear cliente → oportunidad → avance → búsqueda → panel → recarga; editar y borrar con cancelación; tickets P2 |
 | Riesgos | Cuota agotada y JSON corrupto sin pérdida silenciosa; datos maliciosos como texto; pestaña obsoleta |
-| Usabilidad | 5 participantes y 4 tareas; tiempos y tasa de éxito según SC-001 a SC-010 |
+| Usabilidad | 5 participantes y 4 tareas; tiempos y tasa de éxito según SC-001 a SC-004 (ejecutado en T069) |
 | Rendimiento | 20 búsquedas con 500/1000 registros; al menos 19 bajo 500 ms; registrar equipo y navegador |
-| Accesibilidad | Recorrido completo con teclado, foco visible, etiquetas y errores asociados |
+| Accesibilidad | Recorrido completo con teclado, foco visible, etiquetas, errores asociados y contraste verificable |
 | Compilación | Ejecutar los scripts reales de `package.json` (`npm test`, `npm run build`); guardar resultados |
 | Documental | Coherencia de entidades, campos, estados, indicadores y MER entre `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md` y el contrato |
 
@@ -150,7 +154,7 @@ Los resultados deben anotarse en la sección “Evidencias y registro de cambios
 
 ## Escalabilidad e interconexión
 
-Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. En una etapa posterior, sustituir la persistencia por una API y una base de datos con claves únicas/foráneas, autenticación, permisos, auditoría, respaldo y transacciones. Acordar con otros módulos el contrato de Cliente antes de intercambiar datos. Incorporar Contacto y Actividad cuando se necesiten múltiples interlocutores e historial. Los tickets P2 referencian `productId` de Logística y `assigned_employee_id` de RR.HH. como claves externas, sin crear esos módulos aquí.
+Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. En una etapa posterior, sustituir la persistencia por una API y una base de datos con claves únicas/foráneas, autenticación, permisos, auditoría, respaldo y transacciones. Acordar con otros módulos el contrato de Cliente antes de intercambiar datos. Incorporar Contacto y Actividad cuando se necesiten múltiples interlocutores e historial. En una etapa posterior, los tickets podrán referenciar `productId` de Logística y `assigned_employee_id` de RR.HH. como claves externas; el MVP solo usa `productId` cuando existe y `productName` como respaldo, sin crear esos módulos aquí.
 
 ## Seguimiento de complejidad
 
