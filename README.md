@@ -25,6 +25,21 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 - **P2**: tickets de soporte.
 - **Fuera del MVP**: correo real, campañas, facturación, cotizaciones con partidas, predicción y sincronización multiusuario.
 
+## Cronograma y división del trabajo
+
+| Hito | Fecha | Entregables | Estado |
+|---|---|---|---|
+| Hito 1 — Revisión inicial | 20/10/2026 | Repositorio, MER y plan inicial | Cumplido, con observaciones del profesor |
+| Hito 2 — Especificaciones y tareas | 10/11/2026 | `spec.md` consolidada, `plan.md`, `data-model.md`, contrato y `tasks.md` generado desde las US | En progreso |
+| Hito 3 — Versión integrada de prueba | 17/11/2026 | Código base restaurado, CRM configurado, pruebas ejecutadas y demo interna | Pendiente |
+| Hito 4 — Entrega y presentación | Semana del 30/11/2026 | Repositorio final, README, evidencias y ensayo de 5 minutos | Pendiente |
+
+| Línea | Alcance | Responsable | Iteración |
+|---|---|---|---|
+| A — Ajustes previos | Coherencia de `spec.md`, `plan.md`, `data-model.md`, contrato, checklist y README; regeneración de tareas | `[integrante]` | 1 |
+| B — Incremental | Restauración del código, `ModuleConfig`, reglas, formularios, búsqueda, ciclo de vida, panel y terminología | `[integrante]` | 1–2 |
+| C — P2 | Tickets de soporte: entidad, formulario, estados y pruebas | `[integrante]` | 2–3 |
+
 ## Estructura del repositorio
 
 ```text

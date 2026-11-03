@@ -6,7 +6,7 @@
 
 Adaptar el template ERP del profesor al módulo **CRM — Clientes y Oportunidades** (caso de diseño B2B con datos sintéticos), utilizando Cliente como `Entity` y Oportunidad como `Document`, y dejando Ticket como extensión P2. Se conservan navegación, componentes y persistencia reutilizables. Se configuran identidad, campos adicionales, catálogos y etapas; se añaden únicamente las reglas CRM que la base no ofrece.
 
-El código base **existe en el historial** del repositorio: `src/` e `index.html` están en el commit `dea57da` y fueron eliminados en `0578622` (“update and clean-up 2”). Los tests base están en la rama `borrador`. La primera tarea técnica es restaurarlos, ejecutar la base y registrar qué funciona realmente antes de modificarla. La primera versión integrada de prueba se entrega el **17/11**.
+El código base **existe en el historial** del repositorio: `src/` e `index.html` están en el commit `dea57da` y fueron eliminados en `0578622` (“update and clean-up 2”). Los tests base están en la rama `borrador`. La primera tarea técnica es restaurarlos, ejecutar la base y registrar qué funciona realmente antes de modificarla.
 
 ## Contexto técnico
 
@@ -107,7 +107,7 @@ Se usan variables categóricas (tipo, origen, responsable, etapa), fechas y mont
 | Compilación | Ejecutar los scripts reales de `package.json` (`npm test`, `npm run build`); guardar resultados |
 | Documental | Coherencia de entidades, campos, estados, indicadores y MER entre `spec.md`, `plan.md`, `data-model.md` y el contrato |
 
-Los resultados deben anotarse en la sección de evidencia cuando exista implementación. No se declaran pruebas ejecutadas que no se hayan corrido.
+Los resultados deben anotarse en la sección “Evidencias y registro de cambios” del `README.md` cuando exista implementación. No se declaran pruebas ejecutadas que no se hayan corrido.
 
 ## Seguridad, riesgos y límites
 
@@ -123,40 +123,6 @@ Los resultados deben anotarse en la sección de evidencia cuando exista implemen
 ## Escalabilidad e interconexión
 
 Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. En una etapa posterior, sustituir la persistencia por una API y una base de datos con claves únicas/foráneas, autenticación, permisos, auditoría, respaldo y transacciones. Acordar con otros módulos el contrato de Cliente antes de intercambiar datos. Incorporar Contacto y Actividad cuando se necesiten múltiples interlocutores e historial. Los tickets P2 referencian `productId` de Logística y `assigned_employee_id` de RR.HH. como claves externas, sin crear esos módulos aquí.
-
-## Entrega, cronograma y trazabilidad
-
-| Hito | Fecha | Entregables | Estado |
-|---|---|---|---|
-| Hito 1 — Revisión inicial | 20/10/2026 | Repositorio, MER y plan inicial | Cumplido, con observaciones del profesor |
-| Hito 2 — Especificaciones y tareas | 10/11/2026 | `spec.md` consolidada, `plan.md`, `data-model.md`, contrato y `tasks.md` generado desde las US | En progreso |
-| Hito 3 — Versión integrada de prueba | 17/11/2026 | Código base restaurado, CRM configurado, pruebas ejecutadas y demo interna | Pendiente |
-| Hito 4 — Entrega y presentación | Semana del 30/11/2026 | Repositorio final, README, evidencias y ensayo de 5 minutos | Pendiente |
-
-### Líneas de trabajo
-
-| Línea | Alcance | Responsable | Iteración |
-|---|---|---|---|
-| A — Ajustes previos | Coherencia de `spec.md`, `plan.md`, `data-model.md`, contrato, checklist y README; regeneración de tareas | `[integrante]` | 1 |
-| B — Incremental | Restauración del código, `ModuleConfig`, reglas, formularios, búsqueda, ciclo de vida, panel y terminología | `[integrante]` | 1–2 |
-| C — P2 | Tickets de soporte: entidad, formulario, estados y pruebas | `[integrante]` | 2–3 |
-
-### Registro de cambios y evidencia
-
-| Fecha | Cambio | Evidencia | Documento actualizado |
-|---|---|---|---|
-| 2026-11-03 | Consolidación de `spec.md` y `specs.md`; ciclo de vida canónico; modelo renombrado; plan técnico restaurado | Revisión documental | `spec.md`, `plan.md`, `data-model.md` |
-| 2026-11-03 | Se retira la marca ficticia del módulo y se usa `CRM — Clientes y Oportunidades`; los ejemplos quedan como datos sintéticos genéricos | Revisión documental | `spec.md`, `plan.md`, `data-model.md`, `README.md` |
-| Pendiente | Restauración del código base | `npm test`, `npm run build` | README / este plan |
-| Pendiente | Primera versión integrada | Demo y pruebas | README / este plan |
-
-### Uso de IA
-
-La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso. Cada artefacto generado debe revisarse manualmente y contrastarse con el repositorio. Registrar en el README o en este plan qué se generó con IA, qué se corrigió y qué se verificó con pruebas. No se inventan reuniones, aportes, pruebas ni validación empresarial.
-
-### Defensa de cinco minutos
-
-Problema y usuarios (45 s), demo (2 min 30 s), modelo y reglas (1 min), límites y evolución (45 s).
 
 ## Seguimiento de complejidad
 
