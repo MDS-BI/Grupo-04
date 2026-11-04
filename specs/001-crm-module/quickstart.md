@@ -20,14 +20,28 @@ npm run dev
 
 Abrir la URL que imprime Vite (por defecto `http://localhost:5173`).
 
-Para verificar la compilación y las pruebas:
+Para verificar la compilación y las pruebas (los comandos de calidad se habilitan en T004A):
 
 ```bash
 npm test -- --run
 npm run build
+npm run lint
+npm run format:check
 ```
 
 Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fecha, el comando y el resultado real. No declarar pruebas que no se hayan ejecutado.
+
+## Datos semilla de la demo
+
+Los escenarios 3, 4, 5 y 7 suponen datos que deben crearse una sola vez, antes de la validación manual (T066). No se cargan automáticamente:
+
+| Registro | Valores |
+|---|---|
+| Cliente | **Empresa Demo 1**, código `CLI-DEMO-003`, tipo `Activo`, responsable `Ejecutivo A`, origen `Sitio web` |
+| Oportunidad | Folio `3001`, serie `OPP`, asunto y montos del escenario 3 |
+| Clientes del panel | Los del fixture de control de SC-007 en `data-model.md` |
+
+Si se parte de almacenamiento vacío, crear primero estos registros y anotar en el README que son sintéticos.
 
 ## Escenario 1 — Registrar un cliente y un prospecto
 
@@ -74,7 +88,7 @@ Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fe
 
 **Precondición**: existe el cliente **Empresa Demo 1** (`CLI-DEMO-003`) y el folio 3001 no está registrado.
 
-1. Abrir **Nueva oportunidad** desde el panel, desde **Oportunidades** y desde la ficha del cliente.
+1. Abrir **Nueva oportunidad** desde **Oportunidades** y desde la ficha del cliente (el acceso desde el panel se agrega en P2).
 2. Completar el formulario con los datos de la tabla siguiente.
 3. Guardar y confirmar el mensaje de éxito; abrir el registro y su cliente asociado.
 4. Repetir el guardado con el mismo folio y comprobar que no se duplica.
@@ -127,7 +141,7 @@ Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fe
 
 **Objetivo**: comprobar `US-06`, `FR-029`, `FR-030`, `FR-036`, `CA-06-01` a `CA-06-12`.
 
-1. Recorrer Panel, Clientes, Oportunidades y Buscar desde la barra lateral.
+1. Recorrer Clientes, Oportunidades y Buscar desde la barra lateral; en P2, también Panel.
 2. Revisar encabezados, botones, formularios, mensajes, estados vacíos y confirmaciones.
 3. Confirmar que la vista activa se resalta y que la navegación protege cambios sin guardar.
 4. Recargar y comprobar que se mantienen los términos configurados y los registros.
@@ -160,18 +174,21 @@ Registrar en `README.md` (sección “Evidencias y registro de cambios”) la fe
 | Accesibilidad | Recorrer formularios, listas y mensajes solo con teclado | Controles alcanzables, foco visible, etiquetas y errores asociados |
 | Contraste | Revisar texto normal y controles sobre el fondo | Contraste suficiente; si se declara WCAG AA, verificar 4.5:1 en texto normal y 3:1 en texto grande/UI |
 | Compatibilidad | Probar en los navegadores declarados y en una pantalla estrecha | La interfaz funciona en al menos Chrome y Firefox actuales; registrar los navegadores realmente usados |
-| Rendimiento | Cargar 500 clientes y 1000 oportunidades; medir 20 búsquedas | Al menos 19 de 20 bajo 500 ms; registrar navegador y equipo |
-| Referencias huérfanas | Eliminar un cliente con oportunidades y tickets, y cancelar | Cascada atómica solo con confirmación; cancelar no modifica nada |
+| Rendimiento | Cargar 500 clientes y 1000 oportunidades; medir 20 búsquedas y 20 recálculos del panel | Al menos 19 de 20 bajo 500 ms; registrar navegador y equipo |
+| Referencias huérfanas | Eliminar un cliente con oportunidades y, en P2, con tickets; cancelar | Cascada atómica de oportunidades en P1 y de tickets en P2, solo con confirmación; cancelar no modifica nada |
 | Terminología | Revisar todas las vistas y estados vacíos | Cliente/Clientes y Oportunidad/Oportunidades, con fallback genérico |
 
-## Medición de usabilidad (opcional)
+## Medición de usabilidad
 
-Si el equipo ejecuta el protocolo de `plan.md`, usar 5 participantes y 4 tareas (crear, editar, eliminar y buscar). Registrar participantes anonimizados, tiempos de SC-001 a SC-003 y tasa de éxito de SC-004. Si no se realiza, declararlo como pendiente en `README.md`; no inventar participantes ni resultados.
+Si el equipo ejecuta el protocolo de `plan.md`, usar 5 participantes y 4 tareas (crear, editar, eliminar y buscar). Registrar participantes anonimizados, tiempos de SC-001 a SC-003 y tasa de éxito de SC-004. SC-001 a SC-004 no bloquean la implementación, pero no se puede afirmar que se cumplen sin medirlos: si no se realiza la medición, declararlo como pendiente en `README.md`. No inventar participantes ni resultados.
 
 ## Criterios de salida
 
 - `npm test -- --run` termina sin fallos y el resultado queda registrado.
 - `npm run build` termina correctamente y el resultado queda registrado.
+- `npm run lint` y `npm run format:check` terminan sin errores y el resultado queda registrado.
+- El recorrido completo de `tests/integration/critical-journey.test.js` (T070) pasa.
+- Se registran los navegadores realmente probados (Chrome y Firefox como mínimo).
 - Para el MVP P1 se ejecutan los escenarios 1, 2, 3, 4 y 6 con datos sintéticos y sus resultados se anotan en `README.md`.
 - El escenario 5 (panel) y el escenario 7 (tickets) se validan al cerrar la segunda iteración.
 - La medición de usabilidad se ejecuta o se declara explícitamente como pendiente.

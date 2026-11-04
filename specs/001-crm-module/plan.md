@@ -1,6 +1,6 @@
 # Plan de implementación: módulo CRM
 
-**Feature**: `001-crm-module` | **Fecha**: 2026-11-03 | **Especificación**: [spec.md](spec.md) | **Modelo**: [data-model.md](data-model.md) | **Investigación**: [research.md](research.md) | **Validación**: [quickstart.md](quickstart.md)
+**Feature**: `001-crm-module` | **Rama**: `main` (sin ramas secundarias) | **Fecha**: 2026-11-03 | **Especificación**: [spec.md](spec.md) | **Modelo**: [data-model.md](data-model.md) | **Investigación**: [research.md](research.md) | **Validación**: [quickstart.md](quickstart.md)
 
 ## Resumen
 
@@ -30,13 +30,18 @@ La constitución del proyecto existe en `.specify/memory/constitution.md`, versi
 | Principio / estándar | Estado | Evidencia o acción comprometida |
 |---|---|---|
 | I. Code Quality & Maintainability | Parcial | Separar `storage.js`, `crm-rules.js`, `crm-metrics.js`, `module-config.js` y componentes; funciones pequeñas y nombres claros. Revisión en cada incremento. |
-| II. Test-First & Verification | Pendiente | Cada regla de negocio tendrá prueba unitaria antes o junto con la implementación; cada flujo crítico tendrá prueba de integración. No se marca una historia como terminada sin pruebas que pasen. |
+| II. Test-First & Verification | Pendiente | Cada regla de negocio tendrá prueba unitaria antes o junto con la implementación; cada flujo crítico tendrá prueba de integración y un recorrido completo en jsdom (T070). No se marca una historia como terminada sin pruebas que pasen. |
 | III. User Experience Consistency | Parcial | Terminología CRM en todas las vistas, estados vacíos, mensajes de error y accesibilidad por teclado. Ver `FR-030` y `NFR-001`. |
 | IV. Performance & Reliability | Pendiente | Presupuesto de 500 ms con 500/1000 registros, 19 de 20 búsquedas; manejo de cuota, JSON corrupto y pestaña obsoleta. Medición pendiente. |
-| Quality Standards | Parcial | Formato y linting según el template; documentación actualizada cuando cambie comportamiento, configuración o contrato. |
+| Quality Standards | Pendiente | El template base no incluye linting; se adopta ESLint 9 + Prettier 3 en T004A. Cada incremento ejecuta `npm run lint` y `npm run format:check`, además de pruebas y build. Documentación actualizada cuando cambie comportamiento, configuración o contrato. |
 | Development Workflow | Parcial | Incrementos pequeños con criterios de aceptación, evidencia de pruebas y registro de cambios por iteración. |
 
-**Desviaciones**: no se identifican desviaciones deliberadas. Cualquier excepción se documentará aquí antes de implementar.
+**Desviaciones**:
+
+- **Cobertura E2E**: el Principio II pide cobertura end-to-end de recorridos críticos como expectativa por defecto. Se sustituye por (a) pruebas de integración que arrancan la app real en jsdom, (b) un test de recorrido completo en T070 y (c) el recorrido manual de `quickstart.md` (T066). No se adopta Playwright porque el stack es Vite + Vanilla JS sin backend ni CI y la matriz de navegadores se valida manualmente. La desviación queda registrada aquí y se revisa al cerrar cada iteración.
+- **Revisión por PR**: la constitución asume pull requests con verificación. El curso exige trabajar en `main` y hacer commits manuales, así que la revisión por PR se sustituye por incrementos revisados, pruebas ejecutadas y commits manuales registrados en `README.md`.
+
+Cualquier otra excepción se documentará aquí antes de implementar.
 
 ### Re-evaluación posterior al diseño (Fase 1)
 
@@ -49,7 +54,7 @@ Tras generar `research.md`, `data-model.md`, `contracts/entity-storage.md` y `qu
 | III. User Experience Consistency | `quickstart.md` cubre estados vacíos, mensajes, terminología, navegación y teclado; los criterios de aceptación siguen siendo la fuente de verdad. | Pasa el diseño |
 | IV. Performance & Reliability | La búsqueda en memoria y el recálculo de indicadores son viables para 500/1000 registros; la medición de 500 ms y los escenarios de cuota, JSON corrupto y pestaña obsoleta están en la guía de validación. | Pasa el diseño; medición pendiente |
 
-No se requieren excepciones ni entradas en “Seguimiento de complejidad”. Las pruebas ejecutadas siguen siendo la condición para declarar cumplimiento total.
+La única excepción registrada es la cobertura E2E (ver “Desviaciones”): se sustituye por integración en jsdom, un recorrido completo (T070) y validación manual. El resto no requiere excepciones ni entradas en “Seguimiento de complejidad”. Las pruebas ejecutadas siguen siendo la condición para declarar cumplimiento total.
 
 ## Decisiones de investigación (Fase 0)
 
@@ -131,12 +136,13 @@ Se usan variables categóricas (tipo, origen, responsable, etapa), fechas y mont
 | Nivel | Evidencia requerida |
 |---|---|
 | Unitario | Identificadores preservados, unicidad de código y folio, fechas, transiciones, pérdida, cascada, búsqueda normalizada e indicadores |
-| Integración | Crear cliente → oportunidad → avance → búsqueda → panel → recarga; editar y borrar con cancelación; tickets P2 |
+| Integración | Crear cliente → oportunidad → avance → búsqueda → recarga en P1 (panel en P2, T056); editar y borrar con cancelación; tickets P2; recorrido completo en `tests/integration/critical-journey.test.js` (T070) |
 | Riesgos | Cuota agotada y JSON corrupto sin pérdida silenciosa; datos maliciosos como texto; pestaña obsoleta |
-| Usabilidad | 5 participantes y 4 tareas; tiempos y tasa de éxito según SC-001 a SC-004 (ejecutado en T069) |
-| Rendimiento | 20 búsquedas con 500/1000 registros; al menos 19 bajo 500 ms; registrar equipo y navegador |
+| Usabilidad | 5 participantes y 4 tareas; tiempos y tasa de éxito según SC-001 a SC-004, a ejecutar en T069. No bloquea la implementación; se mide o se declara pendiente |
+| Rendimiento | 20 búsquedas con 500/1000 registros y 20 recálculos del panel; al menos 19 bajo 500 ms; registrar equipo y navegador |
 | Accesibilidad | Recorrido completo con teclado, foco visible, etiquetas, errores asociados y contraste verificable |
-| Compilación | Ejecutar los scripts reales de `package.json` (`npm test`, `npm run build`); guardar resultados |
+| Compatibilidad | Validar Chrome y Firefox actuales, y registrar si se probaron Edge o Safari y una pantalla estrecha (T066) |
+| Compilación | Ejecutar los scripts reales de `package.json` (`npm run lint`, `npm run format:check`, `npm test -- --run`, `npm run build`); guardar resultados |
 | Documental | Coherencia de entidades, campos, estados, indicadores y MER entre `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md` y el contrato |
 
 Los resultados deben anotarse en la sección “Evidencias y registro de cambios” del `README.md` cuando exista implementación. No se declaran pruebas ejecutadas que no se hayan corrido.

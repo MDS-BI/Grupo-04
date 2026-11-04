@@ -66,7 +66,7 @@ El monto estimado no es ingreso contable ni venta facturada. Los campos económi
 |---|---|---|---|
 | `id` | string | Identificador interno | Generado, único, inmutable |
 | `entity_id` | string | Cliente asociado | Obligatorio; referencia `Entity.entity_id` existente |
-| `productId` | string | Referencia externa al producto | Opcional si no existe el módulo Producto; si se informa, debe ser una referencia válida |
+| `productId` | string | Referencia externa al producto | Opcional; si se informa, se acepta como cadena no vacía. No se valida contra un catálogo externo porque el módulo Producto está fuera del alcance |
 | `productName` | string | Nombre de respaldo del producto | Obligatorio en la demo cuando no hay `productId` |
 | `reason` | string | Motivo | Obligatorio: `soporte`, `reclamo` o `consulta` |
 | `description` | string | Descripción de la falla o solicitud | Obligatorio, no vacío, texto seguro |
@@ -208,6 +208,22 @@ Las fechas son de calendario local `YYYY-MM-DD`; las marcas de tiempo usan ISO 8
 | Tasa de cierre | `Ganadas / (Ganadas + Perdidas) × 100`; mostrar “Sin datos” si el denominador es cero |
 
 Los indicadores abarcan todos los registros actuales, sin ventana temporal. No son cifras de ventas de un período. El método es conteo, suma y proporción, sin estimación predictiva. Guardar la próxima fecha por cliente evita contar dos veces un seguimiento por múltiples oportunidades; no sustituye una agenda de actividades.
+
+### Fixture de control para SC-007
+
+Se usa el mismo conjunto en `tests/integration/dashboard.test.js` (T056) y en la comprobación manual del panel. Las fechas se calculan respecto de `todayLocal` para que la prueba no dependa del día en que se ejecute.
+
+| Registro | Datos |
+|---|---|
+| Cliente 1 | `category = Activo`, `targetDate = ayer` (vencido) |
+| Cliente 2 | `category = Activo`, `targetDate = hoy` |
+| Cliente 3 | `category = Inactivo`, `targetDate = ayer` (no cuenta) |
+| Oportunidad A | Abierta (Negociación), `totalAmount = 100000` |
+| Oportunidad B | Abierta (Propuesta), `totalAmount = 200000` |
+| Oportunidad C | Ganada, `totalAmount = 50000` |
+| Oportunidad D | Perdida, `totalAmount = 75000` |
+
+Resultado esperado: clientes registrados = 3; oportunidades abiertas = 2; monto abierto = 300000 CLP; seguimientos vencidos = 1; contactos para hoy = 1; tasa de cierre = 50% (1 Ganada sobre 2 cerradas). Si el panel devuelve otro valor, SC-007 no se cumple.
 
 ## Modelo entidad-relación
 

@@ -40,10 +40,22 @@
 
 ## Pendientes conocidos
 
-- [x] `tasks.md` regenerado desde las historias y requisitos, con T069 (usabilidad).
+- [x] `tasks.md` regenerado desde las historias y requisitos, con T004A (lint/formato), T054A (edición de ticket), T069 (usabilidad) y T070 (recorrido completo).
 - [ ] Los nombres de los integrantes deben completarse en la tabla de organización por integrante.
-- [ ] La versión integrada debe ejecutar `npm test` y `npm run build` y registrar los resultados reales.
+- [ ] La versión integrada debe ejecutar `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build`, y registrar los resultados reales.
 - [ ] El diagrama Mermaid de `data-model.md` debe coincidir con las tablas de entidades y relaciones.
+- [ ] SC-001 a SC-004 deben medirse o declararse pendientes; no se reportan como cumplidos sin evidencia.
+
+## Hallazgos aceptados o diferidos
+
+Provienen de `speckit.analyze` y se aceptan de forma consciente. Pueden reaparecer en análisis posteriores; no bloquean la implementación.
+
+| ID | Estado | Motivo y destino |
+|---|---|---|
+| AMB-01 | Pendiente | Nombres de integrantes; se completan en T065 y en la tabla de `spec.md`. |
+| AMB-03 | Diferido a P2 | El presupuesto numérico del panel se fija al implementar US-07 y se mide en T063. |
+| DUP-01 | Aceptado | FR-027…FR-035 reformulan NFR-001…NFR-009 de forma intencional; ante conflicto prevalece el NFR. |
+| DUP-02 | Aceptado | La meta de rendimiento se repite en FR-034, NFR-002 y SC-005 como redundancia intencional. |
 
 ## Notas
 

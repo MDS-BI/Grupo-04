@@ -97,13 +97,15 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 |---|---|---|
 | `entity_id` | Sí | Cliente existente |
 | `productName` | Sí en demo | No vacío si no hay `productId` |
-| `productId` | No | Referencia externa válida si existe |
+| `productId` | No | Si se informa, cadena no vacía; no se valida contra catálogo externo (el módulo Producto está fuera del alcance) |
 | `reason` | Sí | soporte, reclamo o consulta |
 | `description` | Sí | No vacío |
 | `priority` | Sí | Alta, Media o Baja |
 | `status` | Automático | `En proceso` al crear |
 
 ## Operaciones
+
+- `saveSnapshot(snapshot)`: helper interno que valida y persiste entidades y documentos (y tickets en P2) como una sola instantánea; no forma parte de la API pública.
 
 ### Entidades
 
@@ -142,7 +144,7 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 - Una oportunidad con `status` distinto de `Nueva` al crear debe rechazarse.
 - Una transición no declarada debe rechazarse en la capa de dominio y en el almacenamiento.
 - Entrar en `Perdida` sin `lossReason` debe rechazarse.
-- Eliminar una entidad también debe eliminar todos los documentos y tickets vinculados a su `entity_id`, como una sola operación atómica.
+- Eliminar una entidad debe eliminar todos los documentos vinculados a su `entity_id` como una sola operación atómica. En P2, cuando exista la colección de tickets, la misma operación debe incluir los tickets.
 - Las operaciones de almacenamiento deben preservar el orden actual de la lista y actualizar las marcas de tiempo.
 - Ante cuota agotada o JSON corrupto, conservar los datos previos y devolver un error; no reiniciar el almacenamiento.
 - El esquema debe versionarse y no migrar en silencio.

@@ -97,6 +97,8 @@ Abrir la URL que imprime Vite (por defecto `http://localhost:5173`).
 npm test
 npx vitest run
 npm run build
+npm run lint          # disponible tras T004A
+npm run format:check  # disponible tras T004A
 ```
 
 Registrar en la sección de evidencias la fecha, el comando y el resultado real. No declarar pruebas que no se hayan ejecutado.

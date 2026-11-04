@@ -88,9 +88,9 @@ Este documento resuelve las decisiones técnicas necesarias antes del diseño. E
 
 ## Eliminación en cascada atómica
 
-**Decisión**: al eliminar un cliente, validar y construir en memoria la nueva instantánea (cliente, oportunidades y tickets) y persistirla como una sola operación. Si la escritura falla, no se actualiza el estado previo ni se muestra éxito.
+**Decisión**: al eliminar un cliente, validar y construir en memoria la nueva instantánea y persistirla como una sola operación. En P1 la instantánea incluye cliente y oportunidades; en P2, cuando exista la colección de tickets (T051), se extiende para incluir también los tickets. Si la escritura falla, no se actualiza el estado previo ni se muestra éxito.
 
-**Justificación**: `localStorage` no ofrece transacciones ni claves foráneas. Escribir la instantánea completa permite cumplir `FR-007`, `NFR-007` y evitar oportunidades o tickets huérfanos. La confirmación previa informa cuántos registros se eliminarán.
+**Justificación**: `localStorage` no ofrece transacciones ni claves foráneas. Escribir la instantánea completa permite cumplir `FR-007`, `NFR-007` y evitar oportunidades o tickets huérfanos. La confirmación previa informa cuántos registros se eliminarán y, en P2, cuántos tickets.
 
 **Alternativas consideradas**:
 
