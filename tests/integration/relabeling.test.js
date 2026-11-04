@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import { normalizeConfig } from '../../src/module-config.js';
 
-const html = fs.readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 beforeEach(async () => {
   dom = new JSDOM(html, { url: 'http://localhost/' });
@@ -26,7 +28,7 @@ afterEach(() => {
   dom.window.close();
 });
 
-async function bootWith(configOverride){
+async function bootWith(configOverride) {
   vi.resetModules();
   const { initApp } = await import('../../src/app.js');
   await initApp(normalizeConfig(configOverride));

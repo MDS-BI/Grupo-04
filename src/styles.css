@@ -18,22 +18,48 @@
   --sidebar-w: 230px;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.45;
 }
 
-h1 { font-size: 1.5rem; margin: 0 0 6px; }
-h2 { font-size: 1.05rem; margin: 0 0 12px; }
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 6px;
+}
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+}
 
-.muted { color: var(--muted); font-size: 0.9em; }
-.empty { color: var(--muted); padding: 12px 0; }
-.error { color: var(--danger); font-size: 0.85em; margin-top: 4px; min-height: 1em; }
+.muted {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.empty {
+  color: var(--muted);
+  padding: 12px 0;
+}
+.error {
+  color: var(--danger);
+  font-size: 0.85em;
+  margin-top: 4px;
+  min-height: 1em;
+}
 
 .config-error {
   background: #fdecea;
@@ -72,8 +98,13 @@ h2 { font-size: 1.05rem; margin: 0 0 12px; }
   letter-spacing: 0.01em;
 }
 
-.logo-mark { display: inline-flex; }
-.logo-mark svg { display: block; border-radius: 8px; }
+.logo-mark {
+  display: inline-flex;
+}
+.logo-mark svg {
+  display: block;
+  border-radius: 8px;
+}
 
 .sidebar {
   background: var(--sidebar-bg);
@@ -104,9 +135,14 @@ h2 { font-size: 1.05rem; margin: 0 0 12px; }
   cursor: pointer;
 }
 
-.nav-module svg { flex-shrink: 0; }
+.nav-module svg {
+  flex-shrink: 0;
+}
 
-.nav-module:hover { background: rgba(255, 255, 255, 0.09); color: #ffffff; }
+.nav-module:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
 
 .nav-module:focus-visible,
 .action-card:focus-visible,
@@ -129,7 +165,9 @@ textarea:focus-visible {
   overflow-x: hidden;
 }
 
-.view[hidden] { display: none; }
+.view[hidden] {
+  display: none;
+}
 
 /* ==========================================================================
    Dashboard: stats + quick actions
@@ -155,10 +193,19 @@ textarea:focus-visible {
   padding: 16px 18px;
 }
 
-.stat-value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
-.stat-label { color: var(--muted); font-size: 0.88rem; }
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.stat-label {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
 
-#quick-actions-heading { margin-bottom: 12px; }
+#quick-actions-heading {
+  margin-bottom: 12px;
+}
 
 .action-grid {
   display: grid;
@@ -178,11 +225,18 @@ textarea:focus-visible {
   box-shadow: var(--shadow);
   text-align: left;
   cursor: pointer;
-  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
-.action-card strong { font-size: 1rem; }
-.action-card .muted { font-size: 0.85rem; }
+.action-card strong {
+  font-size: 1rem;
+}
+.action-card .muted {
+  font-size: 0.85rem;
+}
 
 .action-card:hover {
   border-color: var(--accent);
@@ -203,7 +257,9 @@ textarea:focus-visible {
   max-width: 720px;
 }
 
-form > div { margin-bottom: 12px; }
+form > div {
+  margin-bottom: 12px;
+}
 
 .field-row {
   display: grid;
@@ -218,7 +274,9 @@ label {
   margin-bottom: 4px;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--border);
@@ -228,9 +286,17 @@ input, textarea, select {
   font: inherit;
 }
 
-input:hover, textarea:hover, select:hover { border-color: #c3cdde; }
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: #c3cdde;
+}
 
-.form-actions { display: flex; gap: 10px; margin-top: 14px; }
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
 
 button {
   padding: 9px 16px;
@@ -249,9 +315,15 @@ button.primary {
   font-weight: 600;
 }
 
-button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+button.primary:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
 
-button.secondary:hover { border-color: #c3cdde; background: #f7f9fc; }
+button.secondary:hover {
+  border-color: #c3cdde;
+  background: #f7f9fc;
+}
 
 button.danger {
   background: #fdf1ef;
@@ -260,22 +332,34 @@ button.danger {
   font-weight: 600;
 }
 
-button.danger:hover { background: #fae3df; }
+button.danger:hover {
+  background: #fae3df;
+}
 
-.custom-field { margin-bottom: 12px; }
+.custom-field {
+  margin-bottom: 12px;
+}
 
 /* ==========================================================================
    Lists and badges
    ========================================================================== */
-#search-results-list { list-style: none; padding: 0; margin: 0; }
+#search-results-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
 
 .entity-item {
   padding: 13px 4px;
   border-bottom: 1px solid var(--border);
 }
 
-.entity-item:last-child { border-bottom: none; }
-.entity-meta strong { font-size: 1.02em; }
+.entity-item:last-child {
+  border-bottom: none;
+}
+.entity-meta strong {
+  font-size: 1.02em;
+}
 
 .entity-documents {
   margin-top: 8px;
@@ -283,7 +367,11 @@ button.danger:hover { background: #fae3df; }
   border-left: 3px solid var(--border);
 }
 
-.document-list { list-style: none; padding: 0; margin: 6px 0; }
+.document-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
 
 .document-item {
   display: flex;
@@ -294,7 +382,9 @@ button.danger:hover { background: #fae3df; }
   font-size: 0.95em;
 }
 
-.document-item span:first-child { max-width: 70%; }
+.document-item span:first-child {
+  max-width: 70%;
+}
 
 .status-badge {
   display: inline-block;
@@ -312,9 +402,18 @@ button.danger:hover { background: #fae3df; }
    Responsive: collapse sidebar to an icon rail on narrow viewports
    ========================================================================== */
 @media (max-width: 900px) {
-  :root { --sidebar-w: 60px; }
+  :root {
+    --sidebar-w: 60px;
+  }
 
-  .content { padding: 20px 16px 32px; }
-  .nav-module { justify-content: center; padding: 10px 8px; }
-  .nav-module .nav-label { display: none; }
+  .content {
+    padding: 20px 16px 32px;
+  }
+  .nav-module {
+    justify-content: center;
+    padding: 10px 8px;
+  }
+  .nav-module .nav-label {
+    display: none;
+  }
 }

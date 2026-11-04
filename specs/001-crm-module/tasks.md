@@ -34,11 +34,11 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 **Propósito**: recuperar el template ERP base y dejar el entorno de desarrollo y pruebas ejecutando de verdad.
 
-- [ ] T001 Restaurar el código base con `git checkout dea57da -- src index.html` y verificar que el árbol coincide con la estructura de `specs/001-crm-module/plan.md`
-- [ ] T002 Restaurar las pruebas base desde la rama `borrador` hacia `tests/` (`git checkout borrador -- tests`) y revisar que no arrastren supuestos del módulo ERP
-- [ ] T003 [P] Ejecutar `npm install`, `npx vitest run` y `npm run build` sobre la base sin modificar y registrar fecha, comando y resultado real en `README.md` (sección “Evidencias y registro de cambios”)
-- [ ] T004 [P] Configurar el entorno DOM de pruebas en `vitest.config.mjs` (`environment: 'jsdom'`) y crear `tests/setup.js` con limpieza de `localStorage` entre pruebas
-- [ ] T004A [P] Configurar ESLint + Prettier (`eslint.config.mjs`, `.prettierignore`, `.prettierrc.json`) y los scripts `lint` y `format:check`; verificar que `npm run lint` y `npm run format:check` pasan sobre la base restaurada antes de iniciar las historias
+- [X] T001 Restaurar el código base con `git checkout dea57da -- src index.html` y verificar que el árbol coincide con la estructura de `specs/001-crm-module/plan.md`
+- [X] T002 Restaurar las pruebas base desde la rama `borrador` hacia `tests/` (`git checkout borrador -- tests`) y revisar que no arrastren supuestos del módulo ERP
+- [X] T003 [P] Ejecutar `npm install`, `npx vitest run` y `npm run build` sobre la base sin modificar y registrar fecha, comando y resultado real en `README.md` (sección “Evidencias y registro de cambios”)
+- [X] T004 [P] Configurar el entorno DOM de pruebas en `vitest.config.mjs` (`environment: 'jsdom'`) y crear `tests/setup.js` con limpieza de `localStorage` entre pruebas
+- [X] T004A [P] Configurar ESLint + Prettier (`eslint.config.mjs`, `.prettierignore`, `.prettierrc.json`) y los scripts `lint` y `format:check`; verificar que `npm run lint` y `npm run format:check` pasan sobre la base restaurada antes de iniciar las historias
 
 ---
 

@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import { addEntity } from '../../src/storage.js';
 
-const html = fs.readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 beforeEach(async () => {
   dom = new JSDOM(html, { url: 'http://localhost/' });
@@ -57,7 +59,7 @@ describe('User Story 8 - search and find entities quickly', () => {
   });
 
   it('stays prompt and accurate with hundreds of stored entities', () => {
-    for(let i = 0; i < 500; i++){
+    for (let i = 0; i < 500; i++) {
       addEntity({ name: `Item ${i}`, code: `IT-${String(i).padStart(4, '0')}` });
     }
     const start = Date.now();

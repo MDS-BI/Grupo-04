@@ -147,7 +147,10 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 | Fecha | Cambio | Comando / evidencia | Resultado |
 |---|---|---|---|
 | 2026-11-03 | Consolidación documental y modelo de datos | Revisión de `spec.md`, `plan.md`, `data-model.md` | Pendiente de validación del equipo |
-| Pendiente | Restauración del código base | `npm test`, `npm run build` | Pendiente |
+| 2026-11-04 | Restauración del código base (T001–T002) | `git checkout dea57da -- src index.html`; `git checkout borrador -- tests` | 14 archivos de `src/` más `index.html` y 12 archivos de prueba restaurados. Las pruebas base cubren el template ERP genérico y se adaptarán en las historias. |
+| 2026-11-04 | Verificación de la base sin modificar (T003) | `npm install`; `npx vitest run`; `npm run build` | `npm install` completado; 12 archivos y 111 pruebas aprobadas; build Vite correcto (HTML 14,18 kB). `npm audit` reporta 5 vulnerabilidades de dependencias de desarrollo, no bloqueantes para la demo. |
+| 2026-11-04 | Entorno de pruebas jsdom (T004) | `npx vitest run` con `environment: 'jsdom'` y `tests/setup.js` | 12 archivos y 111 pruebas aprobadas; limpieza de `localStorage` entre pruebas. |
+| 2026-11-04 | Lint y formato (T004A) | `npm run lint`; `npm run format:check` | ESLint 9 y Prettier 3 configurados; ambos comandos terminan sin errores sobre la base restaurada. |
 | Pendiente | Primera versión integrada | Demo y pruebas | Pendiente |
 
 ## Uso de IA

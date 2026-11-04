@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import { addEntity, loadEntities, loadDocuments } from '../../src/storage.js';
 
-const html = fs.readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 beforeEach(async () => {
   dom = new JSDOM(html, { url: 'http://localhost/' });
@@ -33,7 +35,7 @@ describe('User Story 4 - manage entities and documents via the workspace sidebar
   it('shows a persistent module navigation with Dashboard, Entities, Documents, and Search buttons', () => {
     const buttons = [...document.querySelectorAll('.nav-module')];
     expect(buttons.length).toBe(4);
-    expect(buttons.map(b => b.dataset.module)).toEqual(['dashboard', 'entities', 'documents', 'search']);
+    expect(buttons.map((b) => b.dataset.module)).toEqual(['dashboard', 'entities', 'documents', 'search']);
   });
 
   it('switches between the entities and documents management views', () => {

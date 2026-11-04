@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import { normalizeConfig } from '../../src/module-config.js';
 import { addEntity, addDocument, loadEntities, loadDocuments } from '../../src/storage.js';
 
-const html = fs.readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 const brandedConfig = {
   moduleName: 'Sales Suite',
@@ -32,7 +34,7 @@ afterEach(() => {
   dom.window.close();
 });
 
-async function bootWith(configOverride){
+async function bootWith(configOverride) {
   vi.resetModules();
   const { initApp } = await import('../../src/app.js');
   await initApp(normalizeConfig(configOverride));
@@ -79,7 +81,7 @@ describe('User Story 13 - branded ERP workspace shell', () => {
 
   it('keeps every module button labeled for accessible icon-rail collapse', async () => {
     await bootWith(undefined);
-    document.querySelectorAll('.nav-module').forEach(btn => {
+    document.querySelectorAll('.nav-module').forEach((btn) => {
       expect(btn.querySelector('.nav-label')).not.toBeNull();
       expect(btn.querySelector('.nav-label').textContent.length).toBeGreaterThan(0);
     });

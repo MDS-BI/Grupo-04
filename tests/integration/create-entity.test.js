@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import { loadEntities } from '../../src/storage.js';
 
-const html = fs.readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 beforeEach(async () => {
   dom = new JSDOM(html, { url: 'http://localhost/' });
@@ -42,7 +44,7 @@ describe('User Story 1 - create and organize entities', () => {
     expect(all[0].code).toBe('AC-001');
     expect(all[0].entity_id).toBeDefined();
     const select = qs('edit-entity');
-    expect([...select.options].map(o => o.textContent)).toContain('Acme — AC-001');
+    expect([...select.options].map((o) => o.textContent)).toContain('Acme — AC-001');
   });
 
   it('persists ERP identity and commercial fields entered through the form', () => {

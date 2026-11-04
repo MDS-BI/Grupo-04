@@ -1,19 +1,26 @@
-import { renderCustomFields, collectCustomFields, showCustomFieldErrors, clearCustomFieldErrors } from './custom-fields.js';
+import {
+  renderCustomFields,
+  collectCustomFields,
+  showCustomFieldErrors,
+  clearCustomFieldErrors
+} from './custom-fields.js';
 import { getConfig } from '../module-config.js';
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
-function allowedStatusesFor(currentStatus){
+function allowedStatusesFor(currentStatus) {
   const lc = getConfig().statusLifecycle;
-  if(!lc) return null;
-  if(currentStatus === undefined || currentStatus === null || currentStatus === ''){
+  if (!lc) return null;
+  if (currentStatus === undefined || currentStatus === null || currentStatus === '') {
     return [...lc.statuses];
   }
   const next = lc.transitions[currentStatus] || [];
-  return [currentStatus, ...next.filter(s => s !== currentStatus)];
+  return [currentStatus, ...next.filter((s) => s !== currentStatus)];
 }
 
-export function renderStatusControl(currentStatus){
+export function renderStatusControl(currentStatus) {
   const container = qs('document-status-control');
   container.innerHTML = '';
   const allowed = allowedStatusesFor(currentStatus);
@@ -23,17 +30,17 @@ export function renderStatusControl(currentStatus){
   label.textContent = 'Estado';
   wrap.appendChild(label);
   let control;
-  if(allowed){
+  if (allowed) {
     control = document.createElement('select');
     control.id = 'status';
     control.name = 'status';
-    if(currentStatus === undefined || currentStatus === null || currentStatus === ''){
+    if (currentStatus === undefined || currentStatus === null || currentStatus === '') {
       const blank = document.createElement('option');
       blank.value = '';
       blank.textContent = '--';
       control.appendChild(blank);
     }
-    for(const s of allowed){
+    for (const s of allowed) {
       const opt = document.createElement('option');
       opt.value = s;
       opt.textContent = s;
@@ -55,7 +62,7 @@ export function renderStatusControl(currentStatus){
   container.appendChild(wrap);
 }
 
-export function clearDocumentForm(){
+export function clearDocumentForm() {
   qs('document-id').value = '';
   qs('series').value = '';
   qs('folio').value = '';
@@ -76,18 +83,29 @@ export function clearDocumentForm(){
   qs('document-submit-button').textContent = 'Guardar Documento';
 }
 
-const DOCUMENT_ERROR_FIELDS = ['entityId', 'folio', 'startDate', 'endDate', 'quantity', 'subtotal', 'discount', 'taxAmount', 'totalAmount', 'status'];
+const DOCUMENT_ERROR_FIELDS = [
+  'entityId',
+  'folio',
+  'startDate',
+  'endDate',
+  'quantity',
+  'subtotal',
+  'discount',
+  'taxAmount',
+  'totalAmount',
+  'status'
+];
 
-export function clearDocumentErrors(){
-  DOCUMENT_ERROR_FIELDS.forEach(f => {
+export function clearDocumentErrors() {
+  DOCUMENT_ERROR_FIELDS.forEach((f) => {
     const elId = f === 'entityId' ? 'error-document-entity' : `error-${f}`;
     const el = qs(elId);
-    if(el) el.textContent = '';
+    if (el) el.textContent = '';
   });
   clearCustomFieldErrors(qs('document-custom-fields'));
 }
 
-export function startDocumentEdit(doc){
+export function startDocumentEdit(doc) {
   renderCustomFields(qs('document-custom-fields'), 'document', doc);
   qs('document-id').value = doc.id;
   qs('document-entity-id').value = doc.entity_id;
@@ -111,12 +129,12 @@ export function startDocumentEdit(doc){
   qs('document-submit-button').textContent = 'Actualizar Documento';
 }
 
-function setStatusValue(value){
+function setStatusValue(value) {
   const control = qs('status');
-  if(control) control.value = value || '';
+  if (control) control.value = value || '';
 }
 
-export function collectDocumentPayload(){
+export function collectDocumentPayload() {
   return {
     entityId: qs('document-entity-id').value || qs('document-entity').value,
     series: qs('series').value,
@@ -136,11 +154,11 @@ export function collectDocumentPayload(){
   };
 }
 
-export function showDocumentErrors(errors){
-  for(const f of DOCUMENT_ERROR_FIELDS){
+export function showDocumentErrors(errors) {
+  for (const f of DOCUMENT_ERROR_FIELDS) {
     const elId = f === 'entityId' ? 'error-document-entity' : `error-${f}`;
     const el = qs(elId);
-    if(el) el.textContent = errors[f] || '';
+    if (el) el.textContent = errors[f] || '';
   }
   showCustomFieldErrors(qs('document-custom-fields'), 'document', errors);
 }

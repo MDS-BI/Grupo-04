@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+coverage/
+package-lock.json
+.prettierignore
+.vscode/
+.opencode/
+.specify/
+specs/
+temp/
+*.md

@@ -1,8 +1,15 @@
-import { renderCustomFields, collectCustomFields, showCustomFieldErrors, clearCustomFieldErrors } from './custom-fields.js';
+import {
+  renderCustomFields,
+  collectCustomFields,
+  showCustomFieldErrors,
+  clearCustomFieldErrors
+} from './custom-fields.js';
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
-export function clearEntityForm(){
+export function clearEntityForm() {
   qs('entity-id').value = '';
   qs('name').value = '';
   qs('code').value = '';
@@ -21,12 +28,14 @@ export function clearEntityForm(){
   qs('submit-button').textContent = 'Guardar';
 }
 
-export function clearEntityErrors(){
-  ['name', 'code', 'email', 'targetDate', 'creditLimit'].forEach(f => { qs(`error-${f}`).textContent = ''; });
+export function clearEntityErrors() {
+  ['name', 'code', 'email', 'targetDate', 'creditLimit'].forEach((f) => {
+    qs(`error-${f}`).textContent = '';
+  });
   clearCustomFieldErrors(qs('entity-custom-fields'));
 }
 
-export function startEntityEdit(entity){
+export function startEntityEdit(entity) {
   renderCustomFields(qs('entity-custom-fields'), 'entity', entity);
   qs('entity-id').value = entity.id;
   qs('name').value = entity.name || '';
@@ -45,7 +54,7 @@ export function startEntityEdit(entity){
   qs('submit-button').textContent = 'Actualizar';
 }
 
-export function collectEntityPayload(){
+export function collectEntityPayload() {
   return {
     name: qs('name').value,
     code: qs('code').value,
@@ -62,7 +71,7 @@ export function collectEntityPayload(){
   };
 }
 
-export function showEntityErrors(errors){
+export function showEntityErrors(errors) {
   qs('error-name').textContent = errors.name || '';
   qs('error-code').textContent = errors.code || '';
   qs('error-email').textContent = errors.email || '';

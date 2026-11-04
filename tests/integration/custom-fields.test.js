@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import { normalizeConfig } from '../../src/module-config.js';
 import { loadEntities, searchEntities } from '../../src/storage.js';
 
-const html = fs.readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
+const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
 
-function qs(id){ return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 const configWithFields = {
   customFields: [
@@ -34,7 +36,7 @@ afterEach(() => {
   dom.window.close();
 });
 
-async function bootWith(configOverride){
+async function bootWith(configOverride) {
   vi.resetModules();
   const { initApp } = await import('../../src/app.js');
   await initApp(normalizeConfig(configOverride ?? configWithFields));
@@ -50,7 +52,7 @@ describe('User Story 7 - declare custom fields for records', () => {
     expect(numberInput.closest('.custom-field').querySelector('label').textContent).toBe('Ingresos anuales *');
     const select = qs('cf-region');
     expect(select.tagName).toBe('SELECT');
-    expect([...select.options].map(o => o.value)).toEqual(['', 'EMEA', 'APAC']);
+    expect([...select.options].map((o) => o.value)).toEqual(['', 'EMEA', 'APAC']);
   });
 
   it('blocks saving when a required custom field is blank and explains why', async () => {
@@ -86,7 +88,13 @@ describe('User Story 7 - declare custom fields for records', () => {
   it('renders document select custom fields from configuration', async () => {
     await bootWith({
       customFields: [
-        { target: 'document', key: 'metodoEnvio', label: 'Método de envío', type: 'select', options: ['estándar', 'exprés'] }
+        {
+          target: 'document',
+          key: 'metodoEnvio',
+          label: 'Método de envío',
+          type: 'select',
+          options: ['estándar', 'exprés']
+        }
       ]
     });
     qs('nav-entities').click();
@@ -94,7 +102,7 @@ describe('User Story 7 - declare custom fields for records', () => {
     const select = qs('cf-metodoEnvio');
     expect(select).not.toBeNull();
     expect(select.tagName).toBe('SELECT');
-    expect([...select.options].map(o => o.textContent)).toEqual(['--', 'estándar', 'exprés']);
+    expect([...select.options].map((o) => o.textContent)).toEqual(['--', 'estándar', 'exprés']);
   });
 
   it('behaves identically to the unmodified base when no fields are declared', async () => {
