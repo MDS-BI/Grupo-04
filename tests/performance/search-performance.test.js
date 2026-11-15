@@ -77,6 +77,16 @@ function runSearch(query) {
   return performance.now() - start;
 }
 
+function expectedOpenSummary() {
+  const documents = JSON.parse(localStorage.getItem('erp_base_module:documents'));
+  const open = documents.filter((doc) => ['Nueva', 'Contactada', 'Propuesta', 'Negociación'].includes(doc.status));
+  return {
+    clients: JSON.parse(localStorage.getItem('erp_base_module:entities')).length,
+    open: open.length,
+    amount: open.reduce((total, doc) => total + Number(doc.totalAmount), 0)
+  };
+}
+
 describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidades', () => {
   it('renders 20 searches correctly and keeps 19 of 20 under 500 ms', () => {
     const measurements = [];
@@ -104,5 +114,31 @@ describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidade
     const underBudget = measurements.filter((value) => value < 500).length;
     expect(measurements.length).toBe(20);
     expect(underBudget).toBeGreaterThanOrEqual(19);
+    console.info(
+      `[T063] búsquedas: ${underBudget}/20 bajo 500 ms; más lenta ${Math.max(...measurements).toFixed(1)} ms`
+    );
+  });
+
+  it('recalculates the panel 20 times with correct indicators and 19 of 20 under 500 ms', () => {
+    const expected = expectedOpenSummary();
+    const measurements = [];
+
+    for (let index = 0; index < 20; index += 1) {
+      const start = performance.now();
+      qs('nav-dashboard').click();
+      measurements.push(performance.now() - start);
+
+      expect(qs('stat-clients').textContent).toBe(String(expected.clients));
+      expect(qs('stat-open-opportunities').textContent).toBe(String(expected.open));
+      expect(qs('stat-open-amount').textContent).toBe(String(expected.amount));
+      expect(qs('stat-close-rate').textContent).toMatch(/%|Sin datos/);
+    }
+
+    const underBudget = measurements.filter((value) => value < 500).length;
+    expect(measurements.length).toBe(20);
+    expect(underBudget).toBeGreaterThanOrEqual(19);
+    console.info(
+      `[T063] panel: ${underBudget}/20 recálculos bajo 500 ms; más lento ${Math.max(...measurements).toFixed(1)} ms`
+    );
   });
 });

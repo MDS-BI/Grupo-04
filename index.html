@@ -106,7 +106,7 @@
           <h1 id="dashboard-heading">Módulo Base ERP</h1>
           <p id="dashboard-subtitle" class="muted">Gestiona tus entidades y documentos en un solo lugar.</p>
 
-          <div class="stat-grid">
+          <div class="stat-grid" id="base-stat-grid">
             <div class="stat-card">
               <span class="stat-value" id="stat-entities">0</span>
               <span class="stat-label" id="stat-entities-label">Entidades</span>
@@ -116,6 +116,37 @@
               <span class="stat-label" id="stat-documents-label">Documentos</span>
             </div>
           </div>
+
+          <div class="stat-grid" id="crm-stat-grid" hidden>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-clients">0</span>
+              <span class="stat-label" id="stat-clients-label">Clientes registrados</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-open-opportunities">0</span>
+              <span class="stat-label" id="stat-open-opportunities-label">Oportunidades abiertas</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-open-amount">0</span>
+              <span class="stat-label" id="stat-open-amount-label">Monto abierto (CLP)</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-overdue-followups">0</span>
+              <span class="stat-label" id="stat-overdue-followups-label">Seguimientos vencidos</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-today-contacts">0</span>
+              <span class="stat-label" id="stat-today-contacts-label">Contactos para hoy</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-close-rate">Sin datos</span>
+              <span class="stat-label" id="stat-close-rate-label">Tasa de cierre</span>
+            </div>
+          </div>
+
+          <p class="empty" id="dashboard-empty-hint" hidden>
+            Aún no hay datos en el panel. Comienza registrando un cliente y luego crea su primera oportunidad.
+          </p>
 
           <h2 id="quick-actions-heading">Acciones rápidas</h2>
           <div class="action-grid">
@@ -421,6 +452,60 @@
           <section class="card detail" id="entity-detail" aria-labelledby="entity-detail-heading" hidden>
             <h2 id="entity-detail-heading">Ficha del cliente</h2>
             <div id="entity-detail-body"></div>
+
+            <section class="ticket-section" id="ticket-section" aria-labelledby="ticket-heading" hidden>
+              <h3 id="ticket-heading">Tickets de soporte</h3>
+              <form id="ticket-form" novalidate>
+                <input type="hidden" id="ticket-id" />
+                <input type="hidden" id="ticket-status" value="En proceso" />
+                <div>
+                  <label for="ticket-entity">Cliente *</label>
+                  <select id="ticket-entity" aria-describedby="error-ticket-entity" aria-required="true"></select>
+                  <div class="error" id="error-ticket-entity" aria-live="polite"></div>
+                </div>
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-product-id">ID de producto</label>
+                    <input id="ticket-product-id" aria-describedby="error-ticket-product" />
+                  </div>
+                  <div>
+                    <label for="ticket-product-name">Producto *</label>
+                    <input id="ticket-product-name" aria-describedby="error-ticket-product" aria-required="true" />
+                    <div class="error" id="error-ticket-product" aria-live="polite"></div>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-reason">Motivo *</label>
+                    <select id="ticket-reason" aria-describedby="error-ticket-reason" aria-required="true"></select>
+                    <div class="error" id="error-ticket-reason" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="ticket-priority">Prioridad *</label>
+                    <select id="ticket-priority" aria-describedby="error-ticket-priority" aria-required="true"></select>
+                    <div class="error" id="error-ticket-priority" aria-live="polite"></div>
+                  </div>
+                </div>
+                <div>
+                  <label for="ticket-description">Descripción *</label>
+                  <textarea
+                    id="ticket-description"
+                    rows="2"
+                    aria-describedby="error-ticket-description"
+                    aria-required="true"
+                  ></textarea>
+                  <div class="error" id="error-ticket-description" aria-live="polite"></div>
+                </div>
+                <p class="fixed-value" id="ticket-status-display">Estado: En proceso (se fija al crear el ticket)</p>
+                <div class="message" id="ticket-message" role="status" aria-live="polite"></div>
+                <div class="form-actions">
+                  <button type="submit" id="ticket-submit" class="primary">Registrar ticket</button>
+                  <button type="button" id="ticket-cancel-edit" class="secondary" hidden>Cancelar edición</button>
+                </div>
+              </form>
+              <div class="empty" id="ticket-list-empty" hidden>Este cliente aún no tiene tickets.</div>
+              <ul id="ticket-list-items" class="ticket-list" aria-live="polite"></ul>
+            </section>
           </section>
 
           <section class="card detail" id="opportunity-detail" aria-labelledby="opportunity-detail-heading" hidden>

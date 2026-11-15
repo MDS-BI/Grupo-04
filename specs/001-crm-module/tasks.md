@@ -184,17 +184,17 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 3
 
-- [ ] T048 [P] [US3] Escribir `tests/unit/ticket-rules.test.js`: `validateTicket` (cliente y producto obligatorios, motivo del catálogo, descripción no vacía, prioridad Alta/Media/Baja), transición `En proceso → Resuelto` sin reapertura y edición de campos conservando el estado
-- [ ] T049 [P] [US3] Escribir `tests/integration/tickets.test.js`: alta, cliente sin producto, prioridad inválida, cambio a Resuelto, rechazo de reapertura, edición de descripción y prioridad de un ticket Resuelto sin cambiar estado, tickets en la ficha del cliente, cascada cliente + tickets al eliminar y persistencia tras recarga
+- [X] T048 [P] [US3] Escribir `tests/unit/ticket-rules.test.js`: `validateTicket` (cliente y producto obligatorios, motivo del catálogo, descripción no vacía, prioridad Alta/Media/Baja), transición `En proceso → Resuelto` sin reapertura y edición de campos conservando el estado
+- [X] T049 [P] [US3] Escribir `tests/integration/tickets.test.js`: alta, cliente sin producto, prioridad inválida, cambio a Resuelto, rechazo de reapertura, edición de descripción y prioridad de un ticket Resuelto sin cambiar estado, tickets en la ficha del cliente, cascada cliente + tickets al eliminar y persistencia tras recarga
 
 ### Implementación de la Historia 3
 
-- [ ] T050 [US3] Implementar en `src/crm-rules.js` `validateTicket(ticket)` y `canTransitionTicket(from, to)`, exigiendo `productName` cuando no exista `productId` y fijando `status = En proceso` al crear
-- [ ] T051 [US3] Implementar en `src/storage.js` la colección de tickets en `erp_base_module:tickets`: `loadTickets`, `saveTickets`, `addTicket`, `updateTicket`, `deleteTicketsForEntity`, con validación previa y escritura atómica; extender `deleteEntity` para incluir los tickets en la misma instantánea
-- [ ] T052 [US3] Implementar `src/components/ticket-form.js` con cliente, producto (`productId` o `productName`), motivo, descripción, prioridad y errores accesibles
-- [ ] T053 [US3] Implementar `src/components/ticket-list.js` con motivo, prioridad, estado y fecha, y estado vacío de tickets
-- [ ] T054 [US3] Conectar en `src/app.js` la sección de tickets de la ficha del cliente y la acción “Marcar como resuelto”, sin permitir reapertura en el MVP; actualizar la confirmación de eliminación de cliente para informar cuántos tickets se eliminarán
-- [ ] T054A [US3] Implementar la edición de tickets en `src/components/ticket-form.js` (modo edición) y `src/app.js`: motivo, descripción y prioridad editables; estado no editable; `updateTicket` conserva `id`, `entity_id` y `status`; errores accesibles
+- [X] T050 [US3] Implementar en `src/crm-rules.js` `validateTicket(ticket)` y `canTransitionTicket(from, to)`, exigiendo `productName` cuando no exista `productId` y fijando `status = En proceso` al crear
+- [X] T051 [US3] Implementar en `src/storage.js` la colección de tickets en `erp_base_module:tickets`: `loadTickets`, `saveTickets`, `addTicket`, `updateTicket`, `deleteTicketsForEntity`, con validación previa y escritura atómica; extender `deleteEntity` para incluir los tickets en la misma instantánea
+- [X] T052 [US3] Implementar `src/components/ticket-form.js` con cliente, producto (`productId` o `productName`), motivo, descripción, prioridad y errores accesibles
+- [X] T053 [US3] Implementar `src/components/ticket-list.js` con motivo, prioridad, estado y fecha, y estado vacío de tickets
+- [X] T054 [US3] Conectar en `src/app.js` la sección de tickets de la ficha del cliente y la acción “Marcar como resuelto”, sin permitir reapertura en el MVP; actualizar la confirmación de eliminación de cliente para informar cuántos tickets se eliminarán
+- [X] T054A [US3] Implementar la edición de tickets en `src/components/ticket-form.js` (modo edición) y `src/app.js`: motivo, descripción y prioridad editables; estado no editable; `updateTicket` conserva `id`, `entity_id` y `status`; errores accesibles
 
 **Punto de control**: US3 (segunda iteración) completa sin romper el MVP P1.
 
@@ -208,14 +208,14 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 7
 
-- [ ] T055 [P] [US7] Escribir `tests/unit/crm-metrics.test.js`: `countClients`, `countOpenOpportunities`, `sumOpenAmount`, `overdueFollowUps`, `todayContacts`, `closeRate` (incluido “Sin datos” con denominador cero y exclusión de clientes Inactivo)
-- [ ] T056 [P] [US7] Escribir `tests/integration/dashboard.test.js`: panel con almacenamiento vacío, monto abierto 300000 CLP con dos abiertas y una ganada de 50000 CLP, pérdida que resta del monto y recálculo al volver al panel
+- [X] T055 [P] [US7] Escribir `tests/unit/crm-metrics.test.js`: `countClients`, `countOpenOpportunities`, `sumOpenAmount`, `overdueFollowUps`, `todayContacts`, `closeRate` (incluido “Sin datos” con denominador cero y exclusión de clientes Inactivo)
+- [X] T056 [P] [US7] Escribir `tests/integration/dashboard.test.js`: panel con almacenamiento vacío, monto abierto 300000 CLP con dos abiertas y una ganada de 50000 CLP, pérdida que resta del monto y recálculo al volver al panel
 
 ### Implementación de la Historia 7
 
-- [ ] T057 [US7] Implementar las seis funciones puras en `src/crm-metrics.js` según las fórmulas de `data-model.md`, usando `todayLocal` para vencimientos y contactos del día
-- [ ] T058 [US7] Implementar `src/components/dashboard.js` con tarjetas de los seis indicadores, acciones “Nuevo cliente”, “Nueva oportunidad”, “Gestionar clientes” y “Buscar”, y estado vacío con indicadores en cero y explicación de cómo comenzar; agregar la entrada Panel a `src/components/shell.js`
-- [ ] T059 [US7] Conectar en `src/app.js` el recálculo del panel en cada render, tras cada mutación y al volver al panel, sin leer ni guardar totales en `localStorage`
+- [X] T057 [US7] Implementar las seis funciones puras en `src/crm-metrics.js` según las fórmulas de `data-model.md`, usando `todayLocal` para vencimientos y contactos del día
+- [X] T058 [US7] Implementar `src/components/dashboard.js` con tarjetas de los seis indicadores, acciones “Nuevo cliente”, “Nueva oportunidad”, “Gestionar clientes” y “Buscar”, y estado vacío con indicadores en cero y explicación de cómo comenzar; agregar la entrada Panel a `src/components/shell.js`
+- [X] T059 [US7] Conectar en `src/app.js` el recálculo del panel en cada render, tras cada mutación y al volver al panel, sin leer ni guardar totales en `localStorage`
 
 **Punto de control**: las siete historias están implementadas y son verificables.
 
@@ -228,7 +228,7 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 - [X] T060 [P] Escribir `tests/unit/security-render.test.js`: asunto, notas, descripción y nombre con etiquetas HTML o texto tipo script se muestran como texto (`textContent`), sin ejecución
 - [X] T061 [P] Escribir `tests/integration/storage-risks.test.js`: cuota agotada, JSON corrupto, versión de esquema incompatible y pestaña obsoleta (evento `storage`) sin éxito falso ni sobrescritura
 - [X] T062 [P] Escribir `tests/integration/accessibility.test.js`: etiquetas asociadas, `aria-describedby` en errores, foco visible, orden de tabulación, contraste suficiente y mensajes de estado legibles en formularios y listas; incluir una comprobación en pantalla estrecha y registrar el navegador usado
-- [ ] T063 [P] Crear `tests/performance/search-performance.test.js` con 500 clientes y 1000 oportunidades: medir de la entrada a los resultados renderizados 20 búsquedas y 20 recálculos del panel, validando en cada medición que el resultado sea correcto, y registrar navegador, equipo y resultado (meta: 19 de 20 bajo 500 ms) en `README.md`
+- [X] T063 [P] Crear `tests/performance/search-performance.test.js` con 500 clientes y 1000 oportunidades: medir de la entrada a los resultados renderizados 20 búsquedas y 20 recálculos del panel, validando en cada medición que el resultado sea correcto, y registrar navegador, equipo y resultado (meta: 19 de 20 bajo 500 ms) en `README.md`
 - [X] T064 Auditar y corregir `src/app.js` y `src/components/` para cumplir privacidad y minimización: sin exportación masiva del listado y sin ordenar ni priorizar por ubicación geográfica (`FR-027`, `FR-028`, `NFR-005`)
 - [X] T065 Actualizar `README.md` con integrantes responsables por historia, instrucciones de ejecución, comandos de prueba, tabla de evidencias y registro del uso de IA
 - [ ] T066 Ejecutar manualmente los escenarios 1 a 4 y 6 de `specs/001-crm-module/quickstart.md` para el MVP P1; validar los escenarios 5 y 7 al cerrar la segunda iteración. Ejecutar la tabla de validaciones transversales, probar Chrome y Firefox actuales (y Edge/Safari si están disponibles), crear los datos semilla sintéticos de la demo y anotar resultados reales (incluidos los pendientes) en `README.md`

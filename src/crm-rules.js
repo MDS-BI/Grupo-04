@@ -264,7 +264,6 @@ export function validateOpportunity(opportunity, context = {}) {
   const documents = Array.isArray(context.documents) ? context.documents : [];
   const mode = context.mode || 'create';
   const errors = {};
-
   const entityId = opportunity.entityId || opportunity.entity_id;
   if (!entityId || !entities.some((entity) => entity.entity_id === entityId)) {
     errors.entityId = 'Selecciona un cliente existente para la oportunidad';
@@ -304,6 +303,72 @@ export function validateOpportunity(opportunity, context = {}) {
     }
   } else if (status === 'Perdida' && isBlank(opportunity.lossReason)) {
     errors.lossReason = 'El motivo de pérdida es obligatorio al marcar la oportunidad como Perdida';
+  }
+
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+export const TICKET_REASONS = Object.freeze(['soporte', 'reclamo', 'consulta']);
+export const TICKET_PRIORITIES = Object.freeze(['Alta', 'Media', 'Baja']);
+export const TICKET_STATUSES = Object.freeze(['En proceso', 'Resuelto']);
+
+function ticketCatalog(name, fallback, config) {
+  const declared = catalog(name, config);
+  return declared.length > 0 ? declared : [...fallback];
+}
+
+/** Un ticket solo avanza de En proceso a Resuelto; no se reabre en el MVP. */
+export function canTransitionTicket(from, to) {
+  return from === 'En proceso' && to === 'Resuelto';
+}
+
+/**
+ * Valida un ticket: cliente existente, producto (`productId` o `productName`),
+ * motivo y prioridad de catálogo, descripción no vacía y estado inicial
+ * `En proceso` al crear.
+ */
+export function validateTicket(ticket, context = {}) {
+  const config = context.config || getConfig();
+  const entities = Array.isArray(context.entities) ? context.entities : null;
+  const mode = context.mode || 'create';
+  const errors = {};
+
+  const entityId = ticket.entityId || ticket.entity_id;
+  if (isBlank(entityId)) {
+    errors.entityId = 'Selecciona un cliente para el ticket';
+  } else if (entities && !entities.some((entity) => entity.entity_id === entityId)) {
+    errors.entityId = 'Selecciona un cliente existente para el ticket';
+  }
+
+  if (isBlank(ticket.productName) && isBlank(ticket.productId)) {
+    errors.productName = 'Indica el producto o su nombre de respaldo';
+  }
+
+  const reasons = ticketCatalog('reason', TICKET_REASONS, config);
+  if (isBlank(ticket.reason)) {
+    errors.reason = 'El motivo del ticket es obligatorio';
+  } else if (!isValidCatalogValue(ticket.reason, reasons)) {
+    errors.reason = `El motivo debe ser uno de: ${reasons.join(', ')}`;
+  }
+
+  if (isBlank(ticket.description)) {
+    errors.description = 'La descripción del ticket es obligatoria';
+  }
+
+  const priorities = ticketCatalog('priority', TICKET_PRIORITIES, config);
+  if (isBlank(ticket.priority)) {
+    errors.priority = 'La prioridad del ticket es obligatoria';
+  } else if (!isValidCatalogValue(ticket.priority, priorities)) {
+    errors.priority = `La prioridad debe ser uno de: ${priorities.join(', ')}`;
+  }
+
+  const status = String(ticket.status ?? '').trim();
+  if (mode === 'create') {
+    if (status && status !== 'En proceso') {
+      errors.status = 'Un ticket nuevo debe comenzar en estado En proceso';
+    }
+  } else if (status && !TICKET_STATUSES.includes(status)) {
+    errors.status = `El estado del ticket debe ser uno de: ${TICKET_STATUSES.join(', ')}`;
   }
 
   return { valid: Object.keys(errors).length === 0, errors };

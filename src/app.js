@@ -18,9 +18,19 @@ import {
   updateDocument,
   deleteDocument,
   validateDocument,
-  countDocumentsForEntity
+  countDocumentsForEntity,
+  loadTickets,
+  addTicket,
+  updateTicket,
+  countTicketsForEntity
 } from './storage.js';
-import { validateClient, validateOpportunity, searchClients, searchOpportunities } from './crm-rules.js';
+import {
+  validateClient,
+  validateOpportunity,
+  validateTicket,
+  searchClients,
+  searchOpportunities
+} from './crm-rules.js';
 import { clearEntityForm, startEntityEdit, collectEntityPayload, showEntityErrors } from './components/entity-form.js';
 import { createEntityItem, createClientSummary } from './components/entity-list.js';
 import {
@@ -35,6 +45,14 @@ import { renderDashboard } from './components/dashboard.js';
 import { setupSearchBar, readSearchFilters, clearSearchFilters } from './components/search-bar.js';
 import { renderSearchResults } from './components/search-results.js';
 import { renderEntityDetail, renderOpportunityDetail } from './components/entity-detail.js';
+import {
+  prepareTicketForm,
+  clearTicketForm,
+  startTicketEdit,
+  collectTicketPayload,
+  showTicketErrors
+} from './components/ticket-form.js';
+import { renderTicketList } from './components/ticket-list.js';
 
 function qs(id) {
   return document.getElementById(id);
@@ -59,17 +77,16 @@ const VIEW_IDS = {
 
 let wired = false;
 let currentView = null;
+let currentClientEntityId = null;
 let dirty = false;
 let staleStorage = false;
 
 function availableViews() {
-  return isCrmProfile(getConfig())
-    ? ['entities', 'documents', 'search']
-    : ['dashboard', 'entities', 'documents', 'search'];
+  return ['dashboard', 'entities', 'documents', 'search'];
 }
 
 function fallbackView() {
-  return isCrmProfile(getConfig()) ? 'entities' : 'dashboard';
+  return 'dashboard';
 }
 
 function readViewFromHash() {
@@ -245,6 +262,40 @@ function populateEditDocumentSelect() {
   if (prev && [...select.options].some((o) => o.value === prev)) select.value = prev;
 }
 
+function populateTicketEntitySelect(selectedEntityId) {
+  const select = qs('ticket-entity');
+  if (!select) return;
+  const prev = selectedEntityId || select.value;
+  select.innerHTML = '';
+  let entities = [];
+  try {
+    entities = loadEntities();
+  } catch (error) {
+    reportDataError(error);
+  }
+  entities.forEach((entity) => {
+    const option = document.createElement('option');
+    option.value = entity.entity_id;
+    option.textContent = `${entity.name} — ${entity.code}`;
+    select.appendChild(option);
+  });
+  if (prev && [...select.options].some((option) => option.value === prev)) select.value = prev;
+}
+
+function renderClientTickets(entityId) {
+  const listEl = qs('ticket-list-items');
+  const emptyEl = qs('ticket-list-empty');
+  if (!listEl || !emptyEl) return;
+  let tickets = [];
+  try {
+    tickets = loadTickets().filter((ticket) => ticket.entity_id === entityId);
+  } catch (error) {
+    reportDataError(error);
+  }
+  const rendered = renderTicketList(listEl, tickets);
+  emptyEl.hidden = rendered;
+}
+
 function renderClientList() {
   const listEl = qs('client-list-items');
   const emptyEl = qs('client-list-empty');
@@ -346,9 +397,17 @@ function showClientDetail(entityId) {
     return;
   }
   if (!entity) return;
+  currentClientEntityId = entityId;
   renderEntityDetail(qs('entity-detail-body'), entity, opportunities);
   qs('entity-detail').hidden = false;
   qs('opportunity-detail').hidden = true;
+  const ticketSection = qs('ticket-section');
+  if (ticketSection) ticketSection.hidden = !isCrmProfile(getConfig());
+  if (isCrmProfile(getConfig())) {
+    clearTicketForm();
+    populateTicketEntitySelect(entityId);
+    renderClientTickets(entityId);
+  }
 }
 
 function showOpportunityDetail(documentId) {
@@ -522,6 +581,7 @@ function applyLabels(config) {
   const femEntity = esFemenina(entity);
   const femDocument = esFemenina(document_);
   const entityClass = femEntity ? 'registradas' : 'registrados';
+  const crm = isCrmProfile(config);
 
   document.title = config.moduleName;
   qs('brand-name').textContent = config.moduleName;
@@ -534,10 +594,14 @@ function applyLabels(config) {
   qs('action-new-entity-sub').textContent = `Crear un registro de ${entity.toLowerCase()}`;
   qs('action-new-document-title').textContent = `${femDocument ? 'Nueva' : 'Nuevo'} ${document_}`;
   qs('action-new-document-sub').textContent = `Registrar un registro de ${document_.toLowerCase()}`;
-  qs('action-open-entities-title').textContent = entities;
+  qs('action-open-entities-title').textContent = crm ? `Gestionar ${entities}` : entities;
   qs('action-open-entities-sub').textContent = `Abrir la gestión de ${entities.toLowerCase()}`;
-  qs('action-find-title').textContent = 'Buscar registros';
+  qs('action-find-title').textContent = crm ? 'Buscar' : 'Buscar registros';
   qs('action-find-sub').textContent = `Buscar ${entities.toLowerCase()}`;
+  const emptyHint = qs('dashboard-empty-hint');
+  if (emptyHint) {
+    emptyHint.textContent = `Aún no hay datos en el panel. Comienza registrando ${articulo(entity)} ${entity.toLowerCase()} y luego crea su primera ${document_.toLowerCase()}.`;
+  }
 
   qs('entities-view-heading').textContent = entities;
   qs('entity-form-heading').textContent = `Agregar / Editar ${entity}`;
@@ -587,15 +651,24 @@ function handleDeleteSelectedEntity() {
   }
   let entity;
   let related = 0;
+  let relatedTickets = 0;
   try {
     entity = loadEntities().find((e) => e.id === id);
     related = entity ? countDocumentsForEntity(entity.entity_id) : 0;
+    relatedTickets = entity ? countTicketsForEntity(entity.entity_id) : 0;
   } catch (error) {
     showFormMessage('entity-message', error.message, 'error');
     return;
   }
   const noun = labelFor('documents').toLowerCase();
-  const extra = related > 0 ? ` Se eliminarán ${related} ${noun} asociadas.` : '';
+  const feminineDocuments = esFemenina(labelFor('documents'));
+  const documentsExtra =
+    related > 0 ? ` Se eliminarán ${related} ${noun} ${feminineDocuments ? 'asociadas' : 'asociados'}.` : '';
+  const ticketsExtra =
+    relatedTickets > 0
+      ? ` Se eliminarán ${relatedTickets} ${relatedTickets === 1 ? 'ticket asociado' : 'tickets asociados'}.`
+      : '';
+  const extra = `${documentsExtra}${ticketsExtra}`;
   if (
     !confirm(
       `¿Eliminar ${demostrativo(labelFor('entity'))} ${labelFor('entity').toLowerCase()}?${extra} Esta acción no se puede deshacer.`
@@ -661,8 +734,10 @@ function refreshAll() {
   populateDocumentEntitySelect();
   populateEditEntitySelect();
   populateEditDocumentSelect();
+  populateTicketEntitySelect();
   renderClientList();
   renderOpportunityPanel();
+  if (currentClientEntityId) renderClientTickets(currentClientEntityId);
   if (currentView === 'dashboard') renderDashboard();
   if (currentView === 'search') refreshSearch();
 }
@@ -778,6 +853,86 @@ function handleDocumentSubmit(ev) {
   refreshAll();
 }
 
+function handleTicketSubmit(ev) {
+  ev.preventDefault();
+  if (staleStorage) {
+    showFormMessage(
+      'ticket-message',
+      'Los datos cambiaron en otra pestaña. Recarga la página antes de guardar.',
+      'error'
+    );
+    return;
+  }
+  if (!isCrmProfile(getConfig())) return;
+  const id = qs('ticket-id').value;
+  const payload = collectTicketPayload();
+  let entities = [];
+  try {
+    entities = loadEntities();
+  } catch (error) {
+    showFormMessage('ticket-message', error.message, 'error');
+    return;
+  }
+  const errors = validateTicket(
+    { ...payload, status: id ? payload.status : 'En proceso' },
+    { entities, mode: id ? 'update' : 'create' }
+  ).errors;
+  showTicketErrors(errors);
+  if (Object.keys(errors).length > 0) {
+    showFormMessage(
+      'ticket-message',
+      `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
+      'error'
+    );
+    return;
+  }
+  try {
+    const saved = id ? updateTicket(id, payload) : addTicket(payload);
+    currentClientEntityId = saved.entity_id || currentClientEntityId;
+    clearTicketForm();
+    populateTicketEntitySelect(currentClientEntityId);
+    renderClientTickets(currentClientEntityId);
+    showFormMessage('ticket-message', id ? 'Ticket actualizado correctamente.' : 'Ticket registrado correctamente.');
+  } catch (error) {
+    showFormMessage('ticket-message', error.message, 'error');
+  }
+}
+
+function resolveTicketById(ticketId) {
+  if (!ticketId) return;
+  if (staleStorage) {
+    showFormMessage(
+      'ticket-message',
+      'Los datos cambiaron en otra pestaña. Recarga la página antes de actualizar.',
+      'error'
+    );
+    return;
+  }
+  try {
+    const updated = updateTicket(ticketId, { status: 'Resuelto' });
+    currentClientEntityId = updated.entity_id || currentClientEntityId;
+    renderClientTickets(currentClientEntityId);
+    showFormMessage('ticket-message', 'Ticket marcado como resuelto.');
+  } catch (error) {
+    showFormMessage('ticket-message', error.message, 'error');
+  }
+}
+
+function editTicketById(ticketId) {
+  let ticket;
+  try {
+    ticket = loadTickets().find((t) => t.id === ticketId);
+  } catch (error) {
+    showFormMessage('ticket-message', error.message, 'error');
+    return;
+  }
+  if (!ticket) return;
+  currentClientEntityId = ticket.entity_id;
+  populateTicketEntitySelect(ticket.entity_id);
+  startTicketEdit(ticket);
+  qs('ticket-description').focus();
+}
+
 function onStorageChange(event) {
   const key = event && event.key;
   staleStorage = true;
@@ -816,6 +971,20 @@ function wireEvents() {
     dirty = false;
     clearDocumentForm();
     hideStorageWarning();
+  });
+  qs('ticket-form').addEventListener('submit', handleTicketSubmit);
+  qs('ticket-cancel-edit').addEventListener('click', () => {
+    dirty = false;
+    clearTicketForm();
+  });
+  qs('ticket-list-items').addEventListener('click', (event) => {
+    const resolve = event.target.closest ? event.target.closest('[data-resolve-ticket]') : null;
+    if (resolve) {
+      resolveTicketById(resolve.dataset.resolveTicket);
+      return;
+    }
+    const edit = event.target.closest ? event.target.closest('[data-edit-ticket]') : null;
+    if (edit) editTicketById(edit.dataset.editTicket);
   });
   qs('client-list-create').addEventListener('click', () =>
     showModule('entities', { newRecord: true, focusForm: true })
@@ -856,7 +1025,7 @@ function wireEvents() {
     if (select) select.value = create.dataset.newOpportunity;
     if (qs('cf-opportunityTitle')) qs('cf-opportunityTitle').focus();
   });
-  ['entity-form', 'document-form'].forEach((id) => {
+  ['entity-form', 'document-form', 'ticket-form'].forEach((id) => {
     qs(id).addEventListener('input', () => {
       dirty = true;
     });
@@ -889,8 +1058,10 @@ export function initApp(resolved) {
   ensureSearchFilters();
   applyProfileVisibility();
   wireEvents();
+  prepareTicketForm();
   clearEntityForm();
   clearDocumentForm();
+  clearTicketForm();
   const initial = readViewFromHash();
   currentView = null;
   showModule(initial, { skipGuard: true, replaceHash: true });

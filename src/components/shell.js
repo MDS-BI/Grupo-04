@@ -1,4 +1,4 @@
-import { getConfig, isCrmProfile } from '../module-config.js';
+import { getConfig } from '../module-config.js';
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -30,8 +30,8 @@ export function renderLogo(container) {
 
 /**
  * Aplica la terminología del perfil a la barra lateral y mantiene nombres
- * accesibles cuando la barra se contrae a un riel de iconos.
- * La entrada Panel pertenece a P2: se oculta con el perfil CRM.
+ * accesibles cuando la barra se contrae a un riel de iconos. La entrada Panel
+ * está disponible para el perfil CRM desde la segunda iteración (P2).
  */
 export function applyShellLabels() {
   const config = getConfig();
@@ -52,7 +52,7 @@ export function applyShellLabels() {
   });
 
   const dashboard = document.getElementById('nav-dashboard');
-  if (dashboard) dashboard.hidden = isCrmProfile(config);
+  if (dashboard) dashboard.hidden = false;
 }
 
 export function setActiveModule(name) {

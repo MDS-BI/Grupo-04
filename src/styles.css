@@ -544,6 +544,54 @@ button.danger:hover {
 }
 
 /* ==========================================================================
+   Tickets de soporte en la ficha del cliente
+   ========================================================================== */
+.ticket-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.ticket-section h3 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.ticket-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ticket-item {
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ticket-item:last-child {
+  border-bottom: none;
+}
+
+.ticket-description {
+  margin: 4px 0;
+}
+
+.status-badge.status-resolved {
+  background: #e8f6ee;
+  color: var(--success);
+  border-color: #b7e4c8;
+}
+
+.fixed-value {
+  background: var(--accent-soft);
+  border: 1px solid rgba(15, 118, 110, 0.3);
+  border-radius: 8px;
+  color: var(--accent-dark);
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+/* ==========================================================================
    Responsive: collapse sidebar to an icon rail on narrow viewports
    ========================================================================== */
 @media (max-width: 900px) {

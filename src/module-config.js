@@ -21,6 +21,8 @@
 export const CRM_ACCOUNT_OWNERS = Object.freeze(['Ejecutivo A', 'Ejecutivo B']);
 export const CRM_ACQUISITION_SOURCES = Object.freeze(['Sitio web', 'Referido', 'Contacto directo', 'Otro']);
 export const CRM_CATEGORIES = Object.freeze(['Prospecto', 'Activo', 'Inactivo']);
+export const CRM_TICKET_PRIORITIES = Object.freeze(['Alta', 'Media', 'Baja']);
+export const CRM_TICKET_REASONS = Object.freeze(['soporte', 'reclamo', 'consulta']);
 
 // Perfil CRM — Clientes y Oportunidades (MVP P1).
 export const userConfig = {
@@ -64,7 +66,9 @@ export const userConfig = {
     category: [...CRM_CATEGORIES],
     accountOwner: [...CRM_ACCOUNT_OWNERS],
     opportunityOwner: [...CRM_ACCOUNT_OWNERS],
-    acquisitionSource: [...CRM_ACQUISITION_SOURCES]
+    acquisitionSource: [...CRM_ACQUISITION_SOURCES],
+    priority: [...CRM_TICKET_PRIORITIES],
+    reason: [...CRM_TICKET_REASONS]
   },
   statusLifecycle: {
     statuses: ['Nueva', 'Contactada', 'Propuesta', 'Negociación', 'Ganada', 'Perdida'],

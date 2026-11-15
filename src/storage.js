@@ -1,8 +1,16 @@
 import { getConfig, isCrmProfile } from './module-config.js';
-import { normalizeCode, validateClient, validateOpportunity, validateStatusChange } from './crm-rules.js';
+import {
+  normalizeCode,
+  validateClient,
+  validateOpportunity,
+  validateStatusChange,
+  validateTicket,
+  canTransitionTicket
+} from './crm-rules.js';
 
 export const ENTITIES_KEY = 'erp_base_module:entities';
 export const DOCUMENTS_KEY = 'erp_base_module:documents';
+export const TICKETS_KEY = 'erp_base_module:tickets';
 export const SCHEMA_KEY = 'erp_base_module:schemaVersion';
 export const SCHEMA_VERSION = 1;
 
@@ -68,18 +76,22 @@ function saveSnapshot(snapshot) {
   assertCompatibleSchema();
   const entities = Array.isArray(snapshot.entities) ? snapshot.entities : [];
   const documents = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const tickets = Array.isArray(snapshot.tickets) ? snapshot.tickets : [];
   const previous = {
     entities: localStorage.getItem(ENTITIES_KEY),
     documents: localStorage.getItem(DOCUMENTS_KEY),
+    tickets: localStorage.getItem(TICKETS_KEY),
     schema: localStorage.getItem(SCHEMA_KEY)
   };
   try {
     localStorage.setItem(ENTITIES_KEY, JSON.stringify(entities));
     localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(documents));
+    localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets));
     localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION }));
   } catch {
     restoreRaw(ENTITIES_KEY, previous.entities);
     restoreRaw(DOCUMENTS_KEY, previous.documents);
+    restoreRaw(TICKETS_KEY, previous.tickets);
     restoreRaw(SCHEMA_KEY, previous.schema);
     throw new Error(WRITE_MESSAGE);
   }
@@ -94,7 +106,7 @@ export function loadEntities() {
 }
 
 export function saveEntities(entities) {
-  saveSnapshot({ entities, documents: loadDocuments() });
+  saveSnapshot({ entities, documents: loadDocuments(), tickets: loadTickets() });
 }
 
 export function loadDocuments() {
@@ -102,7 +114,15 @@ export function loadDocuments() {
 }
 
 export function saveDocuments(documents) {
-  saveSnapshot({ entities: loadEntities(), documents });
+  saveSnapshot({ entities: loadEntities(), documents, tickets: loadTickets() });
+}
+
+export function loadTickets() {
+  return readCollection(TICKETS_KEY, 'tickets');
+}
+
+export function saveTickets(tickets) {
+  saveSnapshot({ entities: loadEntities(), documents: loadDocuments(), tickets });
 }
 
 function generateId(prefix) {
@@ -284,18 +304,20 @@ function buildEntity(payload, existing) {
 export function addEntity(payload) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const errors = { ...validateEntity(payload).errors };
   if (isCrmProfile()) Object.assign(errors, validateClient(payload, { entities }).errors);
   if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
 
   const entity = buildEntity(payload);
-  saveSnapshot({ entities: [...entities, entity], documents });
+  saveSnapshot({ entities: [...entities, entity], documents, tickets });
   return entity;
 }
 
 export function updateEntity(id, updates) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const idx = entities.findIndex((e) => e.id === id);
   if (idx === -1) throw new Error('Entidad no encontrada');
   const previous = entities[idx];
@@ -309,26 +331,32 @@ export function updateEntity(id, updates) {
   const next = buildEntity(merged, previous);
   const list = [...entities];
   list[idx] = next;
-  saveSnapshot({ entities: list, documents });
+  saveSnapshot({ entities: list, documents, tickets });
   return next;
 }
 
 /**
- * Elimina un cliente y sus documentos en una sola escritura de la instantánea.
- * En P2 la misma operación incluirá los tickets (T051).
+ * Elimina un cliente junto con sus documentos y tickets en una sola escritura
+ * de la instantánea; si la escritura falla, no se modifica el estado previo.
  */
 export function deleteEntity(id) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const target = entities.find((e) => e.id === id);
   const newEntities = entities.filter((e) => e.id !== id);
   const newDocuments = target ? documents.filter((d) => d.entity_id !== target.entity_id) : documents;
-  saveSnapshot({ entities: newEntities, documents: newDocuments });
+  const newTickets = target ? tickets.filter((t) => t.entity_id !== target.entity_id) : tickets;
+  saveSnapshot({ entities: newEntities, documents: newDocuments, tickets: newTickets });
   return newEntities;
 }
 
 export function countDocumentsForEntity(entityId) {
   return loadDocuments().filter((d) => d.entity_id === entityId).length;
+}
+
+export function countTicketsForEntity(entityId) {
+  return loadTickets().filter((t) => t.entity_id === entityId).length;
 }
 
 export function validateDocument(payload, currentStatus) {
@@ -414,6 +442,7 @@ function buildDocument(payload, existing) {
 export function addDocument(payload) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const crm = isCrmProfile();
   const errors = { ...validateDocument(payload).errors };
   if (crm) {
@@ -429,13 +458,14 @@ export function addDocument(payload) {
   if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
 
   const document = buildDocument(crm ? { ...payload, series: 'OPP', currency: 'CLP', status: 'Nueva' } : payload);
-  saveSnapshot({ entities, documents: [...documents, document] });
+  saveSnapshot({ entities, documents: [...documents, document], tickets });
   return document;
 }
 
 export function updateDocument(id, updates) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const idx = documents.findIndex((d) => d.id === id);
   if (idx === -1) throw new Error('Documento no encontrado');
   const previous = documents[idx];
@@ -478,28 +508,103 @@ export function updateDocument(id, updates) {
   const next = buildDocument({ ...merged, status: nextStatus, entityId: merged.entity_id }, previous);
   const list = [...documents];
   list[idx] = next;
-  saveSnapshot({ entities, documents: list });
+  saveSnapshot({ entities, documents: list, tickets });
   return next;
 }
 
 export function deleteDocument(id) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const newDocuments = documents.filter((d) => d.id !== id);
-  saveSnapshot({ entities, documents: newDocuments });
+  saveSnapshot({ entities, documents: newDocuments, tickets });
   return newDocuments;
 }
 
 export function deleteDocumentsForEntity(entityId) {
   const entities = loadEntities();
   const documents = loadDocuments();
+  const tickets = loadTickets();
   const newDocuments = documents.filter((d) => d.entity_id !== entityId);
-  saveSnapshot({ entities, documents: newDocuments });
+  saveSnapshot({ entities, documents: newDocuments, tickets });
   return newDocuments;
 }
 
+function buildTicket(payload, existing) {
+  const now = new Date().toISOString();
+  return {
+    id: existing ? existing.id : generateId('tkt'),
+    entity_id: existing ? existing.entity_id : payload.entityId || payload.entity_id,
+    productId: textOrUndefined(payload.productId),
+    productName: textOrUndefined(payload.productName),
+    reason: textOrUndefined(payload.reason),
+    description: textOrUndefined(payload.description),
+    priority: textOrUndefined(payload.priority),
+    status: existing ? existing.status : 'En proceso',
+    createdAt: existing ? existing.createdAt : now,
+    updatedAt: now
+  };
+}
+
+/**
+ * Añade un ticket validado y con estado inicial En proceso. El cliente debe
+ * existir y el producto se identifica por `productId` o `productName`.
+ */
+export function addTicket(payload) {
+  const entities = loadEntities();
+  const documents = loadDocuments();
+  const tickets = loadTickets();
+  const candidate = { ...payload, entityId: payload.entityId || payload.entity_id, status: 'En proceso' };
+  const errors = validateTicket(candidate, { entities }).errors;
+  if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
+
+  const ticket = buildTicket(candidate);
+  saveSnapshot({ entities, documents, tickets: [...tickets, ticket] });
+  return ticket;
+}
+
+/**
+ * Actualiza un ticket conservando `id`, `entity_id` y `status`. Cambiar de
+ * estado solo se acepta si la transición declarada es válida (sin reapertura).
+ */
+export function updateTicket(id, updates) {
+  const entities = loadEntities();
+  const documents = loadDocuments();
+  const tickets = loadTickets();
+  const idx = tickets.findIndex((t) => t.id === id);
+  if (idx === -1) throw new Error('Ticket no encontrado');
+  const previous = tickets[idx];
+  const merged = { ...previous, ...updates, entity_id: previous.entity_id };
+  const nextStatus = updates.status !== undefined ? String(updates.status || '').trim() : previous.status;
+
+  if (nextStatus !== previous.status && !canTransitionTicket(previous.status, nextStatus)) {
+    throw new Error(
+      `Transición de ticket no permitida de "${previous.status}" a "${nextStatus}". Los tickets resueltos no se reabren en el MVP.`
+    );
+  }
+
+  const candidate = { ...merged, status: nextStatus };
+  const errors = validateTicket(candidate, { entities, mode: 'update' }).errors;
+  if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
+
+  const next = { ...buildTicket(candidate, previous), status: nextStatus };
+  const list = [...tickets];
+  list[idx] = next;
+  saveSnapshot({ entities, documents, tickets: list });
+  return next;
+}
+
+export function deleteTicketsForEntity(entityId) {
+  const entities = loadEntities();
+  const documents = loadDocuments();
+  const tickets = loadTickets();
+  const newTickets = tickets.filter((t) => t.entity_id !== entityId);
+  saveSnapshot({ entities, documents, tickets: newTickets });
+  return newTickets;
+}
+
 export function clearAll() {
-  saveSnapshot({ entities: [], documents: [] });
+  saveSnapshot({ entities: [], documents: [], tickets: [] });
 }
 
 export function searchEntities(term) {

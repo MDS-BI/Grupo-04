@@ -1,8 +1,8 @@
 # CRM — Clientes y Oportunidades
 
-Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades y consultar un panel con indicadores descriptivos. Los tickets de soporte y el panel son P2 y se implementan en la segunda iteración.
+Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades, registrar tickets de soporte y consultar un panel con seis indicadores descriptivos.
 
-> **Estado**: MVP P1 implementado y verificado con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes. Tickets (US3) y panel (US7) corresponden a la segunda iteración (P2).
+> **Estado**: MVP P1 y segunda iteración P2 (tickets y panel) implementados y verificados con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes.
 
 ## Integrantes
 
@@ -31,7 +31,7 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 |---|---|---|---|
 | Hito 1 — Revisión inicial | 20/10/2026 | Repositorio, MER y plan inicial | Cumplido, con observaciones del profesor |
 | Hito 2 — Especificaciones y tareas | 10/11/2026 | `spec.md` consolidada, `plan.md`, `data-model.md`, contrato y `tasks.md` generado desde las US | En progreso |
-| Hito 3 — Versión integrada de prueba | 17/11/2026 | Código base restaurado, CRM configurado, pruebas ejecutadas y demo interna | Código y pruebas automatizadas listas (238 pruebas); demo manual en navegadores pendiente (T066) |
+| Hito 3 — Versión integrada de prueba | 17/11/2026 | Código base restaurado, CRM configurado, pruebas ejecutadas y demo interna | Código y pruebas automatizadas listas (278 pruebas); demo manual en navegadores pendiente (T066) |
 | Hito 4 — Entrega y presentación | Semana del 30/11/2026 | Repositorio final, README, evidencias y ensayo de 5 minutos | Pendiente |
 
 | Línea | Alcance | Responsable | Iteración |
@@ -71,6 +71,8 @@ src/
     document-form.js
     document-list.js
     search-bar.js
+    ticket-form.js
+    ticket-list.js
 tests/
   unit/
   integration/
@@ -114,16 +116,16 @@ Toda la adaptación vive en `src/module-config.js`:
 - `statusLifecycle`: Nueva → Contactada → Propuesta → Negociación → Ganada / Perdida.
 - `theme.accentColor`: `#0F766E`.
 
-Catálogos: tipo de cliente (Prospecto, Activo, Inactivo), responsables (Ejecutivo A, Ejecutivo B), orígenes (Sitio web, Referido, Contacto directo, Otro) y prioridades de ticket (Alta, Media, Baja). El detalle está en `specs/001-crm-module/data-model.md`.
+Catálogos: tipo de cliente (Prospecto, Activo, Inactivo), responsables (Ejecutivo A, Ejecutivo B), orígenes (Sitio web, Referido, Contacto directo, Otro), prioridades de ticket (Alta, Media, Baja) y motivos de ticket (soporte, reclamo, consulta). El detalle está en `specs/001-crm-module/data-model.md`.
 
 ## Persistencia
 
 - `erp_base_module:entities`: clientes.
 - `erp_base_module:documents`: oportunidades.
-- `erp_base_module:tickets`: tickets (P2, propuesto).
-- `erp_base_module:schemaVersion`: versión de esquema (propuesto).
+- `erp_base_module:tickets`: tickets de soporte (P2).
+- `erp_base_module:schemaVersion`: versión de esquema.
 
-Los datos viven en el `localStorage` del navegador. Borrar el perfil del navegador elimina la persistencia. No hay respaldo central ni acceso simultáneo.
+Los datos viven en el `localStorage` del navegador. Borrar el perfil del navegador elimina la persistencia. No hay respaldo central ni acceso simultáneo. El panel no guarda totales derivados: se recalculan en cada render a partir de clientes y oportunidades.
 
 ## Demo
 
@@ -140,8 +142,10 @@ Datos sintéticos sugeridos:
 | Folio | 3001 |
 | Fechas | 2026-11-02 → 2026-11-30 |
 | Monto | 8.500.000 CLP |
+| Ticket | Compresor industrial · soporte · prioridad Alta |
+| Panel | Seis indicadores recalculados en cada visita |
 
-Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → recargar. El panel y los tickets se validan en la segunda iteración. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente y cancelación.
+Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → registrar ticket → marcar el ticket como resuelto → recargar → abrir Panel. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente, ticket sin producto, reapertura de un ticket resuelto y cancelación.
 
 ## Evidencias y registro de cambios
 
@@ -160,7 +164,8 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 | 2026-11-15 | US6 (T043–T047): terminología Cliente/Clientes y Oportunidad/Oportunidades en gestión, formularios, búsqueda, detalle, mensajes y estados vacíos; aviso de configuración conflictiva; valores desconocidos preservados; nombres accesibles de la barra lateral | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 20 archivos, 225 pruebas aprobadas (ampliadas: `relabeling.test.js`; fallaron los casos nuevos antes de implementar). `npm run lint`: sin errores. `npm run format:check`: correcto. `npm run build`: Vite correcto. |
 | 2026-11-15 | Pulido P1 (T060–T064): seguridad de renderizado, riesgos de almacenamiento (cuota, JSON corrupto, esquema incompatible, pestaña obsoleta), accesibilidad, rendimiento de búsqueda y auditoría de privacidad (sin exportación ni orden por ubicación) | `npx vitest run` | 25 archivos y 238 pruebas aprobadas. Nuevas: `security-render.test.js`, `storage-risks.test.js`, `accessibility.test.js`, `search-performance.test.js`, `critical-journey.test.js`. |
 | 2026-11-15 | Verificación final P1 (T067) | `npm test -- --run`; `npm run build`; `npm run lint`; `npm run format:check` | `npm test -- --run`: 25 archivos y 238 pruebas aprobadas (32,3 s). `npm run build`: Vite correcto (HTML 19,93 kB). `npm run lint`: sin errores. `npm run format:check`: sin diferencias. |
-| 2026-11-15 | Rendimiento de búsqueda (T063, parte P1) | `npx vitest run tests/performance/search-performance.test.js` | 500 clientes y 1000 oportunidades en jsdom (Node.js, Windows 11, equipo de desarrollo del grupo). La prueba exige ≥19 de 20 búsquedas bajo 500 ms y resultados correctos: se cumple. Los 20 recálculos del panel corresponden a US7 (P2): pendientes. |
+| 2026-11-15 | P2 US3 y US7 (T048–T059): reglas y persistencia de tickets (`erp_base_module:tickets`, cascada atómica, sin reapertura), formulario y lista de tickets en la ficha del cliente, seis métricas puras en `src/crm-metrics.js`, panel con acciones rápidas y recálculo en cada render, entrada Panel en la barra lateral | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 28 archivos y 278 pruebas aprobadas (nuevas: `ticket-rules.test.js`, `tickets.test.js`, `crm-metrics.test.js`; ampliadas: `dashboard.test.js`, `relabeling.test.js`; los casos nuevos fallaron antes de implementar). `npm run lint`: sin errores. `npm run format:check`: sin diferencias. `npm run build`: Vite correcto (HTML 25,25 kB; CSS 7,49 kB; JS 69,37 kB). |
+| 2026-11-15 | Rendimiento (T063): 500 clientes y 1000 oportunidades, 20 búsquedas y 20 recálculos del panel | `npx vitest run tests/performance/search-performance.test.js --reporter=verbose` | jsdom sobre Node.js 24.20.0, Windows 11, equipo de desarrollo del grupo. Búsquedas: 20/20 bajo 500 ms (más lenta 4,3 ms). Panel: 20/20 recálculos bajo 500 ms (más lento 35,7 ms). Cada medición validó el resultado renderizado (coincidencia única de cliente/folio y los seis indicadores correctos). |
 | Pendiente | Validación manual en navegadores (T066) | Escenarios 1–4 y 6 de `quickstart.md` en Chrome y Firefox actuales; Edge/Safari y pantalla estrecha | **Pendiente declarada**: no se ejecutó en navegadores reales. Las comprobaciones DOM se hicieron en jsdom. |
 | Pendiente | Protocolo de usabilidad (T069) | 5 participantes, 4 tareas, SC-001 a SC-004 | **Pendiente declarada**: no se ejecutó. No se reportan tiempos ni tasas de éxito sin medición. |
 
@@ -169,8 +174,7 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 - **T066 (manual, navegadores)**: pendiente. Requiere Chrome y Firefox actuales (y Edge/Safari si están disponibles), además de la tabla de validaciones transversales de `quickstart.md`. No se marca como completada.
 - **T069 (usabilidad)**: pendiente. Requiere 5 participantes y la medición de SC-001 a SC-004. No se inventan participantes ni resultados.
 - **Nombres de integrantes (AMB-01)**: la tabla de integrantes sigue con `[completar]`; el equipo debe completarla. No se inventan nombres.
-- **P2 (no implementado en esta iteración)**: US3 (tickets, T048–T054A) y US7 (panel, T055–T059). T063 queda parcialmente cumplida: búsqueda medida; recálculo del panel diferido a P2.
-- **Entorno de las pruebas**: Node.js con jsdom (Vitest). La accesibilidad y el rendimiento se verificaron a nivel de DOM y de funciones; el contraste se calculó sobre los tokens CSS. La comprobación con navegador real sigue pendiente en T066.
+- **Entorno de las pruebas**: Node.js con jsdom (Vitest). La accesibilidad, el rendimiento, los tickets y el panel se verificaron a nivel de DOM y de funciones; el contraste se calculó sobre los tokens CSS. La comprobación con navegador real sigue pendiente en T066, y los escenarios 5 y 7 de `quickstart.md` deben recorrerse manualmente en esa misma validación.
 
 ### Adaptaciones de pruebas heredadas del template
 
@@ -181,12 +185,13 @@ Las pruebas del template ERP se conservan, pero algunas fijaban supuestos del m�
 | `tests/integration/create-entity.test.js`, `add-document.test.js`, `edit-delete-entity.test.js`, `search-entities.test.js`, `manage-tabs.test.js` | Arrancan con `initApp(normalizeConfig(undefined))` en lugar de `boot()` | `boot()` aplica el perfil CRM (`userConfig`); estas pruebas describen el contrato del módulo base genérico, que debe seguir vigente (FR-029, CA-06-09). Sus aserciones no cambian. |
 | `tests/integration/workspace-shell.test.js` | Espera la etiqueta `Buscar` en la barra lateral | FR-036 fija “Buscar” para el módulo CRM; el texto anterior (“Búsqueda”) era una decisión del template. |
 | `tests/unit/module-config.test.js` | El caso “userConfig null por defecto” pasa a verificar el perfil CRM cargado | T009 exige que `userConfig` contenga el perfil CRM; la prueba anterior comprobaba justamente el valor que la tarea cambia. |
+| `tests/integration/relabeling.test.js` | El perfil CRM abre en Panel, `nav-dashboard` está visible y se añaden aserciones de las tarjetas del panel | P2 habilita Panel y cambia la ruta de respaldo de Clientes a Panel (FR-036, CA-06-02, CA-06-07); las aserciones anteriores fijaban el estado P1. |
 
 ## Uso de IA
 
 La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso.
 
-- **Generado con IA**: propuesta de implementación de Fase 2, US1, US2, US4, US5, US6 y pulido P1 (`src/storage.js`, `src/module-config.js`, `src/crm-rules.js`, `src/app.js`, componentes y pruebas asociadas), redacción de esta sección de evidencias y de las notas de adaptación.
+- **Generado con IA**: propuesta de implementación de Fase 2, US1, US2, US4, US5, US6, US3 y US7, y pulido P1/P2 (`src/storage.js`, `src/module-config.js`, `src/crm-rules.js`, `src/crm-metrics.js`, `src/app.js`, componentes —incluidos `ticket-form.js` y `ticket-list.js`— y pruebas asociadas), redacción de esta sección de evidencias y de las notas de adaptación.
 - **Revisado manualmente**: alcance P1 frente a `spec.md` y `tasks.md`, textos de interfaz en español, criterios de eliminación en cascada, ciclo de vida y decisión de dejar T066/T069 como pendientes.
 - **Verificado con pruebas**: todos los resultados de la tabla anterior provienen de comandos ejecutados en este repositorio (Vitest, ESLint, Prettier y build de Vite). No se declaran pruebas, participantes ni validación empresarial que no se hayan ejecutado.
 

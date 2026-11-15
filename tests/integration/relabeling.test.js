@@ -117,8 +117,13 @@ describe('US6 — terminología comercial consistente con el perfil CRM', () => 
     expect(qs('nav-entities-label').textContent).toBe('Clientes');
     expect(qs('nav-documents-label').textContent).toBe('Oportunidades');
     expect(qs('nav-search-label').textContent).toBe('Buscar');
-    expect(qs('nav-dashboard').hidden).toBe(true);
+    expect(qs('nav-dashboard-label').textContent).toBe('Panel');
+    expect(qs('nav-dashboard').hidden).toBe(false);
+    expect(qs('view-dashboard').hidden).toBe(false);
+    expect(qs('stat-clients-label').textContent).toBe('Clientes registrados');
+    expect(qs('stat-open-opportunities-label').textContent).toBe('Oportunidades abiertas');
 
+    qs('nav-entities').click();
     expect(qs('view-entities').hidden).toBe(false);
     expect(qs('entities-view-heading').textContent).toBe('Clientes');
     expect(qs('client-list-heading').textContent).toBe('Clientes registrados');
@@ -214,7 +219,11 @@ describe('US6 — terminología comercial consistente con el perfil CRM', () => 
       expect(btn.getAttribute('aria-label')).toBeTruthy();
       expect(btn.querySelector('.nav-label')).not.toBeNull();
     });
+    expect(qs('nav-dashboard').getAttribute('aria-current')).toBe('page');
+
+    qs('nav-entities').click();
     expect(qs('nav-entities').getAttribute('aria-current')).toBe('page');
+    expect(qs('nav-dashboard').hasAttribute('aria-current')).toBe(false);
 
     qs('nav-documents').click();
     expect(qs('nav-documents').getAttribute('aria-current')).toBe('page');
