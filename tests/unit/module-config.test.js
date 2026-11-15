@@ -7,7 +7,8 @@ import {
   loadModuleConfig,
   setActiveConfig,
   getConfig,
-  labelFor
+  labelFor,
+  isCrmProfile
 } from '../../src/module-config.js';
 
 const salesConfig = {
@@ -113,10 +114,33 @@ describe('module-config', () => {
     expect(config.statusLifecycle).toBeNull();
   });
 
-  it('loadModuleConfig reflects the userConfig slot (null by default)', async () => {
+  it('loadModuleConfig exposes the CRM profile declared in userConfig', async () => {
     const { config, errors } = await loadModuleConfig();
     expect(errors).toEqual([]);
-    expect(config.moduleName).toBe(DEFAULT_CONFIG.moduleName);
+    expect(config.moduleName).toBe('CRM — Clientes y Oportunidades');
+    expect(config.labels.entity).toBe('Cliente');
+    expect(config.labels.entities).toBe('Clientes');
+    expect(config.labels.document).toBe('Oportunidad');
+    expect(config.labels.documents).toBe('Oportunidades');
+    expect(config.theme.accentColor).toBe('#0F766E');
+    expect(config.statusLifecycle.statuses).toEqual([
+      'Nueva',
+      'Contactada',
+      'Propuesta',
+      'Negociación',
+      'Ganada',
+      'Perdida'
+    ]);
+    const keys = config.customFields.map((f) => f.key);
+    expect(keys).toEqual([
+      'contactName',
+      'accountOwner',
+      'acquisitionSource',
+      'opportunityTitle',
+      'opportunityOwner',
+      'lossReason'
+    ]);
+    expect(config.catalogs.category).toEqual(['Prospecto', 'Activo', 'Inactivo']);
   });
 
   it('exposes active config and label helpers after setActiveConfig', () => {
@@ -179,6 +203,55 @@ describe('module-config', () => {
       const { config, errors } = normalizeConfig({ theme: {} });
       expect(errors).toEqual([]);
       expect(config.theme.accentColor).toBe(DEFAULT_CONFIG.theme.accentColor);
+    });
+  });
+
+  describe('catalogs and loader diagnostics', () => {
+    it('accepts a catalogs map of non-empty option lists', () => {
+      const { config, errors } = normalizeConfig({
+        catalogs: { category: ['Prospecto', 'Activo', 'Inactivo'] }
+      });
+      expect(errors).toEqual([]);
+      expect(config.catalogs.category).toEqual(['Prospecto', 'Activo', 'Inactivo']);
+    });
+
+    it('reports invalid catalog definitions and keeps the generic fallback', () => {
+      for (const catalogs of ['nope', { category: 'Activo' }, { category: [] }, { category: ['Activo', ''] }]) {
+        const { config, errors } = normalizeConfig({ catalogs });
+        expect(errors.some((e) => e.includes('catalogs'))).toBe(true);
+        expect(config.catalogs).toEqual({});
+      }
+    });
+
+    it('reports duplicate options in select fields', () => {
+      const { errors } = normalizeConfig({
+        customFields: [{ target: 'entity', key: 'x', label: 'X', type: 'select', options: ['A', 'A'] }]
+      });
+      expect(errors.some((e) => e.includes('opciones'))).toBe(true);
+    });
+
+    it('reports a customized key colliding with a document base field', () => {
+      const { errors } = normalizeConfig({
+        customFields: [{ target: 'document', key: 'folio', label: 'Folio', type: 'text' }]
+      });
+      expect(errors.some((e) => e.includes('choca con un campo base'))).toBe(true);
+    });
+
+    it('exposes configuration errors instead of throwing', () => {
+      const { config, errors } = normalizeConfig({
+        moduleName: 'X',
+        customFields: 'bad',
+        statusLifecycle: { statuses: [] }
+      });
+      expect(errors.length).toBeGreaterThan(0);
+      expect(config.moduleName).toBe('X');
+      expect(config.customFields).toEqual([]);
+    });
+
+    it('identifies whether the active profile is the CRM one', () => {
+      const { config } = normalizeConfig({ labels: { entity: 'Cliente', document: 'Oportunidad' } });
+      expect(isCrmProfile(config)).toBe(true);
+      expect(isCrmProfile(DEFAULT_CONFIG)).toBe(false);
     });
   });
 });

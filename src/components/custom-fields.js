@@ -25,6 +25,7 @@ export function renderCustomFields(container, target, values = {}) {
   container.hidden = false;
   for (const f of fields) {
     const inputId = `cf-${f.key}`;
+    const errorId = `error-${inputId}`;
     const wrap = el('div', { class: 'custom-field' });
     wrap.appendChild(el('label', { for: inputId, text: f.label + (f.required ? ' *' : '') }));
     let input;
@@ -43,9 +44,11 @@ export function renderCustomFields(container, target, values = {}) {
         input.setAttribute('step', 'any');
       }
     }
+    input.setAttribute('aria-describedby', errorId);
+    if (f.type === 'select') input.setAttribute('aria-required', 'true');
     input.value = values[f.key] !== undefined && values[f.key] !== null ? String(values[f.key]) : '';
     wrap.appendChild(input);
-    wrap.appendChild(el('div', { class: 'error', id: `error-${inputId}`, 'aria-live': 'polite' }));
+    wrap.appendChild(el('div', { class: 'error', id: errorId, 'aria-live': 'polite' }));
     container.appendChild(wrap);
   }
 }
@@ -65,7 +68,13 @@ export function collectCustomFields(container, target) {
 export function showCustomFieldErrors(container, target, errors = {}) {
   for (const f of declaredFieldsFor(target)) {
     const errEl = container.querySelector(`#error-cf-${f.key}`);
-    if (errEl) errEl.textContent = errors[f.key] || '';
+    const message = errors[f.key] || '';
+    if (errEl) errEl.textContent = message;
+    const input = container.querySelector(`#cf-${f.key}`);
+    if (input) {
+      if (message) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    }
   }
 }
 

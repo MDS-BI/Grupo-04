@@ -427,3 +427,113 @@ describe('clearAll', () => {
     expect(loadDocuments().length).toBe(0);
   });
 });
+
+describe('schema, identity and recovery (T005)', () => {
+  const SCHEMA_KEY = 'erp_base_module:schemaVersion';
+
+  function withBrokenStorage(failingKey) {
+    const real = globalThis.localStorage;
+    const nested = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => {
+        if (k === failingKey) throw new Error('QuotaExceededError');
+        store.set(k, String(v));
+        nested.set(k, String(v));
+      },
+      removeItem: (k) => {
+        store.delete(k);
+        nested.delete(k);
+      },
+      clear: () => {
+        store.clear();
+        nested.clear();
+      }
+    };
+    return {
+      restore: () => {
+        globalThis.localStorage = real;
+      },
+      writes: nested
+    };
+  }
+
+  it('generates a distinct id and entity_id and keeps them stable', () => {
+    const e1 = addEntity({ name: 'Acme', code: 'AC-001' });
+    const e2 = addEntity({ name: 'Globex', code: 'GL-002' });
+    expect(typeof e1.id).toBe('string');
+    expect(typeof e1.entity_id).toBe('string');
+    expect(e1.id).not.toBe(e1.entity_id);
+    expect(new Set([e1.id, e1.entity_id, e2.id, e2.entity_id]).size).toBe(4);
+
+    const updated = updateEntity(e1.id, { name: 'Acme Renamed' });
+    expect(updated.id).toBe(e1.id);
+    expect(updated.entity_id).toBe(e1.entity_id);
+    expect(updated.createdAt).toBe(e1.createdAt);
+  });
+
+  it('writes ISO timestamps and refreshes updatedAt on save', async () => {
+    const e = addEntity({ name: 'Acme', code: 'AC-001' });
+    expect(Number.isNaN(Date.parse(e.createdAt))).toBe(false);
+    expect(Number.isNaN(Date.parse(e.updatedAt))).toBe(false);
+    expect(e.updatedAt).toBe(e.createdAt);
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const updated = updateEntity(e.id, { name: 'Acme 2' });
+    expect(Date.parse(updated.updatedAt)).toBeGreaterThanOrEqual(Date.parse(e.updatedAt));
+    expect(updated.createdAt).toBe(e.createdAt);
+  });
+
+  it('persists an explicit schema version', () => {
+    addEntity({ name: 'Acme', code: 'AC-001' });
+    const raw = globalThis.localStorage.getItem(SCHEMA_KEY);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw).schemaVersion).toBe(1);
+  });
+
+  it('reports corrupt JSON without deleting the stored data', () => {
+    globalThis.localStorage.setItem('erp_base_module:entities', '{not-json');
+    expect(() => loadEntities()).toThrow(/no se pudo leer|corrupto|inválid/i);
+    expect(globalThis.localStorage.getItem('erp_base_module:entities')).toBe('{not-json');
+    expect(() => addEntity({ name: 'Acme', code: 'AC-001' })).toThrow(/no se pudo leer|corrupto|inválid/i);
+    expect(globalThis.localStorage.getItem('erp_base_module:entities')).toBe('{not-json');
+  });
+
+  it('propagates quota failures without reporting success', () => {
+    addEntity({ name: 'Acme', code: 'AC-001' });
+    const previous = globalThis.localStorage.getItem('erp_base_module:entities');
+    const broken = withBrokenStorage('erp_base_module:entities');
+    try {
+      expect(() => addEntity({ name: 'Globex', code: 'GL-002' })).toThrow(/guard|espacio|cuota|almacen/i);
+    } finally {
+      broken.restore();
+    }
+    expect(globalThis.localStorage.getItem('erp_base_module:entities')).toBe(previous);
+    expect(loadEntities().length).toBe(1);
+  });
+
+  it('keeps both collections intact when an atomic write fails midway', () => {
+    const e = addEntity({ name: 'Acme', code: 'AC-001' });
+    addDocument({ entityId: e.entity_id, folio: 1, startDate: '2026-08-01', endDate: '2026-08-05' });
+    const previousEntities = globalThis.localStorage.getItem('erp_base_module:entities');
+    const previousDocuments = globalThis.localStorage.getItem('erp_base_module:documents');
+
+    const broken = withBrokenStorage('erp_base_module:documents');
+    try {
+      expect(() => deleteEntity(e.id)).toThrow(/guard|espacio|cuota|almacen/i);
+    } finally {
+      broken.restore();
+    }
+
+    expect(globalThis.localStorage.getItem('erp_base_module:entities')).toBe(previousEntities);
+    expect(globalThis.localStorage.getItem('erp_base_module:documents')).toBe(previousDocuments);
+    expect(loadEntities().length).toBe(1);
+    expect(loadDocuments().length).toBe(1);
+  });
+
+  it('rejects a future schema version instead of migrating silently', () => {
+    globalThis.localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: 99 }));
+    globalThis.localStorage.setItem('erp_base_module:entities', '[]');
+    expect(() => loadEntities()).toThrow(/esquema|versión/i);
+  });
+});

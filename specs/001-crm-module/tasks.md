@@ -48,17 +48,17 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 **⚠️ CRÍTICO**: ninguna historia puede implementarse hasta completar esta fase.
 
-- [ ] T005 [P] Escribir las pruebas unitarias base de persistencia en `tests/unit/storage.test.js`: generación de `id`/`entity_id`, marcas ISO, versión de esquema, JSON corrupto y cuota agotada sin reinicio silencioso (deben fallar primero)
-- [ ] T006 Refactorizar `src/storage.js`: constantes `erp_base_module:entities`, `erp_base_module:documents`, `erp_base_module:schemaVersion`, generación de identidad y marcas de tiempo, y lectura de JSON corrupto que informa el error sin borrar datos
-- [ ] T007 Implementar en `src/storage.js` la escritura atómica sobre una instantánea validada mediante el helper interno `saveSnapshot` y las operaciones `loadEntities`, `saveEntities`, `addEntity`, `updateEntity`, `deleteEntity`, `loadDocuments`, `saveDocuments`, `addDocument`, `updateDocument`, `deleteDocument` que propagan el fallo de cuota al llamador
-- [ ] T008 Implementar en `src/storage.js` la cascada atómica de `deleteEntity` (cliente + documentos en una sola escritura) y `deleteDocumentsForEntity` para `contracts/entity-storage.md`; la extensión a tickets se implementa en T051
-- [ ] T009 Escribir el perfil CRM en `src/module-config.js`: `moduleName`, `labels` (Cliente/Clientes, Oportunidad/Oportunidades), `customFields` (`contactName`, `accountOwner`, `acquisitionSource`, `opportunityTitle`, `opportunityOwner`, `lossReason`), catálogos (`category`, `accountOwner`/`opportunityOwner`, `acquisitionSource`, `priority`, `reason`), `statusLifecycle` y `theme.accentColor: '#0F766E'`
-- [ ] T010 Reforzar el cargador de `src/module-config.js` (`getConfig`) para exponer errores de configuración (tipos, colisiones con campos base, opciones de `select`, estados y color) y conservar el respaldo genérico, con pruebas en `tests/unit/module-config.test.js`
-- [ ] T011 [P] Crear `src/crm-rules.js` con los helpers puros compartidos: `normalizeCode`, `normalizeText` (trim + minúsculas + sin diacríticos), `isValidEmail`, `isValidCatalogValue`, `isValidCalendarDate`, `compareCalendarDates` y `todayLocal` (fechas `YYYY-MM-DD` sin pasar por UTC)
-- [ ] T012 [P] Adaptar `src/components/custom-fields.js` para renderizar los `customFields` del perfil CRM con `label` asociado, `required` visible y mensajes de error accesibles
-- [ ] T013 [P] Definir tokens de diseño y color de acento en `src/styles.css` (`--accent: #0F766E`), foco visible y estilos de estados vacíos/error reutilizables
-- [ ] T014 Implementar en `src/components/shell.js` la barra superior y lateral con Clientes, Oportunidades y Buscar, resaltado de la vista activa y `labelFor(kind)` alimentado por `ModuleConfig`; la entrada Panel se agrega en T058 (P2)
-- [ ] T015 Implementar en `src/app.js` el enrutador interno, el ciclo de render por vista, la restauración de una vista válida desde enlace directo o botón Atrás con Clientes como respaldo en P1 (Panel en P2), la suscripción al evento `storage` (pestaña obsoleta) y el guardián de cambios sin guardar
+- [X] T005 [P] Escribir las pruebas unitarias base de persistencia en `tests/unit/storage.test.js`: generación de `id`/`entity_id`, marcas ISO, versión de esquema, JSON corrupto y cuota agotada sin reinicio silencioso (deben fallar primero)
+- [X] T006 Refactorizar `src/storage.js`: constantes `erp_base_module:entities`, `erp_base_module:documents`, `erp_base_module:schemaVersion`, generación de identidad y marcas de tiempo, y lectura de JSON corrupto que informa el error sin borrar datos
+- [X] T007 Implementar en `src/storage.js` la escritura atómica sobre una instantánea validada mediante el helper interno `saveSnapshot` y las operaciones `loadEntities`, `saveEntities`, `addEntity`, `updateEntity`, `deleteEntity`, `loadDocuments`, `saveDocuments`, `addDocument`, `updateDocument`, `deleteDocument` que propagan el fallo de cuota al llamador
+- [X] T008 Implementar en `src/storage.js` la cascada atómica de `deleteEntity` (cliente + documentos en una sola escritura) y `deleteDocumentsForEntity` para `contracts/entity-storage.md`; la extensión a tickets se implementa en T051
+- [X] T009 Escribir el perfil CRM en `src/module-config.js`: `moduleName`, `labels` (Cliente/Clientes, Oportunidad/Oportunidades), `customFields` (`contactName`, `accountOwner`, `acquisitionSource`, `opportunityTitle`, `opportunityOwner`, `lossReason`), catálogos (`category`, `accountOwner`/`opportunityOwner`, `acquisitionSource`, `priority`, `reason`), `statusLifecycle` y `theme.accentColor: '#0F766E'`
+- [X] T010 Reforzar el cargador de `src/module-config.js` (`getConfig`) para exponer errores de configuración (tipos, colisiones con campos base, opciones de `select`, estados y color) y conservar el respaldo genérico, con pruebas en `tests/unit/module-config.test.js`
+- [X] T011 [P] Crear `src/crm-rules.js` con los helpers puros compartidos: `normalizeCode`, `normalizeText` (trim + minúsculas + sin diacríticos), `isValidEmail`, `isValidCatalogValue`, `isValidCalendarDate`, `compareCalendarDates` y `todayLocal` (fechas `YYYY-MM-DD` sin pasar por UTC)
+- [X] T012 [P] Adaptar `src/components/custom-fields.js` para renderizar los `customFields` del perfil CRM con `label` asociado, `required` visible y mensajes de error accesibles
+- [X] T013 [P] Definir tokens de diseño y color de acento en `src/styles.css` (`--accent: #0F766E`), foco visible y estilos de estados vacíos/error reutilizables
+- [X] T014 Implementar en `src/components/shell.js` la barra superior y lateral con Clientes, Oportunidades y Buscar, resaltado de la vista activa y `labelFor(kind)` alimentado por `ModuleConfig`; la entrada Panel se agrega en T058 (P2)
+- [X] T015 Implementar en `src/app.js` el enrutador interno, el ciclo de render por vista, la restauración de una vista válida desde enlace directo o botón Atrás con Clientes como respaldo en P1 (Panel en P2), la suscripción al evento `storage` (pestaña obsoleta) y el guardián de cambios sin guardar
 
 **Punto de control**: la base corre, persiste, navega y aplica la configuración; las historias pueden empezar.
 
@@ -72,16 +72,16 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 1
 
-- [ ] T016 [P] [US1] Escribir `tests/unit/crm-rules.test.js` con `validateClient`, `normalizeCode`, `isValidEmail`, `isValidCatalogValue`, `getTargetDateStatus`, `isValidCalendarDate`, `compareCalendarDates` y `todayLocal` (incluye código duplicado con espacios y minúsculas, campos solo con espacios, contacto incompleto, fechas imposibles y el límite del día local)
-- [ ] T017 [P] [US1] Escribir `tests/integration/create-edit-delete-client.test.js`: alta válida, rechazo de duplicados, edición preservando identificadores, el cliente visible en la lista tras guardar y tras recargar, eliminación con confirmación (cascada solo de oportunidades en esta fase) y cancelación, y persistencia tras recarga
+- [X] T016 [P] [US1] Escribir `tests/unit/crm-rules.test.js` con `validateClient`, `normalizeCode`, `isValidEmail`, `isValidCatalogValue`, `getTargetDateStatus`, `isValidCalendarDate`, `compareCalendarDates` y `todayLocal` (incluye código duplicado con espacios y minúsculas, campos solo con espacios, contacto incompleto, fechas imposibles y el límite del día local)
+- [X] T017 [P] [US1] Escribir `tests/integration/create-edit-delete-client.test.js`: alta válida, rechazo de duplicados, edición preservando identificadores, el cliente visible en la lista tras guardar y tras recargar, eliminación con confirmación (cascada solo de oportunidades en esta fase) y cancelación, y persistencia tras recarga
 
 ### Implementación de la Historia 1
 
-- [ ] T018 [US1] Implementar en `src/crm-rules.js` `validateClient(client, context)`: obligatorios `name`, `code`, `category`, `accountOwner`, `acquisitionSource`; `email` válido si existe; catálogos desde `ModuleConfig`; código único normalizado con exclusión del registro actual; `targetDate` opcional válida
-- [ ] T019 [US1] Implementar `src/components/entity-form.js`: formulario de alta/edición con obligatorios marcados, errores por campo asociados con `aria-describedby`, conservación de lo ingresado y bloqueo de guardado inválido
-- [ ] T020 [US1] Implementar `src/components/entity-list.js`: selector de clientes, resumen (código, tipo, responsable, origen, próximo contacto) con los estados “Vencido”, “Para hoy”, “Programado” y “Sin programar” calculados por `getTargetDateStatus`, y estado vacío “No hay clientes registrados” con acción para crear
-- [ ] T021 [US1] Conectar en `src/app.js` la vista Clientes: alta desde “Nuevo cliente”, edición conservando `id`/`entity_id`, eliminación con confirmación que informa cuántas oportunidades se eliminarán y, cuando la colección de tickets exista, cuántos tickets; cascada atómica, mensaje de éxito solo tras persistir y error de almacenamiento con formulario conservado
-- [ ] T022 [US1] Hacer que `src/storage.js` invoque `validateClient` antes de `addEntity`/`updateEntity` y rechace códigos duplicados tras `normalizeCode`, sin alterar el registro existente
+- [X] T018 [US1] Implementar en `src/crm-rules.js` `validateClient(client, context)`: obligatorios `name`, `code`, `category`, `accountOwner`, `acquisitionSource`; `email` válido si existe; catálogos desde `ModuleConfig`; código único normalizado con exclusión del registro actual; `targetDate` opcional válida
+- [X] T019 [US1] Implementar `src/components/entity-form.js`: formulario de alta/edición con obligatorios marcados, errores por campo asociados con `aria-describedby`, conservación de lo ingresado y bloqueo de guardado inválido
+- [X] T020 [US1] Implementar `src/components/entity-list.js`: selector de clientes, resumen (código, tipo, responsable, origen, próximo contacto) con los estados “Vencido”, “Para hoy”, “Programado” y “Sin programar” calculados por `getTargetDateStatus`, y estado vacío “No hay clientes registrados” con acción para crear
+- [X] T021 [US1] Conectar en `src/app.js` la vista Clientes: alta desde “Nuevo cliente”, edición conservando `id`/`entity_id`, eliminación con confirmación que informa cuántas oportunidades se eliminarán y, cuando la colección de tickets exista, cuántos tickets; cascada atómica, mensaje de éxito solo tras persistir y error de almacenamiento con formulario conservado
+- [X] T022 [US1] Hacer que `src/storage.js` invoque `validateClient` antes de `addEntity`/`updateEntity` y rechace códigos duplicados tras `normalizeCode`, sin alterar el registro existente
 
 **Punto de control**: US1 completa y verificable por sí sola.
 
@@ -95,16 +95,16 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 2
 
-- [ ] T023 [P] [US2] Escribir `tests/unit/search.test.js` para `searchClients` (nombre y código, insensible a mayúsculas y diacríticos) y `searchOpportunities` (asunto y folio con cliente asociado), incluidos filtros combinados con AND
-- [ ] T024 [P] [US2] Escribir `tests/integration/search-clients.test.js`: resultados múltiples de clientes y de oportunidades por asunto/folio, cliente vinculado visible, selección de resultado, ficha con campos vacíos, prospectos incluidos y prueba de no mutación del almacenamiento
+- [X] T023 [P] [US2] Escribir `tests/unit/search.test.js` para `searchClients` (nombre y código, insensible a mayúsculas y diacríticos) y `searchOpportunities` (asunto y folio con cliente asociado), incluidos filtros combinados con AND
+- [X] T024 [P] [US2] Escribir `tests/integration/search-clients.test.js`: resultados múltiples de clientes y de oportunidades por asunto/folio, cliente vinculado visible, selección de resultado, ficha con campos vacíos, prospectos incluidos y prueba de no mutación del almacenamiento
 
 ### Implementación de la Historia 2
 
-- [ ] T025 [US2] Implementar en `src/crm-rules.js` `searchClients(criterion, filters)` y `searchOpportunities(criterion, filters)` con normalización `trim → minúsculas → sin diacríticos` y filtros AND por `category`, `accountOwner`, `acquisitionSource`
-- [ ] T026 [US2] Implementar `src/components/search-bar.js`: criterio único, actualización automática al escribir, filtros de tipo/responsable/origen y acción “Limpiar filtros”
-- [ ] T027 [US2] Crear `src/components/search-results.js` para renderizar resultados de clientes y una sección identificada de oportunidades (asunto, folio, cliente vinculado), con los estados “Ingresa un criterio” y “Sin coincidencias”, sin escrituras en `localStorage`; no cargar esta responsabilidad en `entity-list.js`
-- [ ] T028 [US2] Crear `src/components/entity-detail.js` con la ficha de cliente (`name`, `code`, `category`, `accountOwner`, `acquisitionSource`, `email`, `phone`, `contactName`, `description`, `targetDate`, `createdAt`), “sin información” por campo, “Contacto incompleto” cuando correo y teléfono están ambos vacíos, el estado correspondiente de `targetDate` (“Vencido”, “Para hoy”, “Programado” o “Sin programar”) y la lista de oportunidades asociadas en solo lectura
-- [ ] T029 [US2] Conectar en `src/app.js` la vista Buscar: criterio, resultados de clientes y oportunidades, selección, ficha y mensajes de estado, garantizando que buscar y consultar no mutan el almacenamiento; al seleccionar una oportunidad se muestra un detalle de solo lectura con asunto, folio, etapa, monto, responsable, fechas y cliente vinculado, renderizado por `search-results.js`/`entity-detail.js` sin abrir el formulario de edición de US4/US5
+- [X] T025 [US2] Implementar en `src/crm-rules.js` `searchClients(criterion, filters)` y `searchOpportunities(criterion, filters)` con normalización `trim → minúsculas → sin diacríticos` y filtros AND por `category`, `accountOwner`, `acquisitionSource`
+- [X] T026 [US2] Implementar `src/components/search-bar.js`: criterio único, actualización automática al escribir, filtros de tipo/responsable/origen y acción “Limpiar filtros”
+- [X] T027 [US2] Crear `src/components/search-results.js` para renderizar resultados de clientes y una sección identificada de oportunidades (asunto, folio, cliente vinculado), con los estados “Ingresa un criterio” y “Sin coincidencias”, sin escrituras en `localStorage`; no cargar esta responsabilidad en `entity-list.js`
+- [X] T028 [US2] Crear `src/components/entity-detail.js` con la ficha de cliente (`name`, `code`, `category`, `accountOwner`, `acquisitionSource`, `email`, `phone`, `contactName`, `description`, `targetDate`, `createdAt`), “sin información” por campo, “Contacto incompleto” cuando correo y teléfono están ambos vacíos, el estado correspondiente de `targetDate` (“Vencido”, “Para hoy”, “Programado” o “Sin programar”) y la lista de oportunidades asociadas en solo lectura
+- [X] T029 [US2] Conectar en `src/app.js` la vista Buscar: criterio, resultados de clientes y oportunidades, selección, ficha y mensajes de estado, garantizando que buscar y consultar no mutan el almacenamiento; al seleccionar una oportunidad se muestra un detalle de solo lectura con asunto, folio, etapa, monto, responsable, fechas y cliente vinculado, renderizado por `search-results.js`/`entity-detail.js` sin abrir el formulario de edición de US4/US5
 
 **Punto de control**: US1 y US2 funcionan por separado y en conjunto.
 
@@ -118,16 +118,16 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 4
 
-- [ ] T030 [P] [US4] Escribir `tests/unit/opportunity-rules.test.js`: `validateOpportunity`, `isFolioUnique` (excluyendo el registro actual), monto entero ≥ 0 con cero válido, fechas reales y `endDate >= startDate`, responsable de catálogo y rechazo de etapa inicial distinta de Nueva
-- [ ] T031 [P] [US4] Escribir `tests/integration/create-opportunity.test.js`: alta válida OPP/3001, folio duplicado, cliente inexistente, ausencia de clientes, doble clic y persistencia tras recarga
+- [X] T030 [P] [US4] Escribir `tests/unit/opportunity-rules.test.js`: `validateOpportunity`, `isFolioUnique` (excluyendo el registro actual), monto entero ≥ 0 con cero válido, fechas reales y `endDate >= startDate`, responsable de catálogo y rechazo de etapa inicial distinta de Nueva
+- [X] T031 [P] [US4] Escribir `tests/integration/create-opportunity.test.js`: alta válida OPP/3001, folio duplicado, cliente inexistente, ausencia de clientes, doble clic y persistencia tras recarga
 
 ### Implementación de la Historia 4
 
-- [ ] T032 [US4] Implementar en `src/crm-rules.js` `validateOpportunity(opportunity, context)`, `isFolioUnique(series, folio, documents, currentId)`, `validateAmount`, `validateOpportunityDates` (comparación de cadenas `YYYY-MM-DD`) y la fijación forzada de `series = OPP`, `currency = CLP` y `status = Nueva` al crear
-- [ ] T033 [US4] Implementar `src/components/document-form.js` en modo alta: selector de cliente por nombre y código, asunto, folio, fechas, monto, responsable, notas, serie/moneda/etapa fijas y visibles como no editables, mensajes de error accesibles
-- [ ] T034 [US4] Implementar `src/components/document-list.js` con la lista de oportunidades (asunto, folio, etapa, monto, responsable, fechas) y estado vacío “No se encontraron oportunidades”
-- [ ] T035 [US4] Conectar en `src/app.js` la vista Oportunidades y los accesos “Nueva oportunidad” desde el área Oportunidades y la ficha del cliente (el acceso desde el panel se agrega en T058, P2); bloquear el alta sin clientes con acceso a crear cliente; mostrar “Oportunidad registrada correctamente” solo después de persistir
-- [ ] T036 [US4] Reforzar en `src/storage.js` `addDocument`: exigir `entity_id` existente (sin reasignar cliente), validar folio único por `series + folio`, forzar `status = Nueva` en creación y evitar registros duplicados ante envío repetido
+- [X] T032 [US4] Implementar en `src/crm-rules.js` `validateOpportunity(opportunity, context)`, `isFolioUnique(series, folio, documents, currentId)`, `validateAmount`, `validateOpportunityDates` (comparación de cadenas `YYYY-MM-DD`) y la fijación forzada de `series = OPP`, `currency = CLP` y `status = Nueva` al crear
+- [X] T033 [US4] Implementar `src/components/document-form.js` en modo alta: selector de cliente por nombre y código, asunto, folio, fechas, monto, responsable, notas, serie/moneda/etapa fijas y visibles como no editables, mensajes de error accesibles
+- [X] T034 [US4] Implementar `src/components/document-list.js` con la lista de oportunidades (asunto, folio, etapa, monto, responsable, fechas) y estado vacío “No se encontraron oportunidades”
+- [X] T035 [US4] Conectar en `src/app.js` la vista Oportunidades y los accesos “Nueva oportunidad” desde el área Oportunidades y la ficha del cliente (el acceso desde el panel se agrega en T058, P2); bloquear el alta sin clientes con acceso a crear cliente; mostrar “Oportunidad registrada correctamente” solo después de persistir
+- [X] T036 [US4] Reforzar en `src/storage.js` `addDocument`: exigir `entity_id` existente (sin reasignar cliente), validar folio único por `series + folio`, forzar `status = Nueva` en creación y evitar registros duplicados ante envío repetido
 
 **Punto de control**: US4 completa; US2 puede mostrar oportunidades asociadas.
 
@@ -141,15 +141,15 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 5
 
-- [ ] T037 [P] [US5] Escribir `tests/unit/lifecycle.test.js`: `canTransition` y `nextStatuses` para toda la matriz, estados finales, rechazo de `Propuesta → Ganada`, `lossReason` obligatorio al entrar en Perdida y rechazo de reapertura
-- [ ] T038 [P] [US5] Escribir `tests/integration/opportunity-lifecycle.test.js`: avance completo, pérdida con y sin motivo, salto no permitido, edición conservando estado, eliminación con y sin confirmación y persistencia tras recarga
+- [X] T037 [P] [US5] Escribir `tests/unit/lifecycle.test.js`: `canTransition` y `nextStatuses` para toda la matriz, estados finales, rechazo de `Propuesta → Ganada`, `lossReason` obligatorio al entrar en Perdida y rechazo de reapertura
+- [X] T038 [P] [US5] Escribir `tests/integration/opportunity-lifecycle.test.js`: avance completo, pérdida con y sin motivo, salto no permitido, edición conservando estado, eliminación con y sin confirmación y persistencia tras recarga
 
 ### Implementación de la Historia 5
 
-- [ ] T039 [US5] Implementar en `src/crm-rules.js` `canTransition(from, to)`, `nextStatuses(status)` y `validateStatusChange(from, to, lossReason)` leyendo `statusLifecycle` de `ModuleConfig`
-- [ ] T040 [US5] Extender `src/components/document-form.js` a modo edición: selector de etapa limitado a `nextStatuses`, campo `lossReason` visible y obligatorio solo al elegir Perdida, conservación de `id`/`entity_id` y bloqueo de cambios sin guardar
-- [ ] T041 [US5] Hacer que `src/storage.js` `updateDocument` rechace transiciones no declaradas, reaperturas de estados finales y pérdidas sin motivo, y que `deleteDocument` elimine solo la oportunidad
-- [ ] T042 [US5] Añadir en `src/components/document-list.js` las acciones editar y eliminar con confirmación explícita, sin borrar el cliente asociado
+- [X] T039 [US5] Implementar en `src/crm-rules.js` `canTransition(from, to)`, `nextStatuses(status)` y `validateStatusChange(from, to, lossReason)` leyendo `statusLifecycle` de `ModuleConfig`
+- [X] T040 [US5] Extender `src/components/document-form.js` a modo edición: selector de etapa limitado a `nextStatuses`, campo `lossReason` visible y obligatorio solo al elegir Perdida, conservación de `id`/`entity_id` y bloqueo de cambios sin guardar
+- [X] T041 [US5] Hacer que `src/storage.js` `updateDocument` rechace transiciones no declaradas, reaperturas de estados finales y pérdidas sin motivo, y que `deleteDocument` elimine solo la oportunidad
+- [X] T042 [US5] Añadir en `src/components/document-list.js` las acciones editar y eliminar con confirmación explícita, sin borrar el cliente asociado
 
 **Punto de control**: US5 completa; el ciclo comercial es verificable de punta a punta.
 
@@ -163,14 +163,14 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Pruebas de la Historia 6
 
-- [ ] T043 [P] [US6] Escribir `tests/integration/relabeling.test.js`: etiquetas desde `ModuleConfig` en todas las vistas, singular/plural, estados vacíos, mensajes y respaldo genérico entidad/documento sin perfil
+- [X] T043 [P] [US6] Escribir `tests/integration/relabeling.test.js`: etiquetas desde `ModuleConfig` en todas las vistas, singular/plural, estados vacíos, mensajes y respaldo genérico entidad/documento sin perfil
 
 ### Implementación de la Historia 6
 
-- [ ] T044 [US6] Reemplazar en `src/components/shell.js`, `src/components/entity-form.js`, `src/components/entity-list.js`, `src/components/document-form.js`, `src/components/document-list.js` y `src/components/entity-detail.js` todo texto fijo de dominio por `labelFor(kind)` con singular y plural correctos
-- [ ] T045 [US6] Unificar en `src/app.js` y los componentes los mensajes de confirmación, error de validación, eliminación y estados vacíos con la terminología CRM, incluido “No hay clientes registrados” y “No se encontraron oportunidades”
-- [ ] T046 [US6] Mostrar en `src/app.js` un aviso no bloqueante cuando `getConfig()` reporte configuración inválida o colisión de claves, preservando los valores desconocidos ya guardados, bloqueando su reinterpretación silenciosa y exigiendo migración explícita, sin sobrescribir datos
-- [ ] T047 [US6] Completar en `src/components/shell.js` los nombres accesibles de los iconos con la barra lateral contraída y la identificación de la vista activa
+- [X] T044 [US6] Reemplazar en `src/components/shell.js`, `src/components/entity-form.js`, `src/components/entity-list.js`, `src/components/document-form.js`, `src/components/document-list.js` y `src/components/entity-detail.js` todo texto fijo de dominio por `labelFor(kind)` con singular y plural correctos
+- [X] T045 [US6] Unificar en `src/app.js` y los componentes los mensajes de confirmación, error de validación, eliminación y estados vacíos con la terminología CRM, incluido “No hay clientes registrados” y “No se encontraron oportunidades”
+- [X] T046 [US6] Mostrar en `src/app.js` un aviso no bloqueante cuando `getConfig()` reporte configuración inválida o colisión de claves, preservando los valores desconocidos ya guardados, bloqueando su reinterpretación silenciosa y exigiendo migración explícita, sin sobrescribir datos
+- [X] T047 [US6] Completar en `src/components/shell.js` los nombres accesibles de los iconos con la barra lateral contraída y la identificación de la vista activa
 
 **Punto de control**: la terminología es coherente y configurable; el módulo base sigue funcionando sin perfil.
 
@@ -225,17 +225,17 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 **Propósito**: cerrar requisitos no funcionales, evidencia y documentación.
 
-- [ ] T060 [P] Escribir `tests/unit/security-render.test.js`: asunto, notas, descripción y nombre con etiquetas HTML o texto tipo script se muestran como texto (`textContent`), sin ejecución
-- [ ] T061 [P] Escribir `tests/integration/storage-risks.test.js`: cuota agotada, JSON corrupto, versión de esquema incompatible y pestaña obsoleta (evento `storage`) sin éxito falso ni sobrescritura
-- [ ] T062 [P] Escribir `tests/integration/accessibility.test.js`: etiquetas asociadas, `aria-describedby` en errores, foco visible, orden de tabulación, contraste suficiente y mensajes de estado legibles en formularios y listas; incluir una comprobación en pantalla estrecha y registrar el navegador usado
+- [X] T060 [P] Escribir `tests/unit/security-render.test.js`: asunto, notas, descripción y nombre con etiquetas HTML o texto tipo script se muestran como texto (`textContent`), sin ejecución
+- [X] T061 [P] Escribir `tests/integration/storage-risks.test.js`: cuota agotada, JSON corrupto, versión de esquema incompatible y pestaña obsoleta (evento `storage`) sin éxito falso ni sobrescritura
+- [X] T062 [P] Escribir `tests/integration/accessibility.test.js`: etiquetas asociadas, `aria-describedby` en errores, foco visible, orden de tabulación, contraste suficiente y mensajes de estado legibles en formularios y listas; incluir una comprobación en pantalla estrecha y registrar el navegador usado
 - [ ] T063 [P] Crear `tests/performance/search-performance.test.js` con 500 clientes y 1000 oportunidades: medir de la entrada a los resultados renderizados 20 búsquedas y 20 recálculos del panel, validando en cada medición que el resultado sea correcto, y registrar navegador, equipo y resultado (meta: 19 de 20 bajo 500 ms) en `README.md`
-- [ ] T064 Auditar y corregir `src/app.js` y `src/components/` para cumplir privacidad y minimización: sin exportación masiva del listado y sin ordenar ni priorizar por ubicación geográfica (`FR-027`, `FR-028`, `NFR-005`)
-- [ ] T065 Actualizar `README.md` con integrantes responsables por historia, instrucciones de ejecución, comandos de prueba, tabla de evidencias y registro del uso de IA
+- [X] T064 Auditar y corregir `src/app.js` y `src/components/` para cumplir privacidad y minimización: sin exportación masiva del listado y sin ordenar ni priorizar por ubicación geográfica (`FR-027`, `FR-028`, `NFR-005`)
+- [X] T065 Actualizar `README.md` con integrantes responsables por historia, instrucciones de ejecución, comandos de prueba, tabla de evidencias y registro del uso de IA
 - [ ] T066 Ejecutar manualmente los escenarios 1 a 4 y 6 de `specs/001-crm-module/quickstart.md` para el MVP P1; validar los escenarios 5 y 7 al cerrar la segunda iteración. Ejecutar la tabla de validaciones transversales, probar Chrome y Firefox actuales (y Edge/Safari si están disponibles), crear los datos semilla sintéticos de la demo y anotar resultados reales (incluidos los pendientes) en `README.md`
-- [ ] T067 Ejecutar `npm test -- --run`, `npm run build`, `npm run lint` y `npm run format:check`, corregir fallos y registrar fecha, comando y resultado real en `README.md`
-- [ ] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores
+- [X] T067 Ejecutar `npm test -- --run`, `npm run build`, `npm run lint` y `npm run format:check`, corregir fallos y registrar fecha, comando y resultado real en `README.md`
+- [X] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores
 - [ ] T069 Ejecutar el protocolo de usabilidad de `plan.md`: 5 participantes, 4 tareas (crear, editar, eliminar, buscar) y medición de SC-001 a SC-004 (tiempos de SC-001 a SC-003 y tasa de éxito de SC-004); registrar participantes anonimizados, tiempos, tasa de éxito y resultados reales o declarar la medición como pendiente en `README.md` (meta SC-004: al menos 18 de 20 tareas completadas)
-- [ ] T070 [P] Escribir `tests/integration/critical-journey.test.js`: recorrido completo del MVP P1 (cliente → oportunidad → avance de etapa → búsqueda → recarga), arrancando la app real en jsdom y verificando persistencia; el panel se verifica en T056 (P2)
+- [X] T070 [P] Escribir `tests/integration/critical-journey.test.js`: recorrido completo del MVP P1 (cliente → oportunidad → avance de etapa → búsqueda → recarga), arrancando la app real en jsdom y verificando persistencia; el panel se verifica en T056 (P2)
 
 ---
 

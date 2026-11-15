@@ -23,8 +23,9 @@ beforeEach(async () => {
   w.scrollTo = vi.fn();
   w.localStorage.clear();
   vi.resetModules();
-  const { boot } = await import('../../src/app.js');
-  await boot();
+  const { initApp } = await import('../../src/app.js');
+  const { normalizeConfig } = await import('../../src/module-config.js');
+  await initApp(normalizeConfig(undefined));
 });
 
 afterEach(() => {

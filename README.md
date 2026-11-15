@@ -2,7 +2,7 @@
 
 Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades y consultar un panel con indicadores descriptivos. Los tickets de soporte y el panel son P2 y se implementan en la segunda iteración.
 
-> **Estado**: documentación en revisión. El código base se restaurará desde el commit `dea57da` (`src/` e `index.html`) y los tests base desde la rama `borrador`. La primera versión integrada de prueba se registra en la sección de evidencias.
+> **Estado**: MVP P1 implementado y verificado con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes. Tickets (US3) y panel (US7) corresponden a la segunda iteración (P2).
 
 ## Integrantes
 
@@ -31,7 +31,7 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 |---|---|---|---|
 | Hito 1 — Revisión inicial | 20/10/2026 | Repositorio, MER y plan inicial | Cumplido, con observaciones del profesor |
 | Hito 2 — Especificaciones y tareas | 10/11/2026 | `spec.md` consolidada, `plan.md`, `data-model.md`, contrato y `tasks.md` generado desde las US | En progreso |
-| Hito 3 — Versión integrada de prueba | 17/11/2026 | Código base restaurado, CRM configurado, pruebas ejecutadas y demo interna | Pendiente |
+| Hito 3 — Versión integrada de prueba | 17/11/2026 | Código base restaurado, CRM configurado, pruebas ejecutadas y demo interna | Código y pruebas automatizadas listas (238 pruebas); demo manual en navegadores pendiente (T066) |
 | Hito 4 — Entrega y presentación | Semana del 30/11/2026 | Repositorio final, README, evidencias y ensayo de 5 minutos | Pendiente |
 
 | Línea | Alcance | Responsable | Iteración |
@@ -97,8 +97,8 @@ Abrir la URL que imprime Vite (por defecto `http://localhost:5173`).
 npm test
 npx vitest run
 npm run build
-npm run lint          # disponible tras T004A
-npm run format:check  # disponible tras T004A
+npm run lint
+npm run format:check
 ```
 
 Registrar en la sección de evidencias la fecha, el comando y el resultado real. No declarar pruebas que no se hayan ejecutado.
@@ -110,6 +110,7 @@ Toda la adaptación vive en `src/module-config.js`:
 - `moduleName`: `CRM — Clientes y Oportunidades`.
 - `labels`: Cliente/Clientes y Oportunidad/Oportunidades.
 - `customFields`: `contactName`, `accountOwner`, `acquisitionSource`, `opportunityTitle`, `opportunityOwner`, `lossReason`.
+- `catalogs`: `category`, `accountOwner`, `opportunityOwner`, `acquisitionSource` (validados por el cargador; el módulo base sin catálogos conserva el respaldo genérico).
 - `statusLifecycle`: Nueva → Contactada → Propuesta → Negociación → Ganada / Perdida.
 - `theme.accentColor`: `#0F766E`.
 
@@ -151,11 +152,53 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 | 2026-11-04 | Verificación de la base sin modificar (T003) | `npm install`; `npx vitest run`; `npm run build` | `npm install` completado; 12 archivos y 111 pruebas aprobadas; build Vite correcto (HTML 14,18 kB). `npm audit` reporta 5 vulnerabilidades de dependencias de desarrollo, no bloqueantes para la demo. |
 | 2026-11-04 | Entorno de pruebas jsdom (T004) | `npx vitest run` con `environment: 'jsdom'` y `tests/setup.js` | 12 archivos y 111 pruebas aprobadas; limpieza de `localStorage` entre pruebas. |
 | 2026-11-04 | Lint y formato (T004A) | `npm run lint`; `npm run format:check` | ESLint 9 y Prettier 3 configurados; ambos comandos terminan sin errores sobre la base restaurada. |
-| Pendiente | Primera versión integrada | Demo y pruebas | Pendiente |
+| 2026-11-15 | Fase 2 Foundational (T005–T015): almacenamiento atómico con `schemaVersion`, identidad y marcas ISO, recuperación ante JSON corrupto/cuota, perfil CRM en `ModuleConfig` (incluye `catalogs`), reglas puras base, campos personalizados accesibles, tokens `#0F766E`, shell y enrutador con respaldo Clientes | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 12 archivos, 124 pruebas aprobadas. `npm run lint`: sin errores. `npm run format:check`: todos los archivos cumplen Prettier. `npm run build`: Vite correcto (HTML 19,74 kB). Se adaptaron pruebas del template para fijarlas al perfil genérico (ver nota de adaptaciones). |
+| 2026-11-15 | US1 (T016–T022): alta, edición, eliminación con cascada y unicidad de código normalizado; `validateClient`, `getTargetDateStatus`, lista de clientes con estados del próximo contacto | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 14 archivos, 152 pruebas aprobadas (nuevas: `crm-rules.test.js`, `create-edit-delete-client.test.js`; se confirmaron fallando antes de implementar). `npm run lint`: sin errores. `npm run format:check`: correcto. `npm run build`: Vite correcto. |
+| 2026-11-15 | US2 (T023–T029): búsqueda normalizada de clientes y oportunidades, filtros AND, resultados separados, ficha de cliente y detalle de oportunidad en solo lectura | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 16 archivos, 175 pruebas aprobadas (nuevas: `search.test.js`, `search-clients.test.js`; fallaron antes de implementar). `npm run lint`: sin errores. `npm run format:check`: correcto. `npm run build`: Vite correcto. |
+| 2026-11-15 | US4 (T030–T036): reglas de oportunidad (folio único, monto entero ≥ 0, fechas, responsable, etapa Nueva), formulario con serie OPP/moneda CLP/etapa fija, lista de oportunidades y bloqueo sin clientes | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 18 archivos, 199 pruebas aprobadas (nuevas: `opportunity-rules.test.js`, `create-opportunity.test.js`; fallaron antes de implementar). `npm run lint`: sin errores. `npm run format:check`: correcto. `npm run build`: Vite correcto. |
+| 2026-11-15 | US5 (T037–T042): ciclo Nueva → Contactada → Propuesta → Negociación → Ganada, pérdida con motivo, rechazo de saltos y reaperturas, edición conservando estado final, eliminación solo de la oportunidad y acciones en la lista | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 20 archivos, 220 pruebas aprobadas (nuevas: `lifecycle.test.js`, `opportunity-lifecycle.test.js`; fallaron antes de implementar). `npm run lint`: sin errores. `npm run format:check`: correcto. `npm run build`: Vite correcto. |
+| 2026-11-15 | US6 (T043–T047): terminología Cliente/Clientes y Oportunidad/Oportunidades en gestión, formularios, búsqueda, detalle, mensajes y estados vacíos; aviso de configuración conflictiva; valores desconocidos preservados; nombres accesibles de la barra lateral | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 20 archivos, 225 pruebas aprobadas (ampliadas: `relabeling.test.js`; fallaron los casos nuevos antes de implementar). `npm run lint`: sin errores. `npm run format:check`: correcto. `npm run build`: Vite correcto. |
+| 2026-11-15 | Pulido P1 (T060–T064): seguridad de renderizado, riesgos de almacenamiento (cuota, JSON corrupto, esquema incompatible, pestaña obsoleta), accesibilidad, rendimiento de búsqueda y auditoría de privacidad (sin exportación ni orden por ubicación) | `npx vitest run` | 25 archivos y 238 pruebas aprobadas. Nuevas: `security-render.test.js`, `storage-risks.test.js`, `accessibility.test.js`, `search-performance.test.js`, `critical-journey.test.js`. |
+| 2026-11-15 | Verificación final P1 (T067) | `npm test -- --run`; `npm run build`; `npm run lint`; `npm run format:check` | `npm test -- --run`: 25 archivos y 238 pruebas aprobadas (32,3 s). `npm run build`: Vite correcto (HTML 19,93 kB). `npm run lint`: sin errores. `npm run format:check`: sin diferencias. |
+| 2026-11-15 | Rendimiento de búsqueda (T063, parte P1) | `npx vitest run tests/performance/search-performance.test.js` | 500 clientes y 1000 oportunidades en jsdom (Node.js, Windows 11, equipo de desarrollo del grupo). La prueba exige ≥19 de 20 búsquedas bajo 500 ms y resultados correctos: se cumple. Los 20 recálculos del panel corresponden a US7 (P2): pendientes. |
+| Pendiente | Validación manual en navegadores (T066) | Escenarios 1–4 y 6 de `quickstart.md` en Chrome y Firefox actuales; Edge/Safari y pantalla estrecha | **Pendiente declarada**: no se ejecutó en navegadores reales. Las comprobaciones DOM se hicieron en jsdom. |
+| Pendiente | Protocolo de usabilidad (T069) | 5 participantes, 4 tareas, SC-001 a SC-004 | **Pendiente declarada**: no se ejecutó. No se reportan tiempos ni tasas de éxito sin medición. |
+
+### Pendientes declarados
+
+- **T066 (manual, navegadores)**: pendiente. Requiere Chrome y Firefox actuales (y Edge/Safari si están disponibles), además de la tabla de validaciones transversales de `quickstart.md`. No se marca como completada.
+- **T069 (usabilidad)**: pendiente. Requiere 5 participantes y la medición de SC-001 a SC-004. No se inventan participantes ni resultados.
+- **Nombres de integrantes (AMB-01)**: la tabla de integrantes sigue con `[completar]`; el equipo debe completarla. No se inventan nombres.
+- **P2 (no implementado en esta iteración)**: US3 (tickets, T048–T054A) y US7 (panel, T055–T059). T063 queda parcialmente cumplida: búsqueda medida; recálculo del panel diferido a P2.
+- **Entorno de las pruebas**: Node.js con jsdom (Vitest). La accesibilidad y el rendimiento se verificaron a nivel de DOM y de funciones; el contraste se calculó sobre los tokens CSS. La comprobación con navegador real sigue pendiente en T066.
+
+### Adaptaciones de pruebas heredadas del template
+
+Las pruebas del template ERP se conservan, pero algunas fijaban supuestos del módulo base que el perfil CRM cambia. No se eliminó ninguna aserción; se ajustó el punto de partida y se justifica el cambio:
+
+| Prueba | Cambio | Justificación |
+|---|---|---|
+| `tests/integration/create-entity.test.js`, `add-document.test.js`, `edit-delete-entity.test.js`, `search-entities.test.js`, `manage-tabs.test.js` | Arrancan con `initApp(normalizeConfig(undefined))` en lugar de `boot()` | `boot()` aplica el perfil CRM (`userConfig`); estas pruebas describen el contrato del módulo base genérico, que debe seguir vigente (FR-029, CA-06-09). Sus aserciones no cambian. |
+| `tests/integration/workspace-shell.test.js` | Espera la etiqueta `Buscar` en la barra lateral | FR-036 fija “Buscar” para el módulo CRM; el texto anterior (“Búsqueda”) era una decisión del template. |
+| `tests/unit/module-config.test.js` | El caso “userConfig null por defecto” pasa a verificar el perfil CRM cargado | T009 exige que `userConfig` contenga el perfil CRM; la prueba anterior comprobaba justamente el valor que la tarea cambia. |
 
 ## Uso de IA
 
-La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso. Registrar qué se generó con IA, qué se revisó manualmente y qué se verificó con pruebas. No se inventan reuniones, aportes, pruebas ni validación empresarial.
+La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso.
+
+- **Generado con IA**: propuesta de implementación de Fase 2, US1, US2, US4, US5, US6 y pulido P1 (`src/storage.js`, `src/module-config.js`, `src/crm-rules.js`, `src/app.js`, componentes y pruebas asociadas), redacción de esta sección de evidencias y de las notas de adaptación.
+- **Revisado manualmente**: alcance P1 frente a `spec.md` y `tasks.md`, textos de interfaz en español, criterios de eliminación en cascada, ciclo de vida y decisión de dejar T066/T069 como pendientes.
+- **Verificado con pruebas**: todos los resultados de la tabla anterior provienen de comandos ejecutados en este repositorio (Vitest, ESLint, Prettier y build de Vite). No se declaran pruebas, participantes ni validación empresarial que no se hayan ejecutado.
+
+## Validación documental (T068)
+
+Se contrastaron `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER de `data-model.md` contra la implementación:
+
+- Cliente (`Entity`) y Oportunidad (`Document`) conservan campos, obligatoriedad y estados acordados; `series + folio` es única y `entity_id` se mantiene como contrato de relación.
+- Ciclo de vida, motivo de pérdida y estados finales coinciden con `data-model.md` y `spec.md`.
+- Catálogos: `data-model.md` indica que tipo, responsables y orígenes viven en la configuración; se materializaron en la clave `catalogs` de `ModuleConfig` (extensión de implementación, no cambio de contrato).
+- Divergencia detectada y no corregida (por regla de alcance): el ejemplo JSON de `data-model.md` muestra las colecciones dentro de un único documento, mientras `contracts/entity-storage.md` y la implementación usan claves separadas (`erp_base_module:entities`, `:documents`, `:schemaVersion`). Prevalece el contrato; se deja constancia para la revisión documental.
+- El MER enumera las claves y relaciones usadas por la aplicación; los tickets permanecen declarados para P2.
 
 ## Documentación
 

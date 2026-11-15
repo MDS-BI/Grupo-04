@@ -18,7 +18,67 @@
 //   },
 //   theme: { accentColor: '#0f62fe' }
 // }
-export const userConfig = null;
+export const CRM_ACCOUNT_OWNERS = Object.freeze(['Ejecutivo A', 'Ejecutivo B']);
+export const CRM_ACQUISITION_SOURCES = Object.freeze(['Sitio web', 'Referido', 'Contacto directo', 'Otro']);
+export const CRM_CATEGORIES = Object.freeze(['Prospecto', 'Activo', 'Inactivo']);
+
+// Perfil CRM — Clientes y Oportunidades (MVP P1).
+export const userConfig = {
+  moduleName: 'CRM — Clientes y Oportunidades',
+  labels: {
+    entity: 'Cliente',
+    entities: 'Clientes',
+    document: 'Oportunidad',
+    documents: 'Oportunidades'
+  },
+  customFields: [
+    { target: 'entity', key: 'contactName', label: 'Contacto principal', type: 'text', required: false },
+    {
+      target: 'entity',
+      key: 'accountOwner',
+      label: 'Responsable comercial',
+      type: 'select',
+      required: true,
+      options: [...CRM_ACCOUNT_OWNERS]
+    },
+    {
+      target: 'entity',
+      key: 'acquisitionSource',
+      label: 'Origen de captación',
+      type: 'select',
+      required: true,
+      options: [...CRM_ACQUISITION_SOURCES]
+    },
+    { target: 'document', key: 'opportunityTitle', label: 'Asunto', type: 'text', required: true },
+    {
+      target: 'document',
+      key: 'opportunityOwner',
+      label: 'Responsable de la oportunidad',
+      type: 'select',
+      required: true,
+      options: [...CRM_ACCOUNT_OWNERS]
+    },
+    { target: 'document', key: 'lossReason', label: 'Motivo de pérdida', type: 'text', required: false }
+  ],
+  catalogs: {
+    category: [...CRM_CATEGORIES],
+    accountOwner: [...CRM_ACCOUNT_OWNERS],
+    opportunityOwner: [...CRM_ACCOUNT_OWNERS],
+    acquisitionSource: [...CRM_ACQUISITION_SOURCES]
+  },
+  statusLifecycle: {
+    statuses: ['Nueva', 'Contactada', 'Propuesta', 'Negociación', 'Ganada', 'Perdida'],
+    transitions: {
+      Nueva: ['Contactada', 'Perdida'],
+      Contactada: ['Propuesta', 'Perdida'],
+      Propuesta: ['Negociación', 'Perdida'],
+      Negociación: ['Ganada', 'Perdida'],
+      Ganada: [],
+      Perdida: []
+    }
+  },
+  theme: { accentColor: '#0F766E' }
+};
 
 // ---------------------------------------------------------------------------
 // Cargador central — no deberías necesitar modificar nada debajo de esta línea.
@@ -33,6 +93,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     documents: 'Documentos'
   }),
   customFields: Object.freeze([]),
+  catalogs: Object.freeze({}),
   statusLifecycle: null,
   theme: Object.freeze({ accentColor: '#2563eb' })
 });
@@ -119,6 +180,17 @@ function validateCustomFields(raw, errors) {
       errors.push(`${where}.options debe ser un arreglo no vacío para campos de selección`);
       return;
     }
+    if (Array.isArray(f.options)) {
+      const cleanOptions = f.options.map((o) => String(o).trim());
+      if (cleanOptions.some((o) => o.length === 0)) {
+        errors.push(`${where}.options no puede contener opciones vacías`);
+        return;
+      }
+      if (new Set(cleanOptions).size !== cleanOptions.length) {
+        errors.push(`${where}.options no puede repetir opciones`);
+        return;
+      }
+    }
     seen[f.target].add(f.key);
     clean.push({
       target: f.target,
@@ -182,6 +254,36 @@ function validateTheme(raw, errors) {
   return out;
 }
 
+function validateCatalogs(raw, errors) {
+  if (raw === null || raw === undefined) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    errors.push('catalogs debe ser un objeto que mapee nombre de catálogo -> arreglo de opciones');
+    return {};
+  }
+  const out = {};
+  for (const [name, options] of Object.entries(raw)) {
+    if (!isNonEmptyString(name)) {
+      errors.push('catalogs no puede contener nombres de catálogo vacíos');
+      continue;
+    }
+    if (!Array.isArray(options) || options.length === 0) {
+      errors.push(`catalogs.${name} debe ser un arreglo no vacío de opciones`);
+      continue;
+    }
+    const clean = options.map((o) => (typeof o === 'string' ? o.trim() : ''));
+    if (clean.some((o) => o.length === 0)) {
+      errors.push(`catalogs.${name} no puede contener opciones vacías`);
+      continue;
+    }
+    if (new Set(clean).size !== clean.length) {
+      errors.push(`catalogs.${name} no puede repetir opciones`);
+      continue;
+    }
+    out[name] = clean;
+  }
+  return out;
+}
+
 export function normalizeConfig(raw) {
   if (raw === null || raw === undefined) {
     return { config: structuredClone(DEFAULT_CONFIG), errors: [] };
@@ -215,6 +317,9 @@ export function normalizeConfig(raw) {
     const lc = validateLifecycle(raw.statusLifecycle, errors);
     if (lc) cfg.statusLifecycle = lc;
   }
+  if (raw.catalogs !== undefined) {
+    cfg.catalogs = validateCatalogs(raw.catalogs, errors);
+  }
   if (raw.theme !== undefined) {
     cfg.theme = validateTheme(raw.theme, errors);
   }
@@ -233,6 +338,19 @@ export function getConfig() {
 
 export function labelFor(kind) {
   return activeConfig.labels[kind] || DEFAULT_CONFIG.labels[kind];
+}
+
+/**
+ * El perfil CRM se reconoce por su terminología comercial. Cuando no está
+ * activo, la aplicación conserva el comportamiento genérico del template.
+ */
+export function isCrmProfile(config = activeConfig) {
+  const labels = (config && config.labels) || {};
+  const same = (value, expected) =>
+    String(value || '')
+      .trim()
+      .toLowerCase() === expected;
+  return same(labels.entity, 'cliente') && same(labels.document, 'oportunidad');
 }
 
 export async function loadModuleConfig() {

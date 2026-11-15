@@ -25,8 +25,9 @@ beforeEach(async () => {
   vi.resetModules();
   const first = addEntity({ name: 'Acme', code: 'AC-001' });
   addEntity({ name: 'Globex', code: 'GL-002' });
-  const { boot } = await import('../../src/app.js');
-  await boot();
+  const { initApp } = await import('../../src/app.js');
+  const { normalizeConfig } = await import('../../src/module-config.js');
+  await initApp(normalizeConfig(undefined));
   globalThis.__firstId = first.id;
 });
 
