@@ -334,3 +334,13 @@ Cada incremento debe terminar con `npm run lint`, `npm run format:check`, `npm t
 - Los datos de demostración son exclusivamente sintéticos.
 - Confirmar que cada prueba falla antes de implementar la funcionalidad correspondiente.
 - Registrar en `README.md` fecha, comando y resultado real de cada verificación.
+
+## Integración visual del CRM — 15/11/2026
+
+Se incorporan las mejoras visuales preparadas tras el feedback «casi idéntico al template» sobre `ad0f421`, conservando la implementación P1/P2 del equipo: tickets, seis indicadores, reglas, persistencia y pruebas. No se aplica la instantánea de almacenamiento alternativa del borrador local.
+
+- Embudo de seis etapas con cantidad, monto agregado y tarjetas por oportunidad. Cada tarjeta abre el formulario de edición existente.
+- Identidad visual verde, tarjetas comerciales y distribución adaptable a pantallas pequeñas.
+- Imagen del MER vigente: [crm-mer.svg](assets/crm-mer.svg).
+- Pruebas de interacción del tablero, representación segura del texto y fallback genérico.
+- Continúan pendientes el ensayo visual en navegadores y la validación de usabilidad; no se declaran realizados.

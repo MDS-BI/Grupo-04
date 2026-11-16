@@ -263,7 +263,7 @@ erDiagram
     }
 ```
 
-El diagrama resume las claves y variables centrales; las tablas anteriores contienen el esquema completo. `series + folio` es una restricción única compuesta. Este diagrama Mermaid es el MER oficial de la feature; no se usa una imagen binaria.
+El diagrama resume las claves y variables centrales; las tablas anteriores contienen el esquema completo. `series + folio` es una restricción única compuesta. Este diagrama Mermaid es el MER oficial de la feature; su imagen SVG está disponible en [assets/crm-mer.svg](assets/crm-mer.svg).
 
 ## Evolución futura
 

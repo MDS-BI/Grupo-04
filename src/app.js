@@ -954,6 +954,10 @@ function wireEvents() {
   document.querySelectorAll('.nav-module').forEach((btn) => {
     btn.addEventListener('click', () => showModule(btn.dataset.module));
   });
+  qs('commercial-columns').addEventListener('click', (event) => {
+    const card = event.target.closest('button[data-opportunity-id]');
+    if (card && showModule('documents')) editOpportunityById(card.dataset.opportunityId);
+  });
   qs('action-new-entity').addEventListener('click', () => showModule('entities', { newRecord: true, focusForm: true }));
   qs('action-new-document').addEventListener('click', () =>
     showModule('documents', { newRecord: true, focusForm: true })
@@ -1052,6 +1056,7 @@ export function initApp(resolved) {
   showConfigErrors(resolved.errors, resolved.conflicts);
   setActiveConfig(resolved.config);
   applyTheme(resolved.config);
+  document.body.classList.toggle('crm', isCrmProfile(resolved.config));
   renderLogo(qs('logo-mark'));
   applyLabels(resolved.config);
   ensureCategoryControl();

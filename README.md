@@ -231,3 +231,13 @@ Se contrastaron `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstar
 - [Checklist](specs/001-crm-module/checklists/requirements.md)
 - [MER (Mermaid, en `data-model.md`)](specs/001-crm-module/data-model.md)
 - **Iteración 3 — rediseño de interfaz** (`specs/002-crm-ui-refresh/`): [especificación](specs/002-crm-ui-refresh/spec.md), [plan](specs/002-crm-ui-refresh/plan.md), [investigación](specs/002-crm-ui-refresh/research.md), [modelo de datos](specs/002-crm-ui-refresh/data-model.md), [contrato de interfaz](specs/002-crm-ui-refresh/contracts/ui-shell.md) y [validación](specs/002-crm-ui-refresh/quickstart.md). No agrega entidades ni cambios de esquema.
+
+## Integración visual del CRM — 15/11/2026
+
+Se incorporan las mejoras visuales preparadas tras el feedback «casi idéntico al template» sobre `ad0f421`, conservando la implementación P1/P2 del equipo: tickets, seis indicadores, reglas, persistencia y pruebas. No se aplica la instantánea de almacenamiento alternativa del borrador local.
+
+- Embudo de seis etapas con cantidad, monto agregado y tarjetas por oportunidad. Cada tarjeta abre el formulario de edición existente.
+- Identidad visual verde, tarjetas comerciales y distribución adaptable a pantallas pequeñas.
+- Imagen del MER vigente: [crm-mer.svg](specs/001-crm-module/assets/crm-mer.svg).
+- Pruebas de interacción del tablero, representación segura del texto y fallback genérico.
+- Continúan pendientes el ensayo visual en navegadores y la validación de usabilidad; no se declaran realizados.
