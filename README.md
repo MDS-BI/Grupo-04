@@ -4,7 +4,7 @@ Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite r
 
 > **Estado**: MVP P1 y segunda iteración P2 (tickets y panel) implementados y verificados con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes.
 >
-> **Iteración 3 — rediseño de interfaz**: especificada en `specs/002-crm-ui-refresh/` (navegación, drawers, tablas, filtros y panel accionable). Parte de la integración visual del equipo (`5aa9799`) y la formaliza: conserva el embudo comercial y la identidad verde, extrae su cálculo a una función con pruebas y cubre el estado vacío, atendiendo el hallazgo del Avance 03. No modifica entidades, reglas ni persistencia.
+> **Iteración 3 — rediseño de interfaz**: especificada en `specs/002-crm-ui-refresh/` (navegación, drawers, tablas densas, filtros, panel accionable, identidad neutra y alcance responsive). Parte de la integración visual del equipo (`5aa9799`) y la formaliza: conserva el embudo comercial como tablero accionable, añade una banda compacta de distribución por etapa alimentada por el mismo cálculo, aplica una escala tipográfica cerrada y cubre el estado vacío con icono, atendiendo el hallazgo del Avance 03. El sistema visual se completa con base neutra, escala de espacio de 8 px, superficies jerarquizadas, componentes unificados, movimiento con `prefers-reduced-motion` y navegación desplegable bajo 900 px con tabla como tarjetas bajo 640 px; el tema oscuro es opcional y solo por tokens. No modifica entidades, reglas ni persistencia.
 
 ## Integrantes
 
