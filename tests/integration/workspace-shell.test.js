@@ -13,6 +13,12 @@ function qs(id) {
   return document.getElementById(id);
 }
 
+function typeSearch(value = '') {
+  const input = qs('global-search-input');
+  input.value = value;
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+}
+
 const brandedConfig = {
   moduleName: 'Sales Suite',
   theme: { accentColor: '#0f62fe' }
@@ -50,7 +56,7 @@ describe('User Story 13 - branded ERP workspace shell', () => {
     expect(qs('logo-mark').querySelector('svg')).not.toBeNull();
 
     qs('nav-documents').click();
-    qs('nav-search').click();
+    typeSearch('');
     expect(qs('logo-mark').querySelector('svg')).not.toBeNull();
     expect(document.querySelector('.topbar .brand')).not.toBeNull();
   });
@@ -66,8 +72,13 @@ describe('User Story 13 - branded ERP workspace shell', () => {
     expect(qs('nav-dashboard-label').textContent).toBe('Panel');
     expect(qs('nav-entities-label').textContent).toBe('Entidades');
     expect(qs('nav-documents-label').textContent).toBe('Documentos');
-    expect(qs('nav-search-label').textContent).toBe('Buscar');
-    expect(document.querySelectorAll('.nav-module').length).toBe(4);
+    expect(qs('nav-search-label')).toBeNull();
+    expect(document.querySelectorAll('.nav-module').length).toBe(1);
+    expect([...document.querySelectorAll('.nav-section')].map((section) => section.dataset.module)).toEqual([
+      'entities',
+      'documents'
+    ]);
+    expect(document.querySelectorAll('.nav-subitem').length).toBe(4);
   });
 
   it('uses remapped terms on the sidebar for tailored modules', async () => {
@@ -81,7 +92,7 @@ describe('User Story 13 - branded ERP workspace shell', () => {
 
   it('keeps every module button labeled for accessible icon-rail collapse', async () => {
     await bootWith(undefined);
-    document.querySelectorAll('.nav-module').forEach((btn) => {
+    document.querySelectorAll('.nav-module, .nav-section').forEach((btn) => {
       expect(btn.querySelector('.nav-label')).not.toBeNull();
       expect(btn.querySelector('.nav-label').textContent.length).toBeGreaterThan(0);
     });
@@ -89,24 +100,24 @@ describe('User Story 13 - branded ERP workspace shell', () => {
 
   it('highlights the active module while navigating between all screens', async () => {
     await bootWith(undefined);
-    const activeModule = () => document.querySelector('.nav-module[aria-current="page"]').dataset.module;
+    const activeId = () => document.querySelector('[aria-current="page"]').id;
 
-    expect(activeModule()).toBe('dashboard');
+    expect(activeId()).toBe('nav-dashboard');
 
     qs('nav-entities').click();
-    expect(activeModule()).toBe('entities');
+    expect(activeId()).toBe('nav-entities');
     expect(qs('view-entities').hidden).toBe(false);
 
     qs('nav-documents').click();
-    expect(activeModule()).toBe('documents');
+    expect(activeId()).toBe('nav-documents');
     expect(qs('view-documents').hidden).toBe(false);
 
-    qs('nav-search').click();
-    expect(activeModule()).toBe('search');
+    typeSearch('');
+    expect(activeId()).toBe('global-search-input');
     expect(qs('view-search').hidden).toBe(false);
 
     qs('nav-dashboard').click();
-    expect(activeModule()).toBe('dashboard');
+    expect(activeId()).toBe('nav-dashboard');
     expect(qs('view-dashboard').hidden).toBe(false);
   });
 
@@ -117,7 +128,7 @@ describe('User Story 13 - branded ERP workspace shell', () => {
 
     qs('nav-entities').click();
     qs('nav-documents').click();
-    qs('nav-search').click();
+    typeSearch('');
     qs('nav-dashboard').click();
 
     expect(loadEntities().length).toBe(1);

@@ -54,8 +54,7 @@ function seedClient(overrides = {}) {
 }
 
 function openClientDetail(client) {
-  qs('nav-search').click();
-  const input = qs('search-input');
+  const input = qs('global-search-input');
   input.value = client.code;
   input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   const button = qs('search-results-list').querySelector('[data-open-entity]');

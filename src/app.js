@@ -40,11 +40,12 @@ import {
   showDocumentErrors
 } from './components/document-form.js';
 import { createDocumentItem, folioLabel, renderOpportunityList } from './components/document-list.js';
-import { renderLogo, applyShellLabels, setActiveModule } from './components/shell.js';
+import { renderLogo, applyShellLabels, setActiveNav, toggleNavSection } from './components/shell.js';
 import { renderDashboard } from './components/dashboard.js';
 import { setupSearchBar, readSearchFilters, clearSearchFilters } from './components/search-bar.js';
 import { renderSearchResults } from './components/search-results.js';
 import { renderEntityDetail, renderOpportunityDetail } from './components/entity-detail.js';
+import { openOverlay, closeOverlay, getTopOverlay } from './components/ui-overlay.js';
 import {
   prepareTicketForm,
   clearTicketForm,
@@ -80,6 +81,7 @@ let currentView = null;
 let currentClientEntityId = null;
 let dirty = false;
 let staleStorage = false;
+let openFormOverlay = null;
 
 function availableViews() {
   return ['dashboard', 'entities', 'documents', 'search'];
@@ -148,18 +150,155 @@ function showFormMessage(id, message, kind = 'success') {
   el.className = `message${kind === 'error' ? ' message-error' : ' message-success'}`;
 }
 
+/**
+ * Confirmación única de descarte. Usa el modal `confirm-discard` de
+ * `ui-overlay`; nunca `window.confirm()`.
+ */
+function confirmDiscardChanges({ onDiscard, onKeepEditing } = {}) {
+  if (getTopOverlay() && getTopOverlay().id === 'confirm-discard') return null;
+
+  const content = document.createElement('div');
+  content.className = 'overlay__confirm';
+
+  const text = document.createElement('p');
+  text.className = 'overlay__text';
+  text.textContent = 'Tienes cambios sin guardar. Si descartas, se perderán.';
+  content.appendChild(text);
+
+  const actions = document.createElement('div');
+  actions.className = 'overlay__actions';
+  const keep = document.createElement('button');
+  keep.type = 'button';
+  keep.className = 'btn btn-secondary';
+  keep.setAttribute('data-cancel-discard', '');
+  keep.textContent = 'Seguir editando';
+  const discard = document.createElement('button');
+  discard.type = 'button';
+  discard.className = 'btn btn-danger';
+  discard.setAttribute('data-confirm-discard', '');
+  discard.textContent = 'Descartar';
+  actions.append(keep, discard);
+  content.appendChild(actions);
+
+  let settled = false;
+  openOverlay({
+    id: 'confirm-discard',
+    variant: 'modal',
+    title: 'Descartar cambios',
+    content,
+    returnFocus: document.activeElement,
+    onClose: () => {
+      if (settled) return;
+      settled = true;
+      if (typeof onKeepEditing === 'function') onKeepEditing();
+    }
+  });
+
+  keep.addEventListener('click', () => {
+    settled = true;
+    closeOverlay('confirm-discard', { force: true });
+    if (typeof onKeepEditing === 'function') onKeepEditing();
+  });
+
+  discard.addEventListener('click', () => {
+    settled = true;
+    closeOverlay('confirm-discard', { force: true });
+    dirty = false;
+    if (typeof onDiscard === 'function') onDiscard();
+  });
+
+  return { keep, discard };
+}
+
+function firstFormField(container) {
+  if (!container) return null;
+  return (
+    [...container.querySelectorAll('input, select, textarea')].find(
+      (element) => element.type !== 'hidden' && !element.disabled && !element.hidden && !element.closest('[hidden]')
+    ) || null
+  );
+}
+
+/**
+ * Traslada la tarjeta del formulario existente al drawer, sin clonarla ni
+ * recrearla, y la devuelve a su contenedor original al cerrar.
+ */
+function openFormDrawer(module, mode = 'new') {
+  const formId = module === 'entities' ? 'entity-form' : 'document-form';
+  const form = qs(formId);
+  if (!form) return null;
+  const card = form.closest('.card');
+  if (!card) return null;
+
+  if (openFormOverlay && openFormOverlay.module === module) {
+    const field = firstFormField(card);
+    if (field) field.focus();
+    return openFormOverlay.id;
+  }
+  if (openFormOverlay) closeFormDrawer({ force: true });
+
+  if (mode === 'new') {
+    if (module === 'entities') clearEntityForm();
+    else clearDocumentForm();
+  }
+  dirty = false;
+
+  const parent = card.parentNode;
+  const next = card.nextSibling;
+  const returnFocus = document.activeElement;
+  const label = labelFor(module === 'entities' ? 'entity' : 'document');
+  const title =
+    mode === 'new'
+      ? `${esFemenina(label) ? 'Nueva' : 'Nuevo'} ${label.toLowerCase()}`
+      : `Editar ${label.toLowerCase()}`;
+  const id = `${module}-drawer`;
+
+  openOverlay({
+    id,
+    variant: 'drawer',
+    title,
+    content: card,
+    returnFocus,
+    isDirty: () => dirty,
+    onClose: () => {
+      if (next && next.parentNode === parent) parent.insertBefore(card, next);
+      else parent.appendChild(card);
+      dirty = false;
+      openFormOverlay = null;
+      setActiveNav({ view: currentView, mode: 'list' });
+    }
+  });
+
+  openFormOverlay = { id, module, card, parent, next };
+  setActiveNav({ view: currentView, mode: 'new' });
+
+  const field = firstFormField(card);
+  if (field) field.focus();
+  return id;
+}
+
+function closeFormDrawer({ force = true } = {}) {
+  if (!openFormOverlay) return;
+  closeOverlay(openFormOverlay.id, { force });
+}
+
 function showModule(name, opts = {}) {
   const views = availableViews();
   if (!views.includes(name)) name = fallbackView();
 
   if (currentView && name !== currentView && dirty && !opts.skipGuard) {
-    const proceed =
-      typeof confirm === 'function' ? confirm('Hay cambios sin guardar. ¿Descartarlos y continuar?') : true;
-    if (!proceed) {
-      updateHash(currentView, true);
-      return false;
-    }
-    dirty = false;
+    confirmDiscardChanges({
+      onDiscard: () => {
+        closeFormDrawer({ force: true });
+        dirty = false;
+        showModule(name, { ...opts, skipGuard: true });
+      },
+      onKeepEditing: () => {
+        updateHash(currentView, true);
+        setActiveNav({ view: currentView, mode: openFormOverlay ? 'new' : 'list' });
+      }
+    });
+    return false;
   }
 
   currentView = name;
@@ -167,7 +306,8 @@ function showModule(name, opts = {}) {
     const section = qs(id);
     if (section) section.hidden = view !== name;
   });
-  setActiveModule(name);
+  const navMode = openFormOverlay && openFormOverlay.module === name ? 'new' : 'list';
+  setActiveNav({ view: name, mode: navMode });
 
   if (name === 'dashboard') renderDashboard();
   if (name === 'entities') {
@@ -185,7 +325,8 @@ function showModule(name, opts = {}) {
   }
   if (name === 'search') {
     refreshSearch();
-    if (opts.focusSearch) qs('search-input').focus();
+    const searchInput = qs('global-search-input');
+    if (searchInput && typeof searchInput.focus === 'function') searchInput.focus();
   }
 
   if (!opts.skipHistory) updateHash(name, opts.replaceHash);
@@ -343,15 +484,23 @@ function renderOpportunityPanel() {
 function refreshSearch() {
   const listEl = qs('search-results-list');
   if (!listEl) return;
-  const term = qs('search-input').value;
+  const input = qs('global-search-input');
+  const term = input ? input.value : '';
   const emptyEl = qs('search-empty');
   const hintEl = qs('search-hint');
   const opportunitiesSection = qs('search-opportunities');
   const opportunitiesList = qs('search-opportunities-list');
+  const hasCriterion = String(term || '').trim() !== '';
 
   if (!isCrmProfile(getConfig())) {
     listEl.innerHTML = '';
     if (opportunitiesSection) opportunitiesSection.hidden = true;
+    if (opportunitiesList) opportunitiesList.innerHTML = '';
+    if (!hasCriterion) {
+      if (hintEl) hintEl.hidden = false;
+      if (emptyEl) emptyEl.hidden = true;
+      return;
+    }
     let results = [];
     try {
       results = searchEntities(term);
@@ -359,7 +508,7 @@ function refreshSearch() {
       reportDataError(error);
     }
     if (hintEl) hintEl.hidden = true;
-    emptyEl.hidden = results.length > 0;
+    if (emptyEl) emptyEl.hidden = results.length > 0;
     results.forEach((entity) => listEl.appendChild(createEntityItem(entity)));
     return;
   }
@@ -382,7 +531,7 @@ function refreshSearch() {
     hintEl,
     opportunitiesSection,
     opportunitiesList,
-    hasCriterion: String(term || '').trim() !== ''
+    hasCriterion
   });
 }
 
@@ -472,7 +621,8 @@ function openClientFromList(entityId) {
   const entity = loadEntities().find((e) => e.entity_id === entityId);
   if (!entity) return;
   showModule('search');
-  qs('search-input').value = entity.code || entity.name || '';
+  const searchInput = qs('global-search-input');
+  if (searchInput) searchInput.value = entity.code || entity.name || '';
   refreshSearch();
   showClientDetail(entityId);
   qs('entity-detail').scrollIntoView?.({ block: 'start' });
@@ -623,9 +773,14 @@ function applyLabels(config) {
 
   qs('search-view-heading').textContent = `Buscar ${entities}`;
   qs('search-heading').textContent = `Buscar ${articulo(entity)} ${entity.toLowerCase()}`;
-  qs('search-input').placeholder = `Buscar ${entities.toLowerCase()} por nombre o código...`;
-  qs('search-input').setAttribute('aria-label', `Buscar ${entities.toLowerCase()}`);
-  qs('search-hint').textContent = 'Ingresa un criterio';
+  const searchInput = qs('global-search-input');
+  if (searchInput) {
+    searchInput.placeholder = `Buscar ${entities.toLowerCase()} y ${documents.toLowerCase()}...`;
+    searchInput.setAttribute('aria-label', `Buscar ${entities.toLowerCase()} y ${documents.toLowerCase()}`);
+  }
+  const primaryAction = qs('topbar-primary-action');
+  if (primaryAction) primaryAction.textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
+  qs('search-hint').textContent = 'Escribe para buscar';
   qs('search-empty').textContent = 'Sin coincidencias para tu búsqueda.';
   qs('search-opportunities-heading').textContent = documents;
   qs('entity-detail-heading').textContent = `Ficha ${deArticulo(entity)} ${entity.toLowerCase()}`;
@@ -945,7 +1100,19 @@ function onStorageChange(event) {
 
 function onLocationChange() {
   const view = readViewFromHash();
-  if (view !== currentView) showModule(view, { skipHistory: true });
+  if (view === currentView) return;
+  if (dirty) {
+    confirmDiscardChanges({
+      onDiscard: () => {
+        closeFormDrawer({ force: true });
+        dirty = false;
+        showModule(view, { skipHistory: true, skipGuard: true });
+      },
+      onKeepEditing: () => updateHash(currentView, true)
+    });
+    return;
+  }
+  showModule(view, { skipHistory: true });
 }
 
 function wireEvents() {
@@ -953,6 +1120,20 @@ function wireEvents() {
   wired = true;
   document.querySelectorAll('.nav-module').forEach((btn) => {
     btn.addEventListener('click', () => showModule(btn.dataset.module));
+  });
+  document.querySelectorAll('.nav-section').forEach((btn) => {
+    btn.addEventListener('click', () => toggleNavSection(btn.dataset.module));
+  });
+  document.querySelectorAll('.nav-subitem').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const module = btn.dataset.module;
+      if (!showModule(module)) return;
+      if (btn.dataset.mode === 'new') openFormDrawer(module, 'new');
+    });
+  });
+  qs('topbar-primary-action').addEventListener('click', () => {
+    if (!showModule('entities')) return;
+    openFormDrawer('entities', 'new');
   });
   qs('commercial-columns').addEventListener('click', (event) => {
     const card = event.target.closest('button[data-opportunity-id]');
@@ -963,7 +1144,7 @@ function wireEvents() {
     showModule('documents', { newRecord: true, focusForm: true })
   );
   qs('action-open-entities').addEventListener('click', () => showModule('entities'));
-  qs('action-find').addEventListener('click', () => showModule('search', { focusSearch: true }));
+  qs('action-find').addEventListener('click', () => showModule('search'));
   qs('entity-form').addEventListener('submit', handleEntitySubmit);
   qs('cancel-edit').addEventListener('click', () => {
     dirty = false;
@@ -1037,7 +1218,10 @@ function wireEvents() {
       dirty = true;
     });
   });
-  setupSearchBar(qs('search-input'), () => refreshSearch());
+  setupSearchBar(qs('global-search-input'), () => {
+    if (!showModule('search', { skipHistory: false })) return;
+    refreshSearch();
+  });
   ['search-filter-category', 'search-filter-owner', 'search-filter-source'].forEach((id) => {
     if (qs(id)) qs(id).addEventListener('change', () => refreshSearch());
   });

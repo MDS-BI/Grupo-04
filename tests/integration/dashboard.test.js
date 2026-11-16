@@ -116,7 +116,7 @@ describe('User Story 3 - home dashboard with quick actions and record stats', ()
     await bootWith(undefined);
     qs('action-find').click();
     expect(qs('view-search').hidden).toBe(false);
-    expect(document.activeElement).toBe(qs('search-input'));
+    expect(document.activeElement).toBe(qs('global-search-input'));
   });
 });
 

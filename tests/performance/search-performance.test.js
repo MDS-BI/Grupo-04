@@ -63,7 +63,6 @@ beforeEach(async () => {
   vi.resetModules();
   const { boot } = await import('../../src/app.js');
   await boot();
-  qs('nav-search').click();
 });
 
 afterEach(() => {
@@ -72,8 +71,9 @@ afterEach(() => {
 
 function runSearch(query) {
   const start = performance.now();
-  qs('search-input').value = query;
-  qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  const input = qs('global-search-input');
+  input.value = query;
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   return performance.now() - start;
 }
 

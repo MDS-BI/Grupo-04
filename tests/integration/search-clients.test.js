@@ -14,8 +14,8 @@ function qs(id) {
 }
 
 function typeSearch(value) {
-  qs('search-input').value = value;
-  qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  qs('global-search-input').value = value;
+  qs('global-search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
 }
 
 function clientResults() {
@@ -84,7 +84,6 @@ beforeEach(async () => {
   await boot();
   storage = await import('../../src/storage.js');
   seed();
-  qs('nav-search').click();
 });
 
 afterEach(() => {
@@ -114,7 +113,7 @@ describe('US2 — buscar clientes y consultar su ficha', () => {
   it('asks for a criterion when the field is empty', () => {
     typeSearch('');
     expect(qs('search-hint').hidden).toBe(false);
-    expect(qs('search-hint').textContent).toContain('Ingresa un criterio');
+    expect(qs('search-hint').textContent).toContain('Escribe para buscar');
     expect(qs('search-empty').hidden).toBe(true);
     expect(clientResults().length).toBe(0);
   });
