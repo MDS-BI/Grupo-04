@@ -165,3 +165,13 @@ Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. E
 ## Seguimiento de complejidad
 
 Se conservan dos colecciones base para que el MVP sea realizable sobre el template: Cliente (`Entity`) y Oportunidad (`Document`). Los tickets P2 agregan una colección adicional y se implementan en la segunda iteración. Las extensiones indispensables son reglas de dominio, métricas, búsqueda de oportunidades y terminología. No se presenta la adaptación completa como un simple cambio de etiquetas: requiere implementación y pruebas.
+
+## Integración visual del CRM — 15/11/2026
+
+Se incorporan las mejoras visuales preparadas tras el feedback «casi idéntico al template» sobre `ad0f421`, conservando la implementación P1/P2 del equipo: tickets, seis indicadores, reglas, persistencia y pruebas. No se aplica la instantánea de almacenamiento alternativa del borrador local.
+
+- Embudo de seis etapas con cantidad, monto agregado y tarjetas por oportunidad. Cada tarjeta abre el formulario de edición existente.
+- Identidad visual verde, tarjetas comerciales y distribución adaptable a pantallas pequeñas.
+- Imagen del MER vigente: [crm-mer.svg](assets/crm-mer.svg).
+- Pruebas de interacción del tablero, representación segura del texto y fallback genérico.
+- Continúan pendientes el ensayo visual en navegadores y la validación de usabilidad; no se declaran realizados.

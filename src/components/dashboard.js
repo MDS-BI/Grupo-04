@@ -1,3 +1,4 @@
+import { renderCommercialBoard } from './commercial-board.js';
 import { getConfig, isCrmProfile } from '../module-config.js';
 import { loadEntities, loadDocuments } from '../storage.js';
 import {
@@ -46,6 +47,8 @@ export function renderDashboard() {
   } catch (error) {
     reportReadError(error);
   }
+
+  renderCommercialBoard(entities, documents);
 
   const baseGrid = document.getElementById('base-stat-grid');
   if (baseGrid) baseGrid.hidden = crm;

@@ -610,3 +610,85 @@ button.danger:hover {
     display: none;
   }
 }
+
+/* Identidad CRM y tablero de seguimiento comercial. */
+[hidden] {
+  display: none !important;
+}
+body.crm {
+  --bg: #f2f6f4;
+  --text: #183b36;
+  --accent-dark: #115e59;
+  --sidebar-bg: #123c36;
+  --sidebar-text: #d5e8df;
+  --border: #d8e5de;
+}
+.crm .topbar {
+  background: #123c36;
+  color: white;
+}
+.crm .content {
+  max-width: 1800px;
+  min-width: 0;
+  padding: 32px;
+}
+.crm h1 {
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  letter-spacing: -0.04em;
+}
+.crm .stat-grid {
+  margin-top: 24px;
+}
+
+.commercial-title {
+  margin: 24px 0 16px;
+}
+.commercial-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.commercial-column {
+  background: #e6ede9;
+  border-radius: 12px;
+  border-top: 4px solid #80a89a;
+  padding: 16px;
+  min-height: 170px;
+}
+.commercial-column h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.commercial-column:nth-last-child(2) {
+  border-top-color: #168361;
+}
+.commercial-column:last-child {
+  border-top-color: #b77364;
+}
+.commercial-card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.commercial-card span,
+.commercial-card small {
+  color: #526c63;
+}
+.commercial-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 3px 12px #123c3612;
+}
+@media (max-width: 800px) {
+  .commercial-columns {
+    grid-template-columns: 1fr;
+  }
+}
