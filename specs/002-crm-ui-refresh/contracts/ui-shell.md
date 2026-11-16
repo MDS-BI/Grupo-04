@@ -82,7 +82,7 @@ hasDirtyOverlay()
 | Densidad | Filas de 44–48 px, `font-size: var(--text-sm)` (14 px) y estado `:hover` de fila; la tabla no cambia de alto al ordenar |
 | Números | Montos y fechas alineados a la derecha con `font-variant-numeric: tabular-nums`; `th` de esa columna alineado igual |
 | Texto largo | `max-width` + `white-space: nowrap` + `text-overflow: ellipsis`; el truncado es solo visual y el texto completo permanece en el DOM |
-| Estados de fila | `tr:hover` y `tr[aria-selected="true"]` con fondo tenue; `th[aria-sort]` de la columna activa resaltado. El estado se refuerza con peso o borde, no solo con color |
+| Estados de fila | `tr:hover` con fondo tenue y `th[aria-sort]` de la columna activa resaltado con peso o borde, no solo con color. No se introduce selección de fila: el registro se elige con el selector de la barra compacta |
 | Modo tarjetas | Bajo 640 px cada `<tr>` se presenta como tarjeta, con una etiqueta por celda tomada del `th` (`data-label`), sin desplazamiento horizontal forzado; `<caption>`, `aria-sort` y la acción “Editar” se conservan |
 | Caption | Describe la tabla y el filtro activo; nunca vacío |
 | Encabezado | `<th scope="col">` con `<button data-sort="key">` cuando la columna es ordenable |
@@ -124,7 +124,7 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort, emptyS
 | Estado vacío | `#dashboard-empty-state` visible solo si `entities` y `documents` están vacíos; envuelve el `#dashboard-empty-hint` existente, que conserva su id y su texto |
 | Icono del vacío | `.empty-state__icon` de 48 px dentro de un contenedor circular de 72 px con `--accent-soft`; SVG en línea y `aria-hidden="true"`; el significado lo llevan el título y el texto, no el dibujo |
 | CTA del vacío | `#dashboard-empty-cta` abre el drawer de nuevo cliente |
-| Banda de KPIs | `#crm-stat-grid` (id heredado de `001`) con `class="stat-grid kpi-band"`; visible solo cuando hay datos; seis tarjetas con valor y etiqueta |
+| Banda de indicadores | `#crm-stat-grid` (id heredado de `001`) con `class="stat-grid kpi-band"`; visible solo cuando hay datos; seis tarjetas con valor y etiqueta |
 | Comportamiento del vacío | Con almacenamiento vacío, `#crm-stat-grid`, `#stage-distribution` y `#commercial-board` quedan `hidden`; los seis valores se siguen calculando y escribiendo en el DOM |
 | Indicadores | Los seis de `FR-024`, sin cambios de fórmula |
 | Distribución | `#stage-distribution`: una `.stage-row` por estado del ciclo de vida con etiqueta, conteo y monto como texto y una `.stage-bar` `aria-hidden` cuyo ancho es proporcional al conteo; incluye los estados en cero y nunca divide por cero |
@@ -136,7 +136,7 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort, emptyS
 | Visibilidad | La distribución se oculta con panel vacío o perfil no CRM; el tablero se oculta además cuando no hay ninguna oportunidad, aunque existan clientes |
 | Fuente única | `#stage-distribution` y `#commercial-board` consumen la misma llamada a `stageDistribution()` en el mismo render; no hay dos cálculos que puedan divergir |
 | Actualización | Todo se recalcula en cada `renderDashboard()`; no hay totales persistidos |
-| Accesos directos | Abren la vista correspondiente con drawer vacío cuando corresponde |
+| Accesos directos | `#action-new-entity` (“Nuevo cliente”) y `#action-new-document` (“Nueva oportunidad”) abren el drawer vacío correspondiente sin persistir; `#action-open-entities` y `#action-find` conservan su navegación |
 
 ## 6. Sistema visual (jerarquía, superficies y movimiento)
 
@@ -224,7 +224,7 @@ Reglas: ningún hexadecimal de color vive fuera de `:root` (o del bloque `@media
 - Toda tabla ofrece solo la acción “Editar” por fila; el borrado queda en la barra compacta con sus ids de `001`.
 - El estado vacío de una tabla distingue “sin coincidencias” de “sin registros” y su CTA corresponde a esa causa.
 - Chips y selectores nunca quedan desincronizados.
-- El estado vacío del panel solo aparece cuando ambas colecciones están vacías, y en ese caso oculta la banda de KPIs, la distribución y el tablero.
+- El estado vacío del panel solo aparece cuando ambas colecciones están vacías, y en ese caso oculta la banda de indicadores, la distribución y el tablero.
 - El tablero se oculta cuando el perfil no es CRM o cuando no hay ninguna oportunidad; la distribución se mantiene con ceros.
 - Navegar, ordenar, filtrar y consultar el panel no modifican `localStorage`.
 - La base visual es neutra y el verde solo aparece como acento; ningún hexadecimal de color vive fuera de `:root`.

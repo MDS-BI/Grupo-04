@@ -68,8 +68,9 @@ Registrar en el `README` que los datos son sintéticos.
 11. Confirmar que el cliente queda seleccionado y que el formulario de oportunidad conserva lo escrito.
 12. Guardar la oportunidad. Repetir el alta al vuelo y cancelar.
 13. En el listado de oportunidades, comprobar que la única acción por fila es “Editar” y que `#edit-document` / `#delete-document` siguen en la barra compacta.
+14. Abrir el detalle de un cliente, verificar que el resumen se presenta en dos columnas y abrir el drawer de ticket con el cliente preseleccionado; cerrar sin guardar y comprobar que el detalle sigue visible.
 
-**Resultado esperado**: el alta y la edición no abandonan la lista; el foco entra, cicla y vuelve; el descarte exige el modal propio y nunca `window.confirm()`; los datos del formulario de oportunidad sobreviven al alta al vuelo; cancelar el alta no crea registros; las validaciones son las mismas de `001`; la eliminación solo existe en la barra heredada.
+**Resultado esperado**: el alta y la edición no abandonan la lista; el foco entra, cicla y vuelve; el descarte exige el modal propio y nunca `window.confirm()`; los datos del formulario de oportunidad sobreviven al alta al vuelo; cancelar el alta no crea registros; las validaciones son las mismas de `001`; la eliminación solo existe en la barra heredada; el detalle conserva su resumen en dos columnas y abre el drawer de ticket con el cliente preseleccionado.
 
 ## Escenario 3 — Tablas, orden y filtros (US-UX-03)
 
@@ -93,8 +94,8 @@ Registrar en el `README` que los datos son sintéticos.
 ## Escenario 4 — Panel vacío, panel con datos, distribución y tablero (US-UX-04)
 
 1. Abrir el panel con `localStorage` vacío.
-2. Verificar icono decorativo, título, explicación y CTA “Registra tu primer cliente”; ni la banda de KPIs, ni la distribución, ni el tablero deben verse.
-3. Activar la CTA y comprobar que abre el drawer de nuevo cliente.
+2. Verificar icono decorativo, título, explicación y CTA “Registra tu primer cliente”; ni la banda de indicadores, ni la distribución, ni el tablero deben verse.
+3. Activar la CTA y comprobar que abre el drawer de nuevo cliente; repetir con los accesos directos “Nuevo cliente” (`#action-new-entity`) y “Nueva oportunidad” (`#action-new-document`), que deben abrir el drawer vacío correspondiente sin crear registros.
 4. Crear dos clientes y tres oportunidades: dos abiertas por `100000` y `200000`, una ganada por `50000`.
 5. Volver al panel: verificar la banda de seis KPIs, la banda de distribución con seis filas, una por estado, y el tablero con seis columnas.
 6. Comprobar `Monto abierto = 300000` y `Oportunidades abiertas = 2`.
@@ -107,7 +108,7 @@ Registrar en el `README` que los datos son sintéticos.
 13. En una segunda sesión con solo clientes y ninguna oportunidad, comprobar que la banda de indicadores y la distribución aparecen con ceros y que el tablero queda oculto, sin seis columnas vacías.
 14. Comparar `localStorage` antes y después de todo el recorrido.
 
-**Resultado esperado**: el estado vacío solo aparece sin datos y entonces oculta banda, distribución y tablero; los indicadores coinciden con las fórmulas de `001`; la distribución es una lectura compacta y proporcional de la cartera y el tablero conserva el marcado y las tarjetas del equipo; ambas presentaciones muestran siempre las mismas cifras; con clientes y sin oportunidades no se dibujan columnas vacías ni se divide por cero; cada tarjeta abre la edición; la tasa de cierre dice “Sin datos” cuando corresponde; no se agregaron claves ni totales.
+**Resultado esperado**: el estado vacío solo aparece sin datos y entonces oculta banda, distribución y tablero; los indicadores coinciden con las fórmulas de `001`; los accesos directos del panel abren el drawer vacío correspondiente; la distribución es una lectura compacta y proporcional de la cartera y el tablero conserva el marcado y las tarjetas del equipo; ambas presentaciones muestran siempre las mismas cifras; con clientes y sin oportunidades no se dibujan columnas vacías ni se divide por cero; cada tarjeta abre la edición; la tasa de cierre dice “Sin datos” cuando corresponde; no se agregaron claves ni totales.
 
 ## Escenario 5 — Sistema visual, superficies y responsive (CA-UX-05)
 
@@ -146,7 +147,7 @@ Registrar en el `README` que los datos son sintéticos.
 | Tipografía | Recorrer las cuatro vistas y buscar `font-size` en `styles.css` | Solo los cinco pasos de la escala; ninguna medida suelta |
 | Densidad de tabla | 50 filas y un valor de texto largo | Encabezado visible al hacer scroll, montos alineados a la derecha y truncado sin desbordamiento |
 | Sin cambios de datos | Comparar `localStorage` antes/después de navegar, ordenar, filtrar y consultar | Mismas claves y campos; `schemaVersion` intacto |
-| Rendimiento | 500 clientes y 1000 oportunidades; 20 búsquedas y 20 ordenamientos | Al menos 19 de 20 bajo 500 ms; registrar equipo y navegador |
+| Rendimiento | 500 clientes y 1000 oportunidades; 20 búsquedas y 20 ordenamientos tras un calentamiento | Al menos 19 de 20 bajo 500 ms; registrar equipo y navegador |
 | Seguridad | Guardar asunto o notas con HTML o texto tipo script | Se muestran como texto; sin ejecución |
 | Terminología | Revisar las cuatro vistas y estados vacíos | Cliente/Clientes y Oportunidad/Oportunidades, sin “entidad” ni “documento” |
 

@@ -6,7 +6,7 @@
 
 La aplicación cumple las historias de `001-crm-module` con 29 archivos y 280 pruebas en verde y `eslint` limpio. El problema ya no es funcional sino de interfaz: los formularios viven en tarjetas de 720 px sobre un fondo gris amplio, la búsqueda compite con las secciones del menú lateral, el panel muestra seis tarjetas de “0” sin jerarquía y el alta de oportunidad se bloquea con un aviso estático.
 
-El equipo ya aportó una integración visual en `5aa9799`: embudo comercial de seis etapas (`src/components/commercial-board.js`), identidad verde y MER en SVG. Esta iteración **parte de ese trabajo**: conserva el tablero accionable, extrae su cálculo a una función con pruebas, añade una banda compacta de distribución alimentada por esa misma función, convierte el verde en acento sobre una base neutra y completa lo que falta (estado vacío accionable, accesibilidad, densidad de tabla, superficies y alcance responsive).
+El equipo ya aportó una integración visual en `5aa9799`: tablero comercial de seis etapas (“Embudo comercial”, `src/components/commercial-board.js`), identidad verde y MER en SVG. Esta iteración **parte de ese trabajo**: conserva el tablero accionable, extrae su cálculo a una función con pruebas, añade una banda compacta de distribución alimentada por esa misma función, convierte el verde en acento sobre una base neutra y completa lo que falta (estado vacío accionable, accesibilidad, densidad de tabla, superficies y alcance responsive).
 
 Esta iteración rediseña la capa de presentación en cinco frentes coordinados: **navegación** (búsqueda en cabecera y submenús), **flujo** (drawers y alta de cliente al vuelo), **densidad** (tablas ordenables y filtros con chips), **jerarquía** (estado vacío accionable, KPIs compactos y sistema visual) e **identidad** (base neutra, superficies, movimiento y alcance responsive). No cambia entidades, campos, reglas, indicadores ni persistencia.
 
@@ -42,7 +42,7 @@ Constitución vigente: `.specify/memory/constitution.md` **v1.0.0**. Es de cumpl
 | Principio / estándar | Estado | Evidencia o acción comprometida |
 |---|---|---|
 | I. Code Quality & Maintainability | Pasa el diseño | Tres primitivas con una sola responsabilidad (`ui-overlay.js`, `ui.js`, `data-table.js`) y dos componentes de flujo (`quick-create-client.js`, `filter-chips.js`). No se reescribe la lógica de los formularios existentes. |
-| II. Test-First & Verification | Pendiente de implementación | Cada primitiva y cada flujo tiene prueba escrita antes o junto con el código. Las 280 pruebas actuales (278 de `001` más 2 del embudo) deben seguir pasando; los 12 archivos acoplados a la búsqueda se migran en la misma tarea que cambia el shell. |
+| II. Test-First & Verification | Pendiente de implementación | Cada primitiva y cada flujo tiene prueba escrita antes o junto con el código. Las 280 pruebas actuales (278 de `001` más 2 del embudo) deben seguir pasando; 11 de los 12 archivos acoplados a la búsqueda se migran en la tarea del shell y `dashboard.test.js` se migra con el estado vacío (T041). |
 | III. User Experience Consistency | Pasa el diseño | Un único patrón de drawer, modal de confirmación, tabla, chip, estado vacío y botón, descrito en `contracts/ui-shell.md`, más un sistema visual único (paleta neutra, escala de espacio, superficies y movimiento) que se aplica a las cuatro vistas. La tabla distingue el vacío por filtro del vacío por datos. Terminología CRM de `FR-030` intacta. |
 | IV. Performance & Reliability | Pasa el diseño | Sin dependencias ni red; orden y filtro en memoria sobre los mismos volúmenes. Se conserva el presupuesto de 500 ms y se amplía la prueba de rendimiento. |
 | Quality Standards | Pendiente | `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build` en cada incremento; evidencia real en `README.md`. |
@@ -51,7 +51,7 @@ Constitución vigente: `.specify/memory/constitution.md` **v1.0.0**. Es de cumpl
 **Desviaciones**:
 
 - **Validación visual sin E2E automatizado**: no se adopta Playwright ni pruebas de captura porque el stack no tiene backend ni CI y la matriz de navegadores se valida manualmente. Se sustituye por pruebas de contrato de DOM, integración en jsdom y el recorrido de `quickstart.md`. Misma desviación ya registrada en `001`.
-- **Sin enmienda de `001`, la iteración no es conforme**: `FR-036` y `CA-06-11` de `001` quedarían contradiciendo esta feature. La primera tarea de `tasks.md` es esa enmienda y es bloqueante.
+- **Enmienda de `001` ya aplicada**: `FR-036` y `CA-06-11` apuntan a esta feature desde el commit `0caa9e0`. T001 verifica la coherencia y solo reaplica el texto si falta; no bloquea el inicio de la Fase 2.
 
 **Reevaluación post-diseño (Fase 1)**: las clarificaciones de alcance, flujo y sistema visual no agregan dependencias, entidades, campos ni persistencia. El modal de descarte reutiliza `ui-overlay`; la acción “Editar” reutiliza el drawer; los estados vacíos, el alcance de filtros, la identidad neutra y el responsive son vistas de render o reglas CSS. Los cuatro principios siguen en “Pasa el diseño”.
 
@@ -63,7 +63,7 @@ Constitución vigente: `.specify/memory/constitution.md` **v1.0.0**. Es de cumpl
 - Búsqueda global única en la cabecera; la vista de búsqueda pierde su input propio. Sin criterio, la vista permanece con la pista y conserva los filtros.
 - Submenús “Listado” y “Nuevo” generados desde `ModuleConfig`; sin “Reportes”.
 - Alta de cliente al vuelo con validación y persistencia existentes.
-- Panel con estado vacío accionable (icono), banda de KPIs, **banda de distribución por etapa** y **tablero accionable** derivados de `stageDistribution()`, sin una segunda aritmética.
+- Panel con estado vacío accionable (icono), banda de indicadores, **banda de distribución por etapa** y **tablero accionable** derivados de `stageDistribution()`, sin una segunda aritmética.
 - Tablas ordenables con `aria-sort`, encabezado fijo, cifras tabulares alineadas y truncado visual; la única acción por fila es “Editar” y el borrado queda en la barra compacta con los ids de `001`.
 - Estado vacío de tabla con dos variantes: “Limpiar filtros” si hay criterio o filtros activos, “Nuevo cliente/oportunidad” si no hay registros.
 - Confirmación de descarte con modal propio sobre `ui-overlay`; se prohíbe `window.confirm()`.
@@ -99,7 +99,7 @@ src/
     data-table.js              # NUEVO: tabla ordenable accesible, acción Editar y vacío contextual
     quick-create-client.js     # NUEVO: alta mínima de cliente
     filter-chips.js            # NUEVO: chips sincronizados con selectores
-    dashboard.js               # estado vacío y banda de KPIs (modificar)
+    dashboard.js               # estado vacío y banda de indicadores (modificar)
     stage-distribution.js      # NUEVO: banda compacta de distribución por etapa
     commercial-board.js        # tablero del equipo: consume stageDistribution y respeta el panel vacío (modificar)
     entity-list.js             # tabla de clientes (modificar)
@@ -126,7 +126,7 @@ tests/
     responsive-nav.test.js                   # NUEVO: nav desplegable < 900 px, Esc y foco devuelto
 ```
 
-**Archivos de prueba de `001` que se migran en la misma tarea que el shell**: `tests/integration/workspace-shell.test.js`, `search-entities.test.js`, `search-clients.test.js`, `tickets.test.js`, `custom-fields.test.js`, `manage-document.test.js`, `manage-tabs.test.js`, `relabeling.test.js`, `dashboard.test.js`, `critical-journey.test.js`, `tests/unit/security-render.test.js` y `tests/performance/search-performance.test.js`.
+**Archivos de prueba de `001` que se migran en la misma tarea que el shell** (11): `tests/integration/workspace-shell.test.js`, `tests/integration/search-entities.test.js`, `tests/integration/search-clients.test.js`, `tests/integration/tickets.test.js`, `tests/integration/custom-fields.test.js`, `tests/integration/manage-document.test.js`, `tests/integration/manage-tabs.test.js`, `tests/integration/relabeling.test.js`, `tests/integration/critical-journey.test.js`, `tests/unit/security-render.test.js` y `tests/performance/search-performance.test.js`. **`tests/integration/dashboard.test.js` se migra con el estado vacío (T041)**, porque cambia de expectativa según `CA-UX-04-01`.
 
 **Prueba heredada que cambia de expectativa**: `tests/integration/dashboard.test.js` afirma hoy que la banda de indicadores se ve con almacenamiento vacío. `CA-UX-04-01` exige lo contrario. Se migra en la misma tarea que el estado vacío, conservando el aserto de los seis valores (se siguen calculando y escribiendo en el DOM) y añadiendo `hidden` en la banda, la distribución y el tablero.
 
@@ -150,10 +150,10 @@ tests/
 2. **Línea base**: `npm test -- --run`, `npm run lint`, `npm run format:check` y `npm run build`; registrar resultados reales en `README.md`.
 3. **Sistema de diseño**: tokens, escala tipográfica cerrada, tarjetas con cabecera e icono, botones, tabla densa, chips, estados vacíos con icono y estilos de la cabecera oscura.
 4. **Primitivas con prueba previa**: `ui-overlay`, `data-table`, `filter-chips`.
-5. **US-UX-01**: cabecera con búsqueda global, submenús y migración de los 12 archivos de prueba.
+5. **US-UX-01**: cabecera con búsqueda global, submenús y migración de los 11 archivos de prueba acoplados al shell.
 6. **US-UX-02**: drawer de cliente, oportunidad y ticket; alta de cliente al vuelo; guardián de cambios compartido con modal de descarte propio.
 7. **US-UX-03**: tablas de resultados, acción “Editar” por fila, ordenamiento, estados vacíos con CTA contextual y chips de filtro solo en la búsqueda.
-8. **US-UX-04**: extraer `stageDistribution()` del tablero con prueba unitaria, estado vacío con icono, banda de KPIs compacta, banda de distribución y visibilidad del tablero según datos.
+8. **US-UX-04**: extraer `stageDistribution()` del tablero con prueba unitaria, estado vacío con icono, banda de indicadores compacta, banda de distribución, visibilidad del tablero según datos y migración de `dashboard.test.js`.
 9. **Identidad neutra**: paleta sin tinte verde, `--text-muted` corregido, detalles nativos, sidebar e indicadores; auditar que no queden hexadecimales fuera de `:root`.
 10. **Sistema**: escala de espacio, jerarquía de superficies, botones y campos unificados, movimiento y estados de tabla.
 11. **Responsive**: navegación desplegable bajo 900 px, tabla como tarjetas bajo 640 px y tema oscuro opcional por tokens.
@@ -169,7 +169,7 @@ tests/
 | Accesibilidad | Recorrido completo con teclado por cabecera, submenús, drawer, modal de descarte, tabla, tablero, distribución y navegación desplegable; foco visible y devuelto; `aria-modal`, `aria-expanded`, `aria-sort`, `aria-pressed` y regiones desplazables verificadas; ninguna dependencia de `window.confirm()` |
 | Responsive | Capturas manuales a 1440, 1024, 768 y 390 px; drawer a pantalla completa bajo 640 px; a 768 px navegación desplegable con “Listado / Nuevo” completos; a 390 px tabla como tarjetas con etiqueta por celda y sin scroll horizontal forzado |
 | Contraste | Texto secundario `#52606F` sobre `#F7F8FA`, `#FFFFFF`, `#E6EDE9` y `#123C36`; botón primario `#0F766E` con texto blanco ≥ 4.5:1; placeholder y anillo de foco de `#global-search-input` sobre la cabecera oscura ≥ 4.5:1 y ≥ 3:1 |
-| Auditoría visual | Cero hexadecimales fuera de `:root`, cinco tamaños tipográficos, espaciados solo de la escala y ausencia de `.primary` (`SC-UX-009`) |
+| Auditoría visual | Cero hexadecimales fuera de `:root`, cinco tamaños tipográficos, espaciados solo de la escala y ausencia de `.primary` (`SC-UX-007`, `SC-UX-009`) |
 | Movimiento | Con `prefers-reduced-motion: reduce` no hay transición; con la preferencia por defecto, las transiciones duran 120–160 ms |
 | Tema oscuro | Si se entrega: responde a `prefers-color-scheme`, conserva AA y no agrega claves de `localStorage`; si no, se declara pendiente |
 | Rendimiento | 20 búsquedas y 20 ordenamientos con 500/1000 registros; al menos 19 de 20 bajo 500 ms; registrar equipo y navegador |
@@ -178,7 +178,7 @@ tests/
 
 ## Riesgos y mitigaciones
 
-- **Pruebas acopladas al DOM**: mover la búsqueda rompe 12 archivos. La tarea de shell incluye su migración y no se cierra hasta que la suite completa pase. El traslado de formularios al drawer no rompe la suite porque las tarjetas siguen en el DOM y se restauran al cerrar; solo `opportunity-lifecycle.test.js` requiere migración por el borrado de fila.
+- **Pruebas acopladas al DOM**: mover la búsqueda rompe 12 archivos. La tarea de shell migra 11 y no se cierra hasta que la suite completa pase; `dashboard.test.js` se migra con el estado vacío (T041), donde además cambia de expectativa. El traslado de formularios al drawer no rompe la suite porque las tarjetas siguen en el DOM y se restauran al cerrar; solo `opportunity-lifecycle.test.js` requiere migración por el borrado de fila.
 - **Cambios sin guardar en drawer**: el guardián vive hoy en `showModule()` (`src/app.js:155-163`). Se extrae una función compartida y se cubre con prueba de integración.
 - **Foco en overlays**: jsdom no implementa `inert` ni `<dialog>` completo. Se implementa trampa de foco explícita con `keydown` y prueba unitaria propia.
 - **Dos overlays simultáneos**: el alta al vuelo se abre sobre el drawer de oportunidad y la confirmación de descarte se apila sobre el overlay que la origina. Solo el superior recibe foco y se apila en una pila de overlays.
@@ -192,7 +192,7 @@ tests/
 - **Contraste sobre la cabecera oscura**: el input de búsqueda y la acción principal viven sobre `#123C36`. Se fija fondo, placeholder y anillo de foco en el contrato y se mide el contraste real en la validación manual (`NFR-UX-005`).
 - **Estilos no verificables en jsdom**: `position: sticky`, `text-overflow` y `tabular-nums` no se calculan en jsdom. Las pruebas verifican estructura, clases y atributos; el efecto visual se valida en el recorrido de `quickstart.md`.
 - **Regresión en el panel vacío**: `tests/integration/dashboard.test.js` espera hoy la banda visible con ceros. Se migra junto con el estado vacío, en la misma tarea.
-- **Interpretación del embudo**: el tablero conserva el título “Embudo comercial” del equipo y la banda compacta se rotula “Distribución por etapa”; ninguna de las dos es una “tasa de conversión” ni una predicción.
+- **Interpretación del tablero**: el tablero conserva el título “Embudo comercial” del equipo y la banda compacta se rotula “Distribución por etapa”; ninguna de las dos es una “tasa de conversión” ni una predicción.
 - **Auditoría de color manual**: mover hexadecimales a `:root` puede dejar valores inline en `index.html` o en estilos de componentes. La tarea T060 incluye una búsqueda de `#` en `src/styles.css`, `index.html` y `src/` y la registra en `README.md`; `SC-UX-009` es la evidencia.
 - **Contraste medido sobre fondos tintados**: `#64748B` pasa sobre blanco pero falla sobre `#F2F4F8` y `#E6EDE9`. Se cambia a `#52606F` y se miden los cuatro pares reales; no se acepta una medición única sobre blanco (`NFR-UX-008`).
 - **Regresión por reescritura de tokens**: T060 reemplaza valores que las cuatro historias ya consumen. Se ejecuta después de ellas y con la suite completa en verde; cualquier prueba que dependa de un color concreto se revisa en la misma tarea.

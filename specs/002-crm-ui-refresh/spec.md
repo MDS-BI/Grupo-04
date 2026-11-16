@@ -5,11 +5,11 @@
 **Estado**: En revisión
 **Entrada**: “Para hacer este CRM mucho más navegable, encontrable y visualmente atractivo… espacios vacíos excesivos, falta de jerarquía visual y flujos de usuario interrumpidos.”
 **Feature previa**: [`specs/001-crm-module/spec.md`](../001-crm-module/spec.md)
-**Punto de partida**: integración visual del equipo (`5aa9799`), que ya aporta el embudo comercial de seis etapas, la identidad verde (que esta iteración convierte en acento sobre una base neutra) y el MER en SVG.
+**Punto de partida**: integración visual del equipo (`5aa9799`), que ya aporta el tablero comercial de seis etapas (“Embudo comercial”), la identidad verde (que esta iteración convierte en acento sobre una base neutra) y el MER en SVG.
 
 > **Relación con `001-crm-module`**: esta especificación **no redefine** el dominio. Hereda íntegramente las entidades, los campos, las reglas, el ciclo de vida, la persistencia y los indicadores de `001`. Solo especifica la capa de navegación, presentación y flujo de pantallas. Toda regla de negocio sigue viviendo en `001` y en `contracts/entity-storage.md` de esa feature.
 
-> **Relación con la integración visual del equipo**: el embudo comercial de `src/components/commercial-board.js` (commit `5aa9799`) **se conserva y se adopta** como el **tablero accionable** del panel. Esta especificación no lo reemplaza: extrae su cálculo a una función con pruebas, lo mantiene como tablero y añade una **banda compacta de distribución por etapa** que lee esa misma función, de modo que ambas presentaciones nunca pueden divergir. Con eso se atiende el hallazgo del Avance 03 de `feedback.md`, que señaló funcionalidades del sitio sin cobertura en `spec.md` ni en `tasks.md`.
+> **Relación con la integración visual del equipo**: el tablero comercial de `src/components/commercial-board.js` (commit `5aa9799`, título visible heredado “Embudo comercial”) **se conserva y se adopta** como el **tablero accionable** del panel. Esta especificación no lo reemplaza: extrae su cálculo a una función con pruebas, lo mantiene como tablero y añade una **banda compacta de distribución por etapa** que lee esa misma función, de modo que ambas presentaciones nunca pueden divergir. Con eso se atiende el hallazgo del Avance 03 de `feedback.md`, que señaló funcionalidades del sitio sin cobertura en `spec.md` ni en `tasks.md`.
 
 ## Propósito
 
@@ -32,7 +32,7 @@ El CRM funciona, pero la interfaz no acompaña el trabajo del ejecutivo: los for
 - Q: ¿Qué sustituye a la “ilustración” del estado vacío? → A: Una composición de icono: contenedor circular tenue de 72 px con un icono SVG en línea de 48 px, `aria-hidden="true"`, más título, explicación y CTA. El significado lo llevan el título y el texto, no el dibujo.
 - Q: ¿Qué tratamiento visual recibe la búsqueda global, que vive sobre una cabecera oscura? → A: Ancho máximo de 480 px, alto de 40 px, fondo claro sobre la cabecera oscura, icono de lupa decorativo, placeholder con contraste ≥ 4.5:1 y anillo de foco visible de ≥ 3:1.
 - Q: ¿Cómo se vuelve comparable una tabla de 500 a 1000 filas? → A: Encabezado fijo al hacer scroll, filas de 44–48 px, montos y fechas alineados a la derecha con cifras tabulares y truncado visual del texto largo sin perder el texto completo del DOM.
-- Q: ¿La distribución por etapa y el embudo comercial del equipo son la misma vista? → A: No. Se separan en dos presentaciones de una misma fuente: `#stage-distribution` es una banda compacta y no interactiva (una fila por estado con etiqueta, conteo, monto y barra), y `#commercial-board` es el tablero accionable con tarjetas. Ambas consumen `stageDistribution()`, por lo que no pueden divergir.
+- Q: ¿La distribución por etapa y el tablero comercial del equipo son la misma vista? → A: No. Se separan en dos presentaciones de una misma fuente: `#stage-distribution` es una banda compacta y no interactiva (una fila por estado con etiqueta, conteo, monto y barra), y `#commercial-board` es el tablero comercial accionable con tarjetas. Ambas consumen `stageDistribution()`, por lo que no pueden divergir.
 - Q: ¿Con qué se escala la barra de cada etapa: conteo o monto? → A: Con el conteo de oportunidades; el monto se muestra como texto a la derecha. Una sola oportunidad grande no debe dominar la lectura de la cartera.
 - Q: ¿Qué ocurre cuando existen clientes pero ninguna oportunidad? → A: La banda de indicadores y la distribución se muestran con ceros, y el tablero comercial se oculta: seis columnas vacías no aportan información y contradicen el propósito del rediseño.
 
@@ -55,6 +55,7 @@ El CRM funciona, pero la interfaz no acompaña el trabajo del ejecutivo: los for
 - Alta y edición de cliente, oportunidad y ticket en un drawer lateral.
 - Alta de cliente al vuelo desde el formulario de oportunidad.
 - Listados y resultados como tablas ordenables con monogramas.
+- Detalle del cliente con resumen en dos columnas y acceso al alta de ticket en drawer.
 - Filtros en barra colapsable, solo en la vista de búsqueda, con chips sincronizados.
 - Panel accionable: estado vacío con icono y CTA, banda compacta de indicadores, distribución por etapa en banda propia y tablero comercial accionable, ambos alimentados por el mismo cálculo.
 - Sistema visual: tokens, escala tipográfica cerrada, tarjetas, jerarquía y estandarización de botones.
@@ -97,7 +98,7 @@ Los mismos de `001`: ejecutivo comercial, jefe comercial y técnico de soporte. 
 | Historia | Tema | Prioridad | Requisitos | Criterios |
 |---|---|---|---|---|
 | US-UX-01 | Navegar y buscar desde cualquier vista | P1 | FR-UX-001, FR-UX-002 | CA-UX-01-01…08 |
-| US-UX-02 | Registrar y editar sin abandonar la lista | P1 | FR-UX-003…006, FR-UX-013 | CA-UX-02-01…11 |
+| US-UX-02 | Registrar y editar sin abandonar la lista | P1 | FR-UX-003…006, FR-UX-013 | CA-UX-02-01…12 |
 | US-UX-03 | Encontrar y comparar registros | P1 | FR-UX-007…009 | CA-UX-03-01…12 |
 | US-UX-04 | Consultar un panel accionable | P2 | FR-UX-010, FR-UX-011 | CA-UX-04-01…12 |
 | Transversal | Jerarquía visual, accesibilidad, sistema visual y responsive | P1/P2 | FR-UX-012, FR-UX-014…019, NFR-UX-001…009 | CA-UX-05-01…09, SC-UX-001…011 |
@@ -148,6 +149,7 @@ Como **ejecutivo comercial**, quiero **crear y editar clientes, oportunidades y 
 9. **CA-UX-02-09** — Dado el alta de cliente al vuelo, cuando el ejecutivo cancela o envía datos inválidos, entonces no se crea ningún registro y el formulario de oportunidad no se altera.
 10. **CA-UX-02-10** — Dado el drawer de oportunidad o de ticket, cuando el ejecutivo edita y guarda, entonces se aplican las mismas validaciones, estados y mensajes de `001`, sin duplicar reglas.
 11. **CA-UX-02-11** — Dados los registros listados, cuando el ejecutivo consulta la barra de acciones de la vista, entonces encuentra el selector de registro y el botón de eliminación con los ids y textos de `001`, ubicados sobre la tabla y con el mismo comportamiento de selección y borrado.
+12. **CA-UX-02-12** — Dado el detalle de un cliente, cuando el ejecutivo lo consulta, entonces ve el resumen en dos columnas y puede abrir el drawer de alta de ticket con el cliente preseleccionado, sin abandonar el detalle.
 
 **Notas técnicas**: `src/components/ui-overlay.js` como controlador único; los formularios existentes se mueven al drawer sin reescribir su lógica; `src/components/quick-create-client.js` para el alta mínima; el drawer usa `role="dialog"`, `aria-modal="true"` y trampa de foco. Los controles `#edit-entity`, `#delete-entity`, `#edit-document` y `#delete-document` se conservan con sus ids y textos en una barra compacta sobre la tabla, sin cambios de comportamiento.
 
@@ -197,7 +199,7 @@ Como **jefe comercial**, quiero **un panel que me diga qué hacer cuando está v
 5. **CA-UX-04-05** — Dadas oportunidades en distintas etapas, cuando el ejecutivo consulta la banda de distribución, entonces ve una fila por estado con su etiqueta, su conteo, su monto y una barra proporcional al conteo, incluidos los estados sin registros en cero; y el tablero comercial muestra esas mismas oportunidades como tarjetas accionables agrupadas por estado.
 6. **CA-UX-04-06** — Dada una oportunidad que cambia de etapa, cuando el ejecutivo vuelve al panel, entonces los indicadores, la distribución y el tablero se recalculan.
 7. **CA-UX-04-07** — Dado que no hay oportunidades cerradas, cuando se muestra la tasa de cierre, entonces dice “Sin datos” y nunca “NaN” ni una división por cero.
-8. **CA-UX-04-08** — Dados los accesos directos del panel, cuando el ejecutivo activa “Nuevo cliente” o “Nueva oportunidad”, entonces se abre el drawer vacío correspondiente.
+8. **CA-UX-04-08** — Dados los accesos directos del panel (`#action-new-entity` “Nuevo cliente” y `#action-new-document` “Nueva oportunidad”), cuando el ejecutivo activa uno, entonces se abre el drawer vacío correspondiente sin modificar el almacenamiento.
 9. **CA-UX-04-09** — Dado que el ejecutivo navega, ordena, filtra y consulta el panel, cuando compara el almacenamiento antes y después, entonces no aparecen claves, campos ni totales nuevos.
 10. **CA-UX-04-10** — Dados los mismos datos, cuando el ejecutivo compara la banda de distribución con el tablero, entonces ambos muestran exactamente los mismos conteos y montos por estado, porque leen una única función y no dos cálculos distintos.
 11. **CA-UX-04-11** — Dados clientes registrados y ninguna oportunidad, cuando el ejecutivo abre el panel, entonces la banda de indicadores y la distribución aparecen con valores en cero y el tablero comercial queda oculto, sin seis columnas vacías.
@@ -219,7 +221,7 @@ Estos criterios no pertenecen a una sola historia: se verifican sobre las cuatro
 6. **CA-UX-05-06** — Dado que el sistema declara `prefers-reduced-motion: reduce`, cuando el ejecutivo navega, abre el drawer o hace hover, entonces no hay transiciones ni animaciones; sin esa preferencia, las transiciones duran entre 120 y 160 ms.
 7. **CA-UX-05-07** — Dado un viewport de 768 px, cuando el ejecutivo abre la navegación, entonces aparece un panel desplegable con “Listado” y “Nuevo” completos, `aria-expanded` refleja el estado, Esc lo cierra y el foco vuelve al botón que lo abrió; no existe un rail de iconos sin etiquetas.
 8. **CA-UX-05-08** — Dado un viewport de 390 px, cuando el ejecutivo consulta una tabla, entonces cada registro se presenta como tarjeta con sus etiquetas de columna y no hay desplazamiento horizontal forzado.
-9. **CA-UX-05-09** — Dado que se entrega tema oscuro, cuando el ejecutivo cambia la preferencia del sistema, entonces la interfaz responde sin agregar claves de `localStorage`, sin alterar `schemaVersion` y manteniendo el contraste de `CA-UX-05-02`.
+9. **CA-UX-05-09** — Dado que se entrega tema oscuro (`FR-UX-019`), cuando el ejecutivo cambia la preferencia del sistema, entonces la interfaz responde sin agregar claves de `localStorage`, sin alterar `schemaVersion` y manteniendo el contraste de `CA-UX-05-02`.
 
 ## Requisitos funcionales
 
@@ -233,10 +235,10 @@ Estos criterios no pertenecen a una sola historia: se verifican sobre las cuatro
 - **FR-UX-008**: El sistema DEBE permitir ordenar por columna alternando ascendente y descendente, exponer `aria-sort` en la columna activa, dejar los valores vacíos al final y usar un orden por defecto estable.
 - **FR-UX-009**: La vista de búsqueda DEBE ofrecer los filtros en una barra colapsable con chips `aria-pressed` sincronizados con los selectores de tipo, responsable y origen, un contador de filtros activos y una acción de limpieza que no borre el criterio. Los listados “Listado” de Clientes y Oportunidades NO DEBEN mostrar esa barra: ofrecen tabla y orden, y reutilizan el criterio y los filtros de la búsqueda al volver a ella.
 - **FR-UX-010**: Dado un almacenamiento sin clientes ni oportunidades, el panel DEBE mostrar un estado vacío con icono en contenedor tenue, título, explicación y CTA primaria “Registra tu primer cliente”, y ocultar la banda de indicadores, la banda de distribución y el tablero comercial.
-- **FR-UX-011**: Dados datos existentes, el panel DEBE mostrar los seis indicadores de `FR-024` en una banda compacta, una **banda de distribución por etapa** en `#stage-distribution` —una fila por estado del ciclo de vida con etiqueta, conteo, monto y barra proporcional al conteo, incluidos los estados sin registros— y, como presentación separada, el **tablero comercial** `#commercial-board` con las tarjetas accionables por oportunidad. Ambas presentaciones DEBEN derivarse de `stageDistribution()` y recalcularse en cada render, sin persistirse, sin calcular tasas de conversión y sin divergir entre sí. Si no hay oportunidades, el tablero queda oculto y la distribución muestra ceros sin dividir por cero.
-- **FR-UX-012**: El sistema DEBE aplicar un sistema visual consistente: tokens de radio, sombra y color; una escala tipográfica cerrada de cinco pasos (12/14/16/20/28 px) con pesos 400/500/600; tarjetas con cabecera e icono; etiquetas de formulario en peso medio; asterisco de obligatorio en tono de acento; texto secundario `#52606F`; una sola CTA sólida por bloque y acciones secundarias con borde fino.
+- **FR-UX-011**: Dados datos existentes, el panel DEBE mostrar los seis indicadores de `FR-024` en una banda compacta, una **banda de distribución por etapa** en `#stage-distribution` —una fila por estado del ciclo de vida con etiqueta, conteo, monto y barra proporcional al conteo, incluidos los estados sin registros— y, como presentación separada, el **tablero comercial** `#commercial-board` con las tarjetas accionables por oportunidad. Ambas presentaciones DEBEN derivarse de `stageDistribution()` y recalcularse en cada render, sin persistirse, sin calcular tasas de conversión nuevas —la tasa de cierre es el indicador heredado de `FR-024` y se muestra como “Sin datos” cuando no hay oportunidades cerradas— y sin divergir entre sí. Si no hay oportunidades, el tablero queda oculto y la distribución muestra ceros sin dividir por cero.
+- **FR-UX-012**: El sistema DEBE aplicar un sistema visual consistente: tokens de radio, sombra y color; una escala tipográfica cerrada de cinco pasos (12/14/16/20/28 px) con pesos 400/500/600; tarjetas con cabecera e icono; etiquetas de formulario en peso medio; asterisco de obligatorio en tono de acento; texto secundario `#52606F`; estados de fila y de columna activa perceptibles sin depender solo del color; una sola CTA sólida por bloque —entendiendo “bloque” como cada tarjeta o sección con cabecera propia— y acciones secundarias con borde fino.
 - **FR-UX-013**: El sistema DEBE conservar los selectores y botones de eliminación de `001` (`#edit-entity`, `#delete-entity`, `#edit-document`, `#delete-document`) con sus ids, textos y comportamiento, reubicados en una barra compacta sobre la tabla de registros. La eliminación NO DEBE ofrecerse como acción de fila; la acción “Editar” de la fila no sustituye a `#edit-entity` ni a `#edit-document`, que conservan su selección y su comportamiento.
-- **FR-UX-014**: El sistema DEBE usar una base neutra —fondo `#F7F8FA`, superficie `#FFFFFF`, borde `#E4E7EC` y texto `#0F172A`— y reservar el acento verde para CTA, estado activo y datos destacados. El verde NO DEBE usarse como fondo de página ni de sección, y el texto secundario DEBE alcanzar contraste ≥ 4.5:1 sobre los fondos reales donde se usa.
+- **FR-UX-014**: El sistema DEBE usar una base neutra —fondo `#F7F8FA`, superficie `#FFFFFF`, borde `#E4E7EC` y texto `#0F172A`— y reservar el acento verde para CTA, estado activo y datos destacados. El verde NO DEBE usarse como fondo de página ni de sección, y el texto secundario DEBE alcanzar contraste ≥ 4.5:1 y los controles y el foco ≥ 3:1 sobre los fondos reales donde se usan.
 - **FR-UX-015**: El sistema DEBE declarar una escala de espacio de 8 px (4/8/12/16/24/32/48/64) y usarla en todos los paddings, gaps y márgenes. Cada bloque DEBE exponer una sola señal de elevación: superficie plana para la página, borde de 1 px para las secciones y sombra solo para lo elevado; NO DEBE combinar borde, sombra, radio y franja de color en el mismo bloque.
 - **FR-UX-016**: El sistema DEBE ofrecer un único vocabulario de clases para botones y campos, con dos tamaños (32 y 40 px), cuatro variantes visuales y estados `hover`, `active`, `disabled`, `loading` y foco visible. NO DEBE mantener dos nombres para el mismo componente.
 - **FR-UX-017**: El sistema DEBE usar transiciones de 120–160 ms declaradas en tokens y NO DEBE animar cuando el sistema operativo declara `prefers-reduced-motion: reduce`.
@@ -254,7 +256,7 @@ Se heredan `NFR-001` a `NFR-009` de `001`. Además:
 - **NFR-UX-005**: Todo control interactivo situado sobre la cabecera oscura —búsqueda global y acción principal— DEBE cumplir contraste de texto ≥ 4.5:1 y de indicador de foco ≥ 3:1, medidos sobre el color real de fondo de la cabecera.
 - **NFR-UX-006**: Ningún tamaño tipográfico del sistema DEBE quedar fuera de la escala declarada en `FR-UX-012`; la única excepción es el `clamp()` del `h1` del panel.
 - **NFR-UX-007**: El sistema DEBE respetar `prefers-reduced-motion` y `prefers-color-scheme` sin JavaScript adicional y sin dependencias.
-- **NFR-UX-008**: El contraste DEBE medirse sobre los fondos reales de uso (página, tarjeta, columna del tablero y cabecera oscura), no solo sobre blanco; texto ≥ 4.5:1 y controles o foco ≥ 3:1.
+- **NFR-UX-008**: El contraste DEBE medirse sobre los fondos reales de uso (página, tarjeta, columna del tablero y cabecera oscura), no solo sobre blanco, aplicando los umbrales de `FR-UX-014`.
 - **NFR-UX-009**: `styles.css` NO DEBE contener colores hexadecimales fuera de `:root` ni tamaños o espaciados fuera de la escala; la auditoría debe poder repetirse con una búsqueda de texto.
 
 ## Criterios de éxito
@@ -264,10 +266,10 @@ Son metas verificables, no resultados obtenidos.
 | ID | Meta | Verificación |
 |---|---|---|
 | SC-UX-001 | La búsqueda está a un clic o foco desde cualquier vista | Recorrido manual en las cuatro vistas y prueba de integración |
-| SC-UX-002 | Crear un cliente desde el drawer no abandona la lista y se completa en menos de 2 minutos desde formulario vacío con los datos sintéticos de `quickstart.md` (umbral de `SC-001` de `001`), sin regresión frente al flujo anterior | Cronometraje de cinco altas: mediana y rango registrados en `README.md` |
+| SC-UX-002 | Crear un cliente desde el drawer no abandona la lista y se completa en menos de 2 minutos desde formulario vacío con los datos sintéticos de `quickstart.md` (umbral de `SC-001` de `001`), sin regresión frente al flujo anterior | Cronometraje de cinco altas: mediana < 2 min y máximo registrado; ambos anotados en `README.md` |
 | SC-UX-003 | Cero regresiones: las 280 pruebas actuales (278 de `001` más 2 del embudo) siguen pasando | `npm test -- --run` |
 | SC-UX-004 | Cero violaciones de foco: el foco siempre entra, cicla y vuelve | Pruebas de `ui-overlay` y recorrido con teclado |
-| SC-UX-005 | Ordenar y filtrar 500/1000 registros bajo 500 ms en 19 de 20 mediciones | Prueba de rendimiento extendida |
+| SC-UX-005 | Ordenar y filtrar 500/1000 registros bajo 500 ms en 19 de 20 mediciones | Prueba de rendimiento extendida con el protocolo de `quickstart.md`: 20 mediciones tras un calentamiento, con equipo y navegador registrados |
 | SC-UX-006 | Cero cambios en `localStorage` después de navegar, ordenar, filtrar y consultar el panel | Comparación antes/después |
 | SC-UX-007 | Cero tamaños tipográficos fuera de la escala declarada | Búsqueda de `font-size` en `styles.css` y auditoría de las cuatro vistas |
 | SC-UX-008 | Distribución y tablero nunca muestran cifras distintas para el mismo estado | Prueba de integración que compara ambas salidas en un mismo render |
@@ -286,7 +288,7 @@ Son metas verificables, no resultados obtenidos.
 - **Filtros y criterio**: limpiar filtros no borra el texto; limpiar el texto no borra los filtros.
 - **Búsqueda sin criterio**: con el campo vacío, la vista de búsqueda permanece, muestra la pista “Escribe para buscar”, no lista resultados y no navega a otra vista.
 - **Panel sin oportunidades cerradas**: “Sin datos” en la tasa de cierre; la distribución y el tablero mantienen los estados con conteo y monto en cero.
-- **Panel vacío**: el estado vacío con icono oculta la banda, la distribución y el tablero; no se muestran seis columnas de “Sin oportunidades”.
+- **Panel vacío**: se aplica `FR-UX-010`; no se muestran seis columnas de “Sin oportunidades”.
 - **Panel con clientes y sin oportunidades**: la banda de indicadores y la distribución aparecen con ceros; el tablero se oculta. No se renderizan seis columnas vacías ni se divide por cero al calcular el ancho de las barras.
 - **Distribución y tablero en el mismo render**: leen la misma llamada a `stageDistribution()`; si una cifra cambia, cambian las dos a la vez.
 - **Tabla larga**: al desplazarse, el encabezado permanece fijo y las cifras siguen alineadas; el truncado es solo visual y no altera el texto del DOM.
@@ -294,7 +296,7 @@ Son metas verificables, no resultados obtenidos.
 - **Preferencia de movimiento reducido**: con `prefers-reduced-motion: reduce`, los overlays y los hover aparecen sin transición; el comportamiento y el foco no cambian.
 - **Tema oscuro no entregado**: se declara pendiente en `README.md`; no se simula ni se documenta como cumplido.
 - **Tema oscuro entregado**: responde a `prefers-color-scheme` sin claves nuevas de `localStorage` y conserva el contraste de `CA-UX-05-02`.
-- **Pantalla estrecha**: el drawer ocupa todo el viewport y la tabla permite desplazamiento horizontal sin romper el layout.
+- **Pantalla estrecha**: el drawer ocupa todo el viewport. Bajo 640 px cada fila de tabla se presenta como tarjeta con etiquetas de columna y **sin desplazamiento horizontal forzado** (`CA-UX-05-08`, `FR-UX-018`); entre 640 y 900 px la tabla puede desplazarse horizontalmente dentro de `.table-wrap` sin romper el layout.
 
 ## Suposiciones y límites
 
@@ -310,7 +312,7 @@ Son metas verificables, no resultados obtenidos.
 - [ ] `specs/001-crm-module/spec.md` reformula `FR-036` y `CA-06-11` y apunta a esta feature.
 - [ ] Las cuatro historias tienen criterios verificables y pruebas asociadas.
 - [ ] Las 280 pruebas actuales (278 de `001` más 2 del embudo) y las nuevas pasan con `npm test -- --run`.
-- [ ] El embudo comercial del equipo (`5aa9799`) queda cubierto por `CA-UX-04-05`, `FR-UX-011` y `tasks.md` como **tablero accionable**, y la **distribución por etapa** queda cubierta por `CA-UX-04-10`…`12`, atendiendo el hallazgo del Avance 03.
+- [ ] El tablero comercial del equipo (“Embudo comercial”, `5aa9799`) queda cubierto por `CA-UX-04-05`, `FR-UX-011` y `tasks.md` como **tablero accionable**, y la **distribución por etapa** queda cubierta por `CA-UX-04-10`…`12`, atendiendo el hallazgo del Avance 03.
 - [ ] La escala tipográfica, el estado vacío con icono, el tratamiento de la búsqueda sobre la cabecera oscura y la densidad de tabla quedan verificados con criterios y pruebas propias.
 - [ ] La identidad neutra, la escala de espacio, la jerarquía de superficies, los componentes unificados y el movimiento quedan auditados con `SC-UX-009` y registrados en `README.md`.
 - [ ] La navegación bajo 900 px y la tabla como tarjetas bajo 640 px quedan verificadas a 768 y 390 px (`CA-UX-05-07`, `CA-UX-05-08`).
