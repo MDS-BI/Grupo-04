@@ -16,13 +16,13 @@ Esta guía valida la iteración de interfaz con datos sintéticos. No repite las
 ```bash
 npm install
 npm run dev        # desarrollo en el puerto que indique Vite
-npm test -- --run  # línea base: 278 pruebas de 001 + las nuevas
+npm test -- --run  # línea base: 280 pruebas actuales + las nuevas
 npm run lint
 npm run format:check
 npm run build
 ```
 
-**Línea base esperada antes de implementar**: 28 archivos y 278 pruebas en verde, `eslint` sin errores. Registrar la salida real en `README.md`; si cambia, anotar el motivo.
+**Línea base esperada antes de implementar**: 29 archivos y 280 pruebas en verde (278 de `001` más 2 del embudo), `eslint` sin errores. Registrar la salida real en `README.md`; si cambia, anotar el motivo.
 
 ## Datos semilla
 
@@ -81,26 +81,28 @@ Registrar en el `README` que los datos son sintéticos.
 
 **Resultado esperado**: las tablas tienen caption accesible, el orden es estable y anunciado, los vacíos quedan al final, chips y selectores coinciden siempre y los resultados de oportunidades no se mezclan sin etiqueta con los de clientes.
 
-## Escenario 4 — Panel vacío, panel con datos y distribución (US-UX-04)
+## Escenario 4 — Panel vacío, panel con datos y embudo (US-UX-04)
 
 1. Abrir el panel con `localStorage` vacío.
-2. Verificar ilustración, título, explicación y CTA “Registra tu primer cliente”; la banda de KPIs no debe verse.
+2. Verificar ilustración, título, explicación y CTA “Registra tu primer cliente”; ni la banda de KPIs ni el embudo deben verse.
 3. Activar la CTA y comprobar que abre el drawer de nuevo cliente.
 4. Crear dos clientes y tres oportunidades: dos abiertas por `100000` y `200000`, una ganada por `50000`.
-5. Volver al panel: verificar banda de seis KPIs y “Distribución por etapa”.
+5. Volver al panel: verificar la banda de seis KPIs y el embudo comercial con seis columnas, una por estado.
 6. Comprobar `Monto abierto = 300000` y `Oportunidades abiertas = 2`.
-7. Marcar una oportunidad abierta como Perdida con motivo y volver al panel.
-8. Comprobar el recálculo de monto, conteo y distribución.
-9. Revisar la tasa de cierre sin oportunidades cerradas y con una cerrada.
-10. Comparar `localStorage` antes y después de todo el recorrido.
+7. Revisar que cada columna muestre su etiqueta, su conteo y su monto, y que los estados sin oportunidades aparezcan en cero con “Sin oportunidades”.
+8. Pulsar la tarjeta de una oportunidad y comprobar que abre su edición existente.
+9. Marcar una oportunidad abierta como Perdida con motivo y volver al panel.
+10. Comprobar el recálculo de monto, conteo y columnas del embudo.
+11. Revisar la tasa de cierre sin oportunidades cerradas y con una cerrada.
+12. Comparar `localStorage` antes y después de todo el recorrido.
 
-**Resultado esperado**: el estado vacío solo aparece sin datos; los indicadores coinciden con las fórmulas de `001`; la distribución muestra una fila por estado con conteo y monto, incluidos los ceros; la tasa de cierre dice “Sin datos” cuando corresponde; no se agregaron claves ni totales.
+**Resultado esperado**: el estado vacío solo aparece sin datos y entonces oculta banda y embudo; los indicadores coinciden con las fórmulas de `001`; el embudo conserva el marcado del equipo y muestra un bloque por estado con conteo y monto, incluidos los ceros; cada tarjeta abre la edición; la tasa de cierre dice “Sin datos” cuando corresponde; no se agregaron claves ni totales.
 
 ## Validaciones transversales
 
 | Aspecto | Cómo comprobarlo | Resultado esperado |
 |---|---|---|
-| Regresión | `npm test -- --run` | Las 278 pruebas de `001` y las nuevas pasan |
+| Regresión | `npm test -- --run` | Las 280 pruebas actuales y las nuevas pasan |
 | Teclado | Recorrer cabecera, submenús, drawer, tabla, chips y panel | Todo alcanzable, foco visible y devuelto |
 | Foco en overlay | Abrir y cerrar solo con teclado; abrir dos overlays | El foco entra, cicla, no sale y vuelve al disparador correcto |
 | Cambios sin guardar | Escribir y cerrar con Esc, con el veló y al navegar | Confirmación; cancelar conserva, descartar no persiste |

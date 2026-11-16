@@ -2,7 +2,7 @@
 
 **Fecha**: 2026-11-16 · **Especificación**: [spec.md](spec.md) · **Plan**: [plan.md](plan.md) · **Dominio heredado**: [../001-crm-module/spec.md](../001-crm-module/spec.md)
 
-Este documento resuelve las decisiones técnicas de la iteración de interfaz. No quedan `NEEDS CLARIFICATION`. Cada decisión indica qué se eligió, por qué y qué alternativas se descartaron. La línea base verificada antes de diseñar es: **28 archivos y 278 pruebas en verde**, `npm run lint` sin errores.
+Este documento resuelve las decisiones técnicas de la iteración de interfaz. No quedan `NEEDS CLARIFICATION`. Cada decisión indica qué se eligió, por qué y qué alternativas se descartaron. La línea base verificada antes de diseñar es: **29 archivos y 280 pruebas en verde**, `npm run lint` sin errores.
 
 ## Navegación: búsqueda global en la cabecera
 
@@ -56,12 +56,14 @@ Este documento resuelve las decisiones técnicas de la iteración de interfaz. N
 
 ## Panel: estado vacío, KPIs y distribución por etapa
 
-**Decisión**: si `entities` y `documents` están vacíos, se muestra `#dashboard-empty-state` con SVG en línea, título, explicación y CTA “Registra tu primer cliente”, y se oculta la banda de indicadores. Con datos, se muestra una banda compacta de los seis KPI y, debajo, “Distribución por etapa” calculada por `stageDistribution(documents)`.
+**Decisión**: el embudo comercial que ya existe (`src/components/commercial-board.js`, commit `5aa9799`) **se adopta como la vista de distribución por etapa**; no se crea una segunda vista. Su cálculo inline (una columna por estado con conteo y suma de montos) se extrae a `stageDistribution(documents, statuses)` en `src/crm-metrics.js`, y el componente pasa a consumirla sin cambiar su marcado. Además, si `entities` y `documents` están vacíos, se muestra `#dashboard-empty-state` con SVG en línea, título, explicación y CTA “Registra tu primer cliente”, y se ocultan la banda de indicadores y el embudo.
 
-**Justificación**: seis tarjetas de “0” no aportan contexto (`CA-07-03` de `001`). La distribución usa solo `status` y `totalAmount` existentes, se recalcula en cada render y no se persiste (`FR-024`, `NFR-003`). Es descriptiva, no una predicción.
+**Justificación**: seis tarjetas de “0” no aportan contexto (`CA-07-03` de `001`), pero el embudo del equipo ya resuelve la lectura por etapa. Reescribirlo sería trabajo perdido y un riesgo de regresión; extraer la aritmética la vuelve testeable sin jsdom y sin duplicar la vista. La distribución usa solo `status` y `totalAmount` existentes, se recalcula en cada render y no se persiste (`FR-024`, `NFR-003`). Es descriptiva, no una predicción. Formalizarla atiende además el hallazgo del Avance 03, que marcó el embudo como funcionalidad sin cobertura en `spec.md` ni `tasks.md`.
 
 **Alternativas consideradas**:
 
+- **Crear un `#stage-distribution` paralelo**: mostraría el mismo dato dos veces en la misma pantalla y permitiría que ambas vistas divergieran. Descartada.
+- **Reescribir el embudo como tabla nueva**: descarta el marcado, las clases y la prueba del equipo sin ganar nada. Descartada.
 - **Ocultar el panel cuando está vacío**: impide descubrir la sección y empeora la navegación.
 - **Persistir el embudo**: viola la regla de no guardar derivados y genera desincronización.
 - **Calcular una tasa de conversión histórica**: requiere eventos y marcas de cambio de etapa que el modelo no tiene.
@@ -134,7 +136,7 @@ Este documento resuelve las decisiones técnicas de la iteración de interfaz. N
 | 2 | Drawer lateral como patrón de alta y edición | Modal centrado / página completa |
 | 3 | Submenús “Listado / Nuevo” | “Reportes” sin requisito |
 | 4 | Alta de cliente al vuelo reutilizando dominio | Navegar a Clientes y volver |
-| 5 | Panel con estado vacío, KPIs y distribución derivada | Persistir el embudo |
+| 5 | Embudo del equipo adoptado como distribución por etapa, con `stageDistribution()` extraída | `#stage-distribution` paralelo |
 | 6 | Tablas ordenables con `aria-sort` | Listas con orden manual |
 | 7 | Chips sincronizados con los selectores | Solo chips |
 | 8 | Tokens y SVG en línea, sin dependencias | Framework CSS |

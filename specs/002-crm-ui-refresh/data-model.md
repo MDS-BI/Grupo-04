@@ -33,7 +33,7 @@ Los campos, obligatoriedad, validaciones y transiciones están definidos en `001
 | `ClientRow` | `Entity` | `entity_id`, `name`, `code`, `category`, `accountOwner`, `acquisitionSource`, `targetDate` | Estado de `targetDate` con `getTargetDateStatus` de `001` | No |
 | `OpportunityRow` | `Document` | `id`, `entity_id`, `opportunityTitle`, `series`, `folio`, `status`, `totalAmount`, `opportunityOwner`, `startDate`, `endDate` | Cliente asociado resuelto por `entity_id` | No |
 | `KpiBand` | `crm-metrics.js` | Los seis indicadores de `FR-024` | Fórmulas exactas de `001` | No |
-| `StageBucket` | `Document` | `status`, `count`, `amount` | Una fila por estado del ciclo de vida | No |
+| `StageBucket` | `Document` | `status`, `count`, `amount` | Un bucket por estado del ciclo de vida, renderizado en el embudo existente | No |
 | `FilterChip` | `ModuleConfig` | `filterKey`, `value`, `label`, `active` | Activo si coincide con el `<select>` correspondiente | No |
 | `OverlayEntry` | UI | `id`, `variant`, `returnFocus`, `dirty` | Pila en memoria para drawer y modal | No |
 
@@ -77,7 +77,7 @@ No se duplica el cliente dentro de la oportunidad; se resuelve en el render por 
 ### `StageBucket` y `stageDistribution()`
 
 ```text
-stageDistribution(documents) -> StageBucket[]
+stageDistribution(documents, statuses) -> StageBucket[]
 
 StageBucket
   status  string   uno de los estados del ciclo de vida
@@ -87,12 +87,14 @@ StageBucket
 
 Reglas:
 
-- Los estados provienen de `ModuleConfig.statusLifecycle.statuses`, en ese orden.
+- `stageDistribution()` vive en `src/crm-metrics.js` y se extrae del cálculo que hoy está inline en `src/components/commercial-board.js` (commit `5aa9799`); ese componente pasa a consumirla sin cambiar su marcado.
+- Recibe `statuses` como segundo argumento para que `crm-metrics.js` siga sin depender de `ModuleConfig`; el llamador pasa `getConfig().statusLifecycle.statuses`, en ese orden.
 - Se incluye un `StageBucket` por estado, aunque `count` y `amount` sean `0`.
 - Los documentos con `status` desconocido no se agregan a ningún bucket y no se corrigen en silencio; se informa como dato inconsistente si el cargador lo permite.
 - `totalAmount` se suma tal como está almacenado; no se convierten monedas ni se aplican impuestos.
 - Es **descriptivo**: no calcula probabilidades, no pondera etapas y no es una tasa de conversión.
 - Se recalcula en cada render del panel; nunca se escribe en `localStorage`.
+- El consumidor único es `renderCommercialBoard()`. No existe un `#stage-distribution` separado: el embudo es la distribución.
 
 ### `FilterChip`
 

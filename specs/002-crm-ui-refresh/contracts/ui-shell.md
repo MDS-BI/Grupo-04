@@ -105,13 +105,16 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort })
 
 | Aspecto | Contrato |
 |---|---|
-| Estado vacío | `#dashboard-empty-state` visible solo si `entities` y `documents` están vacíos |
-| Ilustración | SVG en línea; decorativa con `aria-hidden="true"`; si transmite información, lleva `<title>` |
+| Estado vacío | `#dashboard-empty-state` visible solo si `entities` y `documents` están vacíos; envuelve el `#dashboard-empty-hint` existente, que conserva su id y su texto |
+| Ilustración | SVG en línea dentro del estado vacío; decorativa con `aria-hidden="true"`; si transmite información, lleva `<title>` |
 | CTA del vacío | `#dashboard-empty-cta` abre el drawer de nuevo cliente |
-| Banda de KPIs | `#crm-kpi-band` visible solo cuando hay datos; seis `.kpi` con valor y etiqueta |
+| Banda de KPIs | `#crm-stat-grid` (id heredado de `001`) con `class="stat-grid kpi-band"`; visible solo cuando hay datos; seis tarjetas con valor y etiqueta |
+| Comportamiento del vacío | Con almacenamiento vacío, `#crm-stat-grid` y `#commercial-board` quedan `hidden`; los seis valores se siguen calculando y escribiendo en el DOM |
 | Indicadores | Los seis de `FR-024`, sin cambios de fórmula |
-| Distribución | `#stage-distribution` con una fila por estado: etiqueta, conteo y monto |
+| Distribución | `#commercial-board` → `#commercial-columns`: un `.commercial-column` por estado del ciclo de vida con la etiqueta, el conteo y el monto; incluye los estados en cero |
+| Tarjeta de oportunidad | `button.commercial-card[data-opportunity-id]` con título, cliente, monto y cierre; al pulsarla navega a oportunidades y abre la edición existente |
 | Estados sin datos | Conteo y monto en `0`; la tasa de cierre muestra “Sin datos”, nunca `NaN` |
+| Visibilidad | El embudo se oculta si el perfil no es CRM o si no hay clientes ni oportunidades |
 | Actualización | Todo se recalcula en cada `renderDashboard()`; no hay totales persistidos |
 | Accesos directos | Abren la vista correspondiente con drawer vacío cuando corresponde |
 
@@ -140,6 +143,8 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort })
 | `tests/integration/critical-journey.test.js` | navegación completa |
 | `tests/unit/security-render.test.js` | renderizado de resultados |
 | `tests/performance/search-performance.test.js` | `#global-search-input` y tiempo de búsqueda |
+| `tests/integration/commercial-board.test.js` | `#commercial-board`, `#commercial-columns`, `.commercial-card[data-opportunity-id]` |
+| `tests/integration/dashboard.test.js` | `#crm-stat-grid`, `#dashboard-empty-hint`, `#commercial-board` |
 
 ## 8. Criterios de aceptación del contrato
 
@@ -147,5 +152,6 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort })
 - Toda apertura de overlay devuelve el foco al disparador al cerrarse.
 - Toda tabla expone `aria-sort` en la columna activa y un `<caption>` accesible.
 - Chips y selectores nunca quedan desincronizados.
-- El estado vacío del panel solo aparece cuando ambas colecciones están vacías.
+- El estado vacío del panel solo aparece cuando ambas colecciones están vacías, y en ese caso oculta la banda y el embudo.
+- El embudo se oculta cuando el perfil no es CRM o no hay clientes ni oportunidades.
 - Navegar, ordenar, filtrar y consultar el panel no modifican `localStorage`.

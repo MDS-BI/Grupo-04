@@ -5,8 +5,11 @@
 **Estado**: En revisión
 **Entrada**: “Para hacer este CRM mucho más navegable, encontrable y visualmente atractivo… espacios vacíos excesivos, falta de jerarquía visual y flujos de usuario interrumpidos.”
 **Feature previa**: [`specs/001-crm-module/spec.md`](../001-crm-module/spec.md)
+**Punto de partida**: integración visual del equipo (`5aa9799`), que ya aporta el embudo comercial de seis etapas, la identidad verde y el MER en SVG.
 
 > **Relación con `001-crm-module`**: esta especificación **no redefine** el dominio. Hereda íntegramente las entidades, los campos, las reglas, el ciclo de vida, la persistencia y los indicadores de `001`. Solo especifica la capa de navegación, presentación y flujo de pantallas. Toda regla de negocio sigue viviendo en `001` y en `contracts/entity-storage.md` de esa feature.
+
+> **Relación con la integración visual del equipo**: el embudo comercial de `src/components/commercial-board.js` (commit `5aa9799`) **se conserva y se adopta** como la vista de etapas del panel. Esta especificación no lo reemplaza ni crea una segunda vista de distribución; solo lo formaliza, extrae su cálculo a una función con pruebas y cubre el estado vacío. Con eso se atiende el hallazgo del Avance 03 de `feedback.md`, que señaló funcionalidades del sitio sin cobertura en `spec.md` ni en `tasks.md`.
 
 ## Propósito
 
@@ -22,7 +25,7 @@ El CRM funciona, pero la interfaz no acompaña el trabajo del ejecutivo: los for
 - Alta de cliente al vuelo desde el formulario de oportunidad.
 - Listados y resultados como tablas ordenables con monogramas.
 - Filtros en barra colapsable con chips sincronizados.
-- Panel accionable: estado vacío ilustrado, banda compacta de indicadores y distribución por etapa.
+- Panel accionable: estado vacío ilustrado, banda compacta de indicadores y distribución por etapa sobre el embudo comercial existente.
 - Sistema visual: tokens, tarjetas, jerarquía tipográfica y estandarización de botones.
 
 **No incluye**:
@@ -45,7 +48,7 @@ El CRM funciona, pero la interfaz no acompaña el trabajo del ejecutivo: los for
 | FR-024 | Sin cambios: los seis indicadores conservan sus fórmulas; el panel solo cambia su presentación y añade una vista derivada |
 | Entidades y campos | Sin cambios; `data-model.md` de esta feature solo describe vistas derivadas |
 | Persistencia | Sin cambios; mismas claves y `schemaVersion`, sin migración |
-| Pruebas | Las 278 pruebas de `001` deben seguir pasando; las acopladas al DOM se migran en la misma tarea que el shell |
+| Pruebas | Las 278 pruebas de `001` y las 2 del embudo (280 en total) deben seguir pasando; las acopladas al DOM se migran en la misma tarea que el shell |
 
 ## Roles
 
@@ -142,21 +145,21 @@ Como **jefe comercial**, quiero **un panel que me diga qué hacer cuando está v
 
 **Por qué esta prioridad**: mejora la consulta una vez disponible el flujo central. Se implementa al final, sin bloquear las historias P1.
 
-**Prueba independiente**: abrir el panel con `localStorage` vacío y verificar ilustración y CTA; crear datos, volver y comprobar banda de indicadores y distribución por etapa; marcar una oportunidad como ganada y otra como perdida y verificar el recálculo.
+**Prueba independiente**: abrir el panel con `localStorage` vacío y verificar ilustración y CTA; crear datos, volver y comprobar la banda de indicadores y el embudo como distribución por etapa; marcar una oportunidad como ganada y otra como perdida y verificar el recálculo.
 
 **Escenarios de aceptación**:
 
-1. **CA-UX-04-01** — Dado un almacenamiento vacío, cuando el ejecutivo abre el panel, entonces ve una ilustración con alternativa textual, un título, una explicación y la CTA “Registra tu primer cliente”, y no ve la banda de indicadores.
+1. **CA-UX-04-01** — Dado un almacenamiento vacío, cuando el ejecutivo abre el panel, entonces ve una ilustración con alternativa textual, un título, una explicación y la CTA “Registra tu primer cliente”, y no ve ni la banda de indicadores ni el embudo comercial.
 2. **CA-UX-04-02** — Dado el estado vacío, cuando el ejecutivo activa la CTA, entonces se abre el drawer de nuevo cliente con el formulario vacío.
 3. **CA-UX-04-03** — Dados clientes u oportunidades registrados, cuando el ejecutivo abre el panel, entonces el estado vacío desaparece y aparece la banda compacta con los seis indicadores.
 4. **CA-UX-04-04** — Dados datos almacenados, cuando se muestran los seis indicadores, entonces sus valores coinciden exactamente con las fórmulas de `FR-024` y `data-model.md` de `001`.
-5. **CA-UX-04-05** — Dadas oportunidades en distintas etapas, cuando el ejecutivo consulta la distribución, entonces ve una fila por estado con conteo y monto, incluidos los estados sin registros en cero.
-6. **CA-UX-04-06** — Dada una oportunidad que cambia de etapa, cuando el ejecutivo vuelve al panel, entonces los indicadores y la distribución se recalculan.
+5. **CA-UX-04-05** — Dadas oportunidades en distintas etapas, cuando el ejecutivo consulta la distribución, entonces ve un bloque del embudo por estado con su etiqueta, su conteo y su monto, incluidos los estados sin registros en cero.
+6. **CA-UX-04-06** — Dada una oportunidad que cambia de etapa, cuando el ejecutivo vuelve al panel, entonces los indicadores y el embudo se recalculan.
 7. **CA-UX-04-07** — Dado que no hay oportunidades cerradas, cuando se muestra la tasa de cierre, entonces dice “Sin datos” y nunca “NaN” ni una división por cero.
 8. **CA-UX-04-08** — Dados los accesos directos del panel, cuando el ejecutivo activa “Nuevo cliente” o “Nueva oportunidad”, entonces se abre el drawer vacío correspondiente.
 9. **CA-UX-04-09** — Dado que el ejecutivo navega, ordena, filtra y consulta el panel, cuando compara el almacenamiento antes y después, entonces no aparecen claves, campos ni totales nuevos.
 
-**Notas técnicas**: `stageDistribution(documents)` en `src/crm-metrics.js`; SVG en línea, sin binarios; `renderDashboard()` sigue recalculando en cada render y no persiste derivados.
+**Notas técnicas**: `stageDistribution(documents, statuses)` se extrae a `src/crm-metrics.js` desde el cálculo que hoy vive en `src/components/commercial-board.js`, y ese componente pasa a consumirla sin cambiar su marcado; SVG en línea, sin binarios; `renderDashboard()` sigue recalculando en cada render y no persiste derivados.
 
 ---
 
@@ -171,8 +174,8 @@ Como **jefe comercial**, quiero **un panel que me diga qué hacer cuando está v
 - **FR-UX-007**: El sistema DEBE mostrar clientes y oportunidades en tablas con `<caption>` accesible, encabezados con `scope="col"`, monograma decorativo, columnas claras y acciones por fila.
 - **FR-UX-008**: El sistema DEBE permitir ordenar por columna alternando ascendente y descendente, exponer `aria-sort` en la columna activa, dejar los valores vacíos al final y usar un orden por defecto estable.
 - **FR-UX-009**: El sistema DEBE ofrecer los filtros en una barra colapsable con chips `aria-pressed` sincronizados con los selectores de tipo, responsable y origen, un contador de filtros activos y una acción de limpieza que no borre el criterio.
-- **FR-UX-010**: Dado un almacenamiento sin clientes ni oportunidades, el panel DEBE mostrar un estado vacío con ilustración, explicación y CTA primaria “Registra tu primer cliente”, y ocultar la banda de indicadores.
-- **FR-UX-011**: Dados datos existentes, el panel DEBE mostrar los seis indicadores de `FR-024` en una banda compacta y una “Distribución por etapa” derivada de `status` y `totalAmount`, recalculada en cada render y nunca persistida.
+- **FR-UX-010**: Dado un almacenamiento sin clientes ni oportunidades, el panel DEBE mostrar un estado vacío con ilustración, explicación y CTA primaria “Registra tu primer cliente”, y ocultar la banda de indicadores y el embudo comercial.
+- **FR-UX-011**: Dados datos existentes, el panel DEBE mostrar los seis indicadores de `FR-024` en una banda compacta y la “Distribución por etapa” sobre el embudo comercial ya existente, derivada de `status` y `totalAmount`, con un bloque por estado del ciclo de vida —incluidos los que no tienen registros—, recalculada en cada render y nunca persistida.
 - **FR-UX-012**: El sistema DEBE aplicar un sistema visual consistente: tokens de radio, sombra y color; tarjetas con cabecera e icono; etiquetas de formulario en peso medio; asterisco de obligatorio en tono de acento; texto secundario `#64748B`; una sola CTA sólida por bloque y acciones secundarias con borde fino.
 
 ## Requisitos no funcionales
@@ -192,7 +195,7 @@ Son metas verificables, no resultados obtenidos.
 |---|---|---|
 | SC-UX-001 | La búsqueda está a un clic o foco desde cualquier vista | Recorrido manual en las cuatro vistas y prueba de integración |
 | SC-UX-002 | Crear un cliente no abandona la lista y tarda menos que el flujo anterior | Cronometraje con datos sintéticos contra SC-001 de `001` |
-| SC-UX-003 | Cero regresiones: las 278 pruebas de `001` siguen pasando | `npm test -- --run` |
+| SC-UX-003 | Cero regresiones: las 280 pruebas actuales (278 de `001` más 2 del embudo) siguen pasando | `npm test -- --run` |
 | SC-UX-004 | Cero violaciones de foco: el foco siempre entra, cicla y vuelve | Pruebas de `ui-overlay` y recorrido con teclado |
 | SC-UX-005 | Ordenar y filtrar 500/1000 registros bajo 500 ms en 19 de 20 mediciones | Prueba de rendimiento extendida |
 | SC-UX-006 | Cero cambios en `localStorage` después de navegar, ordenar, filtrar y consultar el panel | Comparación antes/después |
@@ -206,7 +209,8 @@ Son metas verificables, no resultados obtenidos.
 - **Tabla vacía**: no se renderiza `<tbody>`; se muestra el estado vacío con CTA y no una tabla con encabezados sin filas.
 - **Valores ausentes al ordenar**: van al final en ambos sentidos y se muestran como “sin información”.
 - **Filtros y criterio**: limpiar filtros no borra el texto; limpiar el texto no borra los filtros.
-- **Panel sin oportunidades cerradas**: “Sin datos” en la tasa de cierre; la distribución muestra ceros.
+- **Panel sin oportunidades cerradas**: “Sin datos” en la tasa de cierre; el embudo mantiene los estados con conteo y monto en cero.
+- **Panel vacío**: el estado vacío ilustrado oculta la banda y el embudo; no se muestran seis columnas de “Sin oportunidades”.
 - **Pantalla estrecha**: el drawer ocupa todo el viewport y la tabla permite desplazamiento horizontal sin romper el layout.
 
 ## Suposiciones y límites
@@ -220,7 +224,8 @@ Son metas verificables, no resultados obtenidos.
 
 - [ ] `specs/001-crm-module/spec.md` reformula `FR-036` y `CA-06-11` y apunta a esta feature.
 - [ ] Los cuatro historias tienen criterios verificables y pruebas asociadas.
-- [ ] Las 278 pruebas previas y las nuevas pasan con `npm test -- --run`.
+- [ ] Las 280 pruebas actuales (278 de `001` más 2 del embudo) y las nuevas pasan con `npm test -- --run`.
+- [ ] El embudo comercial del equipo (`5aa9799`) queda cubierto por `CA-UX-04-05` y `FR-UX-011`, atendiendo el hallazgo del Avance 03.
 - [ ] `npm run lint`, `npm run format:check` y `npm run build` terminan sin errores.
 - [ ] `data-model.md` confirma que no hay cambios de esquema y `contracts/ui-shell.md` describe ids, ARIA y estados.
 - [ ] `quickstart.md` permite validar los escenarios de navegación, drawer, tablas y panel.

@@ -4,7 +4,9 @@
 
 ## Resumen
 
-La aplicación cumple las historias de `001-crm-module` con 278 pruebas en verde y `eslint` limpio. El problema ya no es funcional sino de interfaz: los formularios viven en tarjetas de 720 px sobre un fondo gris amplio, la búsqueda compite con las secciones del menú lateral, el panel muestra seis tarjetas de “0” sin jerarquía y el alta de oportunidad se bloquea con un aviso estático.
+La aplicación cumple las historias de `001-crm-module` con 29 archivos y 280 pruebas en verde y `eslint` limpio. El problema ya no es funcional sino de interfaz: los formularios viven en tarjetas de 720 px sobre un fondo gris amplio, la búsqueda compite con las secciones del menú lateral, el panel muestra seis tarjetas de “0” sin jerarquía y el alta de oportunidad se bloquea con un aviso estático.
+
+El equipo ya aportó una integración visual en `5aa9799`: embudo comercial de seis etapas (`src/components/commercial-board.js`), identidad verde y MER en SVG. Esta iteración **parte de ese trabajo**: no lo reemplaza, lo formaliza, extrae su cálculo a una función con pruebas y completa lo que le falta (estado vacío accionable, accesibilidad y sistema visual).
 
 Esta iteración rediseña la capa de presentación en cuatro frentes coordinados: **navegación** (búsqueda en cabecera y submenús), **flujo** (drawers y alta de cliente al vuelo), **densidad** (tablas ordenables y filtros con chips) y **jerarquía** (estado vacío accionable, KPIs compactos y sistema visual). No cambia entidades, campos, reglas, indicadores ni persistencia.
 
@@ -31,7 +33,7 @@ Constitución vigente: `.specify/memory/constitution.md` **v1.0.0**. Es de cumpl
 | Principio / estándar | Estado | Evidencia o acción comprometida |
 |---|---|---|
 | I. Code Quality & Maintainability | Pasa el diseño | Tres primitivas con una sola responsabilidad (`ui-overlay.js`, `ui.js`, `data-table.js`) y dos componentes de flujo (`quick-create-client.js`, `filter-chips.js`). No se reescribe la lógica de los formularios existentes. |
-| II. Test-First & Verification | Pendiente de implementación | Cada primitiva y cada flujo tiene prueba escrita antes o junto con el código. Las 278 pruebas de `001` deben seguir pasando; los 8 archivos acoplados al DOM se migran en la misma tarea que cambia el shell. |
+| II. Test-First & Verification | Pendiente de implementación | Cada primitiva y cada flujo tiene prueba escrita antes o junto con el código. Las 280 pruebas actuales (278 de `001` más 2 del embudo) deben seguir pasando; los 8 archivos acoplados al DOM se migran en la misma tarea que cambia el shell. |
 | III. User Experience Consistency | Pasa el diseño | Un único patrón de drawer, tabla, chip, estado vacío y botón, descrito en `contracts/ui-shell.md`. Terminología CRM de `FR-030` intacta. |
 | IV. Performance & Reliability | Pasa el diseño | Sin dependencias ni red; orden y filtro en memoria sobre los mismos volúmenes. Se conserva el presupuesto de 500 ms y se amplía la prueba de rendimiento. |
 | Quality Standards | Pendiente | `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build` en cada incremento; evidencia real en `README.md`. |
@@ -50,7 +52,7 @@ Constitución vigente: `.specify/memory/constitution.md` **v1.0.0**. Es de cumpl
 - Búsqueda global única en la cabecera; la vista de búsqueda pierde su input propio.
 - Submenús “Listado” y “Nuevo” generados desde `ModuleConfig`; sin “Reportes”.
 - Alta de cliente al vuelo con validación y persistencia existentes.
-- Panel con estado vacío accionable, banda de KPIs y `stageDistribution()` derivada.
+- Panel con estado vacío accionable, banda de KPIs y distribución por etapa **sobre el embudo comercial existente**, sin una segunda vista.
 - Tablas ordenables con `aria-sort` y chips de filtro sincronizados con los selectores existentes.
 - Sistema visual con tokens, sin dependencias y con SVG en línea.
 - Cero cambios de esquema y cero migraciones.
@@ -69,7 +71,7 @@ specs/002-crm-ui-refresh/
   tasks.md                     # se genera con /speckit.tasks
 src/
   app.js                       # drawer, búsqueda global, quick-create, orden (modificar)
-  crm-metrics.js               # + stageDistribution() (modificar)
+  crm-metrics.js               # + stageDistribution() extraída del embudo (modificar)
   styles.css                   # tokens, tarjetas, botones, tabla, drawer, KPIs (modificar)
   components/
     shell.js                   # submenús y cabecera (modificar)
@@ -78,7 +80,8 @@ src/
     data-table.js              # NUEVO: tabla ordenable accesible
     quick-create-client.js     # NUEVO: alta mínima de cliente
     filter-chips.js            # NUEVO: chips sincronizados con selectores
-    dashboard.js               # estado vacío, KPIs y distribución (modificar)
+    dashboard.js               # estado vacío y banda de KPIs (modificar)
+    commercial-board.js        # embudo del equipo: consume stageDistribution y respeta el panel vacío (modificar)
     entity-list.js             # tabla de clientes (modificar)
     entity-detail.js           # resumen del cliente en dos columnas (modificar)
     search-results.js          # tablas de resultados (modificar)
@@ -88,6 +91,7 @@ tests/
   unit/
     ui-overlay.test.js
     data-table.test.js
+    crm-metrics-stage-distribution.test.js   # NUEVO: orden, ceros, estado desconocido, montos
   integration/
     ui-shell.test.js
     client-drawer.test.js
@@ -95,14 +99,17 @@ tests/
     search-filters-chips.test.js
     table-sorting.test.js
     dashboard-empty-state.test.js
-    dashboard-funnel.test.js
+    commercial-board.test.js                 # ampliar: panel vacío y distribución del equipo
 ```
 
 **Archivos de prueba de `001` que se migran en la misma tarea que el shell**: `tests/integration/workspace-shell.test.js`, `search-entities.test.js`, `search-clients.test.js`, `tickets.test.js`, `accessibility.test.js`, `critical-journey.test.js`, `tests/unit/security-render.test.js` y `tests/performance/search-performance.test.js`.
 
+**Prueba heredada que cambia de expectativa**: `tests/integration/dashboard.test.js` afirma hoy que la banda de indicadores se ve con almacenamiento vacío. `CA-UX-04-01` exige lo contrario. Se migra en la misma tarea que el estado vacío, conservando el aserto de los seis valores (se siguen calculando y escribiendo en el DOM) y añadiendo `hidden` en la banda y en el embudo.
+
 **Decisiones de estructura**:
 
 - Los formularios se **mueven** al drawer, no se duplican. Así se conservan ids, validaciones y pruebas.
+- `commercial-board.js` **no se reescribe**: conserva su marcado, sus clases y sus tarjetas. Solo pasa a consumir `stageDistribution()` y a ocultarse cuando el panel está vacío.
 - `app.js` sigue siendo el coordinador; no se introduce store ni router.
 - El contrato de `contracts/ui-shell.md` es la fuente de verdad de ids y ARIA; cambiarlo exige actualizar pruebas en la misma tarea.
 - `data-model.md` de esta feature documenta solo vistas derivadas; el esquema sigue en `001`.
@@ -116,16 +123,16 @@ tests/
 5. **US-UX-01**: cabecera con búsqueda global, submenús y migración de los 8 archivos de prueba.
 6. **US-UX-02**: drawer de cliente, oportunidad y ticket; alta de cliente al vuelo; guardián de cambios compartido.
 7. **US-UX-03**: tablas de resultados, ordenamiento y chips de filtro.
-8. **US-UX-04**: estado vacío, banda de KPIs y distribución por etapa.
+8. **US-UX-04**: extraer `stageDistribution()` del embudo con prueba unitaria, estado vacío accionable, banda de KPIs compacta y visibilidad del embudo según datos.
 9. **Verificación**: regresión completa, accesibilidad, responsive manual, rendimiento y documentación.
 
 ## Validación prevista
 
 | Nivel | Evidencia requerida |
 |---|---|
-| Unitario | `ui-overlay` (apertura, cierre, Esc, foco, restauración, dos overlays), `data-table` (orden asc/desc, `aria-sort`, vacíos al final, estabilidad) y `stageDistribution` |
-| Integración | Búsqueda desde cabecera, submenús, drawer de cliente y oportunidad, alta al vuelo, chips, ordenamiento, estado vacío y panel con datos |
-| Regresión | Las 278 pruebas de `001` pasan; los 8 archivos migrados no pierden cobertura |
+| Unitario | `ui-overlay` (apertura, cierre, Esc, foco, restauración, dos overlays), `data-table` (orden asc/desc, `aria-sort`, vacíos al final, estabilidad) y `stageDistribution` (un bucket por estado, ceros incluidos, estado desconocido ignorado, suma de montos) |
+| Integración | Búsqueda desde cabecera, submenús, drawer de cliente y oportunidad, alta al vuelo, chips, ordenamiento, estado vacío, embudo con datos y embudo oculto en el panel vacío |
+| Regresión | Las 280 pruebas actuales pasan (278 de `001` más 2 del embudo); los 8 archivos migrados no pierden cobertura |
 | Accesibilidad | Recorrido completo con teclado por cabecera, submenús, drawer, tabla y panel; foco visible y devuelto; `aria-modal`, `aria-sort` y `aria-pressed` verificados |
 | Responsive | Capturas manuales a 1440, 1024, 768 y 390 px; drawer a pantalla completa bajo 640 px; tabla con desplazamiento horizontal |
 | Contraste | Texto secundario `#64748B` sobre `#FFFFFF` y botón primario `#0F766E` con texto blanco ≥ 4.5:1 |
@@ -140,9 +147,10 @@ tests/
 - **Foco en overlays**: jsdom no implementa `inert` ni `<dialog>` completo. Se implementa trampa de foco explícita con `keydown` y prueba unitaria propia.
 - **Dos overlays simultáneos**: el alta al vuelo se abre sobre el drawer de oportunidad. Solo el superior recibe foco y se apila en una pila de overlays.
 - **Dos fuentes de búsqueda**: se elimina el input de la vista y queda un único control global.
-- **Crecimiento del panel**: la distribución es solo lectura y se recalcula una vez por render.
-- **Interpretación del embudo**: se etiqueta “Distribución por etapa”, nunca “tasa de conversión” ni predicción.
+- **Dos vistas de etapas**: el embudo del equipo ya muestra conteo y monto por estado. Se adopta como la distribución del panel y se descarta `#stage-distribution`; duplicarlo crearía dos fuentes que pueden divergir.
+- **Regresión en el panel vacío**: `tests/integration/dashboard.test.js` espera hoy la banda visible con ceros. Se migra junto con el estado vacío, en la misma tarea.
+- **Interpretación del embudo**: se mantiene el título “Embudo comercial” del equipo y se documenta como “Distribución por etapa”; nunca “tasa de conversión” ni predicción.
 
 ## Seguimiento de complejidad
 
-Se agregan cinco archivos y ningún patrón adicional. `ui-overlay` existe porque tres flujos necesitan el mismo comportamiento accesible; `data-table` porque tres listados comparten columnas, orden y estados; `ui.js` porque cabeceras, chips y estados vacíos se repiten en todas las vistas; `quick-create-client` y `filter-chips` encapsulan dos interacciones que de otro modo quedarían dispersas en `app.js`. No se justifica un router, un store ni una librería de componentes: el estado sigue viviendo en `app.js` y en `localStorage`.
+Se agregan cinco archivos y ningún patrón adicional. `ui-overlay` existe porque tres flujos necesitan el mismo comportamiento accesible; `data-table` porque tres listados comparten columnas, orden y estados; `ui.js` porque cabeceras, chips y estados vacíos se repiten en todas las vistas; `quick-create-client` y `filter-chips` encapsulan dos interacciones que de otro modo quedarían dispersas en `app.js`. El embudo de etapas **no** se agrega como componente nuevo: se reutiliza `commercial-board.js` y solo se extrae su cálculo a `stageDistribution()`. No se justifica un router, un store ni una librería de componentes: el estado sigue viviendo en `app.js` y en `localStorage`.
