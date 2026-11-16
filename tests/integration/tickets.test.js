@@ -4,12 +4,21 @@ import path from 'node:path';
 import { JSDOM } from 'jsdom';
 
 const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
+const css = fs.readFileSync(path.resolve(process.cwd(), 'src/styles.css'), 'utf8');
 
 let dom;
 let storage;
 
 function qs(id) {
   return document.getElementById(id);
+}
+
+function pressEscape() {
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+}
+
+function drawer() {
+  return document.querySelector('#overlay-root [role="dialog"][data-variant="drawer"]');
 }
 
 function submitForm(id) {
@@ -268,5 +277,73 @@ describe('US3 — tickets de soporte', () => {
     expect(tickets.length).toBe(1);
     expect(tickets[0].status).toBe('Resuelto');
     expect(qs('ticket-list-items').textContent).toContain('Resuelto');
+  });
+
+  it('abre el drawer de ticket con el cliente preseleccionado desde el detalle en dos columnas', () => {
+    const client = seedClient();
+    openClientDetail(client);
+
+    const summary = qs('entity-detail-body').querySelector('.detail-grid');
+    expect(summary).not.toBeNull();
+    expect(summary.querySelectorAll('dt').length).toBeGreaterThan(3);
+    expect(css).toMatch(/\.detail-grid\s*\{[^}]*grid-template-columns:\s*minmax\([^)]*\)\s+minmax\(/);
+
+    const action = qs('entity-detail-body').querySelector('[data-new-ticket]');
+    expect(action).not.toBeNull();
+    action.focus();
+    action.click();
+
+    const panel = drawer();
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    expect(panel.querySelector('#ticket-form')).not.toBeNull();
+    expect(qs('ticket-entity').value).toBe(client.entity_id);
+    expect(panel.contains(document.activeElement)).toBe(true);
+
+    pressEscape();
+
+    expect(drawer()).toBeNull();
+    expect(qs('entity-detail').hidden).toBe(false);
+    expect(qs('ticket-section').hidden).toBe(false);
+    expect(qs('ticket-form').parentElement).toBe(qs('ticket-section'));
+  });
+
+  it('abre la edición de un ticket en el drawer y apila el modal de descarte', () => {
+    const client = seedClient();
+    storage.addTicket({
+      entityId: client.entity_id,
+      productName: 'Compresor industrial',
+      reason: 'soporte',
+      description: 'Falla en el arranque',
+      priority: 'Alta'
+    });
+    openClientDetail(client);
+
+    qs('ticket-list-items').querySelector('[data-edit-ticket]').click();
+
+    const panel = drawer();
+    expect(panel).not.toBeNull();
+    expect(panel.querySelector('#ticket-form')).not.toBeNull();
+    expect(qs('ticket-id').value).toBe(storage.loadTickets()[0].id);
+
+    qs('ticket-description').value = 'Cambio sin guardar';
+    qs('ticket-description').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    pressEscape();
+
+    const confirm = qs('confirm-discard');
+    expect(confirm).not.toBeNull();
+    expect(confirm.querySelector('[data-cancel-discard]').textContent).toBe('Seguir editando');
+    confirm.querySelector('[data-cancel-discard]').click();
+
+    expect(drawer()).not.toBeNull();
+    expect(qs('ticket-description').value).toBe('Cambio sin guardar');
+    expect(panel.contains(document.activeElement)).toBe(true);
+
+    pressEscape();
+    qs('confirm-discard').querySelector('[data-confirm-discard]').click();
+
+    expect(drawer()).toBeNull();
+    expect(storage.loadTickets()[0].description).toBe('Falla en el arranque');
   });
 });

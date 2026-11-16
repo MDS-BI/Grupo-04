@@ -101,6 +101,14 @@ export function createClientSummary(entity, today = todayLocal()) {
 
   const actions = document.createElement('div');
   actions.className = 'inline-actions';
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'link-button';
+  edit.dataset.action = 'edit';
+  edit.dataset.editEntity = entity.entity_id || '';
+  edit.setAttribute('aria-label', `Editar ${entity.name || 'cliente'}`);
+  edit.textContent = 'Editar';
+  actions.appendChild(edit);
   const open = document.createElement('button');
   open.type = 'button';
   open.className = 'link-button';

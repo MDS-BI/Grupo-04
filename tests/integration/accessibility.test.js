@@ -150,4 +150,65 @@ describe('T062 — accesibilidad (jsdom; validación manual en navegadores pendi
       expect(button.getAttribute('aria-label')).toBeTruthy();
     });
   });
+
+  it('expone el drawer como diálogo modal, atrapa el foco y lo devuelve al disparador', () => {
+    const trigger = qs('nav-entities-new');
+    trigger.focus();
+    trigger.click();
+
+    const panel = document.querySelector('#overlay-root [role="dialog"][data-variant="drawer"]');
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    const labelId = panel.getAttribute('aria-labelledby');
+    expect(document.getElementById(labelId).textContent).toBe('Nuevo cliente');
+    expect(document.activeElement).toBe(qs('name'));
+
+    const first = qs('name');
+    const submit = qs('submit-button');
+    submit.focus();
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(first);
+    first.focus();
+    document.dispatchEvent(
+      new window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })
+    );
+    expect(document.activeElement).toBe(submit);
+
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(document.querySelector('#overlay-root [role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(qs('entity-form').closest('.card').parentElement).toBe(qs('view-entities'));
+  });
+
+  it('apila el alta al vuelo y el modal de descarte sobre el drawer', () => {
+    qs('nav-documents-new').click();
+    qs('document-no-clients-action').click();
+
+    let panels = [...document.querySelectorAll('#overlay-root [role="dialog"]')];
+    expect(panels.length).toBe(2);
+    expect(panels[1].id).toBe('quick-create-client');
+    expect(panels[1].dataset.variant).toBe('modal');
+    const topLabelId = panels[1].getAttribute('aria-labelledby');
+    expect(topLabelId).toBe('overlay-title');
+    expect(document.getElementById(topLabelId).textContent).toBe('Nuevo cliente');
+
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    panels = [...document.querySelectorAll('#overlay-root [role="dialog"]')];
+    expect(panels.length).toBe(1);
+    expect(panels[0].dataset.variant).toBe('drawer');
+
+    qs('cf-opportunityTitle').value = 'Borrador';
+    qs('cf-opportunityTitle').dispatchEvent(new window.Event('input', { bubbles: true }));
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+    const confirm = qs('confirm-discard');
+    expect(confirm).not.toBeNull();
+    panels = [...document.querySelectorAll('#overlay-root [role="dialog"]')];
+    expect(panels.length).toBe(2);
+    expect(confirm.getAttribute('aria-modal')).toBe('true');
+
+    confirm.querySelector('[data-confirm-discard]').click();
+    expect(document.querySelector('#overlay-root [role="dialog"]')).toBeNull();
+    expect(qs('document-form').closest('.card').parentElement).toBe(qs('view-documents'));
+  });
 });

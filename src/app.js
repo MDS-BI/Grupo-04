@@ -46,6 +46,7 @@ import { setupSearchBar, readSearchFilters, clearSearchFilters } from './compone
 import { renderSearchResults } from './components/search-results.js';
 import { renderEntityDetail, renderOpportunityDetail } from './components/entity-detail.js';
 import { openOverlay, closeOverlay, getTopOverlay } from './components/ui-overlay.js';
+import { openQuickCreateClient } from './components/quick-create-client.js';
 import {
   prepareTicketForm,
   clearTicketForm,
@@ -219,19 +220,47 @@ function firstFormField(container) {
   );
 }
 
+function focusFirstInvalid(container) {
+  const scope = container || document;
+  const invalid = scope.querySelector('[aria-invalid="true"]');
+  if (invalid && typeof invalid.focus === 'function') {
+    invalid.focus();
+    return true;
+  }
+  return false;
+}
+
+const FORM_DRAWERS = {
+  entities: { formId: 'entity-form', labelKey: 'entity' },
+  documents: { formId: 'document-form', labelKey: 'document' },
+  tickets: { formId: 'ticket-form', labelKey: null }
+};
+
+function drawerTitle(module, mode) {
+  if (module === 'tickets') return mode === 'new' ? 'Nuevo ticket' : 'Editar ticket';
+  const def = FORM_DRAWERS[module];
+  const label = labelFor(def.labelKey);
+  return mode === 'new'
+    ? `${esFemenina(label) ? 'Nueva' : 'Nuevo'} ${label.toLowerCase()}`
+    : `Editar ${label.toLowerCase()}`;
+}
+
 /**
- * Traslada la tarjeta del formulario existente al drawer, sin clonarla ni
- * recrearla, y la devuelve a su contenedor original al cerrar.
+ * Traslada el formulario existente al drawer, sin clonarlo ni recrearlo, y lo
+ * devuelve a su contenedor original al cerrar. Las tarjetas de cliente y
+ * oportunidad viajan completas; el formulario de ticket viaja solo porque
+ * vive dentro de la ficha del cliente.
  */
 function openFormDrawer(module, mode = 'new') {
-  const formId = module === 'entities' ? 'entity-form' : 'document-form';
-  const form = qs(formId);
+  const def = FORM_DRAWERS[module];
+  if (!def) return null;
+  const form = qs(def.formId);
   if (!form) return null;
-  const card = form.closest('.card');
-  if (!card) return null;
+  const content = module === 'tickets' ? form : form.closest('.card');
+  if (!content) return null;
 
   if (openFormOverlay && openFormOverlay.module === module) {
-    const field = firstFormField(card);
+    const field = firstFormField(content);
     if (field) field.focus();
     return openFormOverlay.id;
   }
@@ -239,40 +268,38 @@ function openFormDrawer(module, mode = 'new') {
 
   if (mode === 'new') {
     if (module === 'entities') clearEntityForm();
-    else clearDocumentForm();
+    else if (module === 'documents') clearDocumentForm();
+    else clearTicketForm();
   }
   dirty = false;
 
-  const parent = card.parentNode;
-  const next = card.nextSibling;
+  const parent = content.parentNode;
+  const next = content.nextSibling;
   const returnFocus = document.activeElement;
-  const label = labelFor(module === 'entities' ? 'entity' : 'document');
-  const title =
-    mode === 'new'
-      ? `${esFemenina(label) ? 'Nueva' : 'Nuevo'} ${label.toLowerCase()}`
-      : `Editar ${label.toLowerCase()}`;
   const id = `${module}-drawer`;
+  if (module === 'tickets') content.hidden = false;
 
   openOverlay({
     id,
     variant: 'drawer',
-    title,
-    content: card,
+    title: drawerTitle(module, mode),
+    content,
     returnFocus,
     isDirty: () => dirty,
     onClose: () => {
-      if (next && next.parentNode === parent) parent.insertBefore(card, next);
-      else parent.appendChild(card);
+      if (next && next.parentNode === parent) parent.insertBefore(content, next);
+      else parent.appendChild(content);
+      if (module === 'tickets') content.hidden = true;
       dirty = false;
       openFormOverlay = null;
       setActiveNav({ view: currentView, mode: 'list' });
     }
   });
 
-  openFormOverlay = { id, module, card, parent, next };
-  setActiveNav({ view: currentView, mode: 'new' });
+  openFormOverlay = { id, module, card: content, parent, next };
+  setActiveNav({ view: currentView, mode: mode === 'new' ? 'new' : 'list' });
 
-  const field = firstFormField(card);
+  const field = firstFormField(content);
   if (field) field.focus();
   return id;
 }
@@ -280,6 +307,45 @@ function openFormDrawer(module, mode = 'new') {
 function closeFormDrawer({ force = true } = {}) {
   if (!openFormOverlay) return;
   closeOverlay(openFormOverlay.id, { force });
+}
+
+/** Cierra el drawer del módulo tras guardar, sin abrir la confirmación. */
+function finishFormDrawer(module) {
+  if (openFormOverlay && openFormOverlay.module === module) closeFormDrawer({ force: true });
+  dirty = false;
+}
+
+/** Cancelar del formulario: confirma el descarte si hay cambios. */
+function cancelFormEdition(module) {
+  const def = FORM_DRAWERS[module];
+  if (!def) return;
+  const isOpen = openFormOverlay && openFormOverlay.module === module;
+  if (!isOpen) {
+    if (module === 'entities') clearEntityForm();
+    else if (module === 'documents') clearDocumentForm();
+    else clearTicketForm();
+    hideStorageWarning();
+    return;
+  }
+  if (!dirty) {
+    closeFormDrawer({ force: true });
+    if (module === 'entities') clearEntityForm();
+    else if (module === 'documents') clearDocumentForm();
+    else clearTicketForm();
+    return;
+  }
+  confirmDiscardChanges({
+    onDiscard: () => {
+      closeFormDrawer({ force: true });
+      if (module === 'entities') clearEntityForm();
+      else if (module === 'documents') clearDocumentForm();
+      else clearTicketForm();
+    },
+    onKeepEditing: () => {
+      const field = firstFormField(openFormOverlay ? openFormOverlay.card : null);
+      if (field) field.focus();
+    }
+  });
 }
 
 function showModule(name, opts = {}) {
@@ -300,6 +366,8 @@ function showModule(name, opts = {}) {
     });
     return false;
   }
+
+  if (currentView && name !== currentView && openFormOverlay) closeFormDrawer({ force: true });
 
   currentView = name;
   Object.entries(VIEW_IDS).forEach(([view, id]) => {
@@ -547,7 +615,9 @@ function showClientDetail(entityId) {
   }
   if (!entity) return;
   currentClientEntityId = entityId;
-  renderEntityDetail(qs('entity-detail-body'), entity, opportunities);
+  renderEntityDetail(qs('entity-detail-body'), entity, opportunities, undefined, {
+    showTicketAction: isCrmProfile(getConfig())
+  });
   qs('entity-detail').hidden = false;
   qs('opportunity-detail').hidden = true;
   const ticketSection = qs('ticket-section');
@@ -575,6 +645,16 @@ function showOpportunityDetail(documentId) {
   qs('entity-detail').hidden = true;
 }
 
+function editEntityById(entityId) {
+  if (!entityId) return;
+  const entity = loadEntities().find((e) => e.entity_id === entityId || e.id === entityId);
+  if (!entity) return;
+  const select = qs('edit-entity');
+  if (select) select.value = entity.id;
+  startEntityEdit(entity);
+  openFormDrawer('entities', 'edit');
+}
+
 function editOpportunityById(documentId) {
   if (!documentId) return;
   const document_ = loadDocuments().find((d) => d.id === documentId);
@@ -582,6 +662,7 @@ function editOpportunityById(documentId) {
   const select = qs('edit-document');
   if (select) select.value = documentId;
   startDocumentEdit(document_);
+  openFormDrawer('documents', 'edit');
   if (qs('folio')) qs('folio').focus();
 }
 
@@ -769,7 +850,7 @@ function applyLabels(config) {
   qs('document-entity-label').textContent = `${entity} *`;
   qs('opportunity-list-empty').textContent = `No se encontraron ${documents.toLowerCase()}`;
   qs('document-no-clients-text').textContent = `Primero debes registrar ${articulo(entity)} ${entity.toLowerCase()}.`;
-  qs('document-no-clients-action').textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
+  qs('document-no-clients-action').textContent = 'Crear cliente ahora';
 
   qs('search-view-heading').textContent = `Buscar ${entities}`;
   qs('search-heading').textContent = `Buscar ${articulo(entity)} ${entity.toLowerCase()}`;
@@ -927,6 +1008,7 @@ function handleEntitySubmit(ev) {
       `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
       'error'
     );
+    focusFirstInvalid(qs('entity-form'));
     return;
   }
   try {
@@ -934,6 +1016,7 @@ function handleEntitySubmit(ev) {
     else addEntity(payload);
     dirty = false;
     clearEntityForm();
+    finishFormDrawer('entities');
     showFormMessage('entity-message', `${labelFor('entity')} guardado correctamente.`);
   } catch (error) {
     showFormMessage('entity-message', error.message, 'error');
@@ -992,6 +1075,7 @@ function handleDocumentSubmit(ev) {
       `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
       'error'
     );
+    focusFirstInvalid(qs('document-form'));
     return;
   }
   try {
@@ -999,6 +1083,7 @@ function handleDocumentSubmit(ev) {
     else addDocument(payload);
     dirty = false;
     clearDocumentForm();
+    finishFormDrawer('documents');
     const feminine = esFemenina(labelFor('document'));
     const verb = id ? (feminine ? 'actualizada' : 'actualizado') : feminine ? 'registrada' : 'registrado';
     showFormMessage('opportunity-message', `${labelFor('document')} ${verb} correctamente.`);
@@ -1039,12 +1124,14 @@ function handleTicketSubmit(ev) {
       `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
       'error'
     );
+    focusFirstInvalid(qs('ticket-form'));
     return;
   }
   try {
     const saved = id ? updateTicket(id, payload) : addTicket(payload);
     currentClientEntityId = saved.entity_id || currentClientEntityId;
     clearTicketForm();
+    finishFormDrawer('tickets');
     populateTicketEntitySelect(currentClientEntityId);
     renderClientTickets(currentClientEntityId);
     showFormMessage('ticket-message', id ? 'Ticket actualizado correctamente.' : 'Ticket registrado correctamente.');
@@ -1073,6 +1160,17 @@ function resolveTicketById(ticketId) {
   }
 }
 
+function openNewTicketDrawer(entityId) {
+  if (!isCrmProfile(getConfig())) return;
+  currentClientEntityId = entityId || currentClientEntityId;
+  const opened = openFormDrawer('tickets', 'new');
+  if (!opened) return;
+  populateTicketEntitySelect(currentClientEntityId);
+  const select = qs('ticket-entity');
+  if (select && currentClientEntityId) select.value = currentClientEntityId;
+  if (qs('ticket-product-name')) qs('ticket-product-name').focus();
+}
+
 function editTicketById(ticketId) {
   let ticket;
   try {
@@ -1085,7 +1183,8 @@ function editTicketById(ticketId) {
   currentClientEntityId = ticket.entity_id;
   populateTicketEntitySelect(ticket.entity_id);
   startTicketEdit(ticket);
-  qs('ticket-description').focus();
+  openFormDrawer('tickets', 'edit');
+  if (qs('ticket-description')) qs('ticket-description').focus();
 }
 
 function onStorageChange(event) {
@@ -1146,22 +1245,11 @@ function wireEvents() {
   qs('action-open-entities').addEventListener('click', () => showModule('entities'));
   qs('action-find').addEventListener('click', () => showModule('search'));
   qs('entity-form').addEventListener('submit', handleEntitySubmit);
-  qs('cancel-edit').addEventListener('click', () => {
-    dirty = false;
-    clearEntityForm();
-    hideStorageWarning();
-  });
+  qs('cancel-edit').addEventListener('click', () => cancelFormEdition('entities'));
   qs('document-form').addEventListener('submit', handleDocumentSubmit);
-  qs('document-cancel-edit').addEventListener('click', () => {
-    dirty = false;
-    clearDocumentForm();
-    hideStorageWarning();
-  });
+  qs('document-cancel-edit').addEventListener('click', () => cancelFormEdition('documents'));
   qs('ticket-form').addEventListener('submit', handleTicketSubmit);
-  qs('ticket-cancel-edit').addEventListener('click', () => {
-    dirty = false;
-    clearTicketForm();
-  });
+  qs('ticket-cancel-edit').addEventListener('click', () => cancelFormEdition('tickets'));
   qs('ticket-list-items').addEventListener('click', (event) => {
     const resolve = event.target.closest ? event.target.closest('[data-resolve-ticket]') : null;
     if (resolve) {
@@ -1174,14 +1262,27 @@ function wireEvents() {
   qs('client-list-create').addEventListener('click', () =>
     showModule('entities', { newRecord: true, focusForm: true })
   );
-  qs('document-no-clients-action').addEventListener('click', () =>
-    showModule('entities', { newRecord: true, focusForm: true })
-  );
+  qs('document-no-clients-action').addEventListener('click', () => {
+    openQuickCreateClient({
+      returnFocus: qs('document-entity') || document.activeElement,
+      onCreated: (created) => {
+        populateDocumentEntitySelect();
+        const select = qs('document-entity');
+        if (select && created) select.value = created.entity_id;
+        if (select) select.focus();
+      }
+    });
+  });
   qs('clear-filters').addEventListener('click', () => {
     clearSearchFilters();
     refreshSearch();
   });
   qs('search-results-list').addEventListener('click', (event) => {
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
+    if (edit) {
+      editEntityById(edit.dataset.editEntity);
+      return;
+    }
     const button = event.target.closest ? event.target.closest('[data-open-entity]') : null;
     if (button) showClientDetail(button.dataset.openEntity);
   });
@@ -1190,6 +1291,11 @@ function wireEvents() {
     if (button) showOpportunityDetail(button.dataset.openDocument);
   });
   qs('client-list-items').addEventListener('click', (event) => {
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
+    if (edit) {
+      editEntityById(edit.dataset.editEntity);
+      return;
+    }
     const button = event.target.closest ? event.target.closest('[data-open-entity]') : null;
     if (button) openClientFromList(button.dataset.openEntity);
   });
@@ -1203,6 +1309,11 @@ function wireEvents() {
     if (remove) deleteOpportunityById(remove.dataset.deleteDocument);
   });
   qs('entity-detail-body').addEventListener('click', (event) => {
+    const ticket = event.target.closest ? event.target.closest('[data-new-ticket]') : null;
+    if (ticket) {
+      openNewTicketDrawer(ticket.dataset.newTicket);
+      return;
+    }
     const create = event.target.closest ? event.target.closest('[data-new-opportunity]') : null;
     if (!create) return;
     showModule('documents', { newRecord: true });

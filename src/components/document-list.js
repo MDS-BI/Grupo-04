@@ -71,7 +71,9 @@ export function createOpportunityItem(doc, entityName) {
   const edit = document.createElement('button');
   edit.type = 'button';
   edit.className = 'link-button';
+  edit.dataset.action = 'edit';
   edit.dataset.editDocument = doc.id || '';
+  edit.setAttribute('aria-label', `Editar ${folioLabel(doc)}`);
   edit.textContent = 'Editar';
   const remove = document.createElement('button');
   remove.type = 'button';

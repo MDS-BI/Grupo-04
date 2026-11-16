@@ -133,7 +133,8 @@ describe('US4 — registrar una oportunidad comercial', () => {
     submitForm('document-form');
     expect(storage.loadDocuments().length).toBe(0);
     qs('document-no-clients-action').click();
-    expect(qs('view-entities').hidden).toBe(false);
+    expect(qs('quick-create-client')).not.toBeNull();
+    expect(qs('view-documents').hidden).toBe(false);
     expect(qs('entity-id').value).toBe('');
   });
 
