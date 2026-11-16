@@ -2,8 +2,9 @@
 
 **Rama de la funcionalidad**: `main` (sin ramas secundarias, según la instrucción del curso)
 **Creada**: 2026-10-26
-**Actualizada**: 2026-11-04
+**Actualizada**: 2026-11-16
 **Estado**: En revisión
+**Rediseño de interfaz (iteración 3)**: [`specs/002-crm-ui-refresh/spec.md`](../002-crm-ui-refresh/spec.md)
 **Entrada**: Descripción del usuario: "La empresa vende equipos industriales a otras empresas de la Región del Biobío y pierde ventas porque no tiene un registro ordenado de sus clientes ni de las cotizaciones que manda. Se necesita un módulo CRM para guardar los clientes, seguir las oportunidades de venta y anotar los tickets de soporte después de la venta."
 
 > **Nota de consolidación**: este archivo reemplaza a `specs.md`. Las historias, requisitos y criterios de éxito que estaban en `specs.md` se fusionaron aquí para mantener una sola especificación. `specs.md` queda reemplazado por este documento.
@@ -16,6 +17,7 @@ El módulo tiene que resolver un problema bien concreto: hoy las cotizaciones qu
 
 - **MVP de la primera versión integrada (iteración 1, P1)**: clientes, oportunidades, búsqueda, ciclo de vida, terminología y persistencia local.
 - **Segunda iteración (P2)**: tickets de soporte (US-03) y panel con indicadores (US-07), que igual quedan especificados aquí y en `data-model.md` para no dejarlos a medias.
+- **Tercera iteración (rediseño de interfaz)**: navegación, drawers, tablas, filtros y panel accionable. Se especifica en [`specs/002-crm-ui-refresh/spec.md`](../002-crm-ui-refresh/spec.md); no modifica entidades, reglas, indicadores ni persistencia.
 - **Fuera del MVP**: envío de correos o WhatsApp, automatizaciones externas, campañas, agenda con alarmas, registro estructurado de cada interacción, cotizaciones con partidas, facturación, predicción de ventas, sincronización entre computadores y acceso simultáneo.
 - **Solo frontend**: los datos viven en `localStorage` del mismo navegador. No hay backend, autenticación ni permisos reales.
 - **Datos sintéticos**: la demo usa únicamente empresas, contactos y oportunidades ficticios. No se afirma que el caso haya sido investigado ni validado con una empresa real.
@@ -42,6 +44,8 @@ Cada historia tiene un responsable de documentación y de implementación. Compl
 | US-06 | Usar terminología comercial consistente | P1 | 1 | `[integrante]` | FR-029, FR-030, FR-036 | CA-06-01…CA-06-12 |
 | US-07 | Consultar el panel CRM | P2 | 2 | `[transversal]` | FR-024 | CA-07-01…CA-07-08 |
 | Transversal | Privacidad, persistencia, seguridad, rendimiento y accesibilidad | P1 | 1–2 | `[transversal]` | FR-027, FR-028, FR-031…FR-036 | NFR-001…NFR-009 |
+
+> **Nota de alcance**: las historias de esta tabla cubren el dominio. El rediseño de interfaz de la iteración 3 se especifica por separado en [`002-crm-ui-refresh`](../002-crm-ui-refresh/spec.md) con sus propias historias `US-UX-01` a `US-UX-04`, para no mezclar criterios de negocio con criterios de presentación.
 
 ## Escenarios de usuario y pruebas
 
@@ -411,11 +415,11 @@ Como ejecutivo comercial, quiero que las pantallas, formularios, botones y mensa
 4. **CA-06-04** — Dado que una operación genera una confirmación, un error de validación o una solicitud de eliminación, cuando el sistema muestra el mensaje, entonces utiliza el término comercial del registro afectado y explica la acción de forma clara.
 5. **CA-06-05** — Dado que no existen clientes u oportunidades, o que una búsqueda no devuelve coincidencias, cuando se muestra el estado vacío, entonces el mensaje utiliza la terminología CRM e indica cómo continuar, por ejemplo, “No hay clientes registrados” o “No se encontraron oportunidades”.
 6. **CA-06-06** — Dado que el ejecutivo consulta los resultados de búsqueda o el detalle de un cliente, cuando revisa sus oportunidades asociadas, entonces los títulos y etiquetas distinguen al cliente de sus oportunidades y mantienen los mismos términos que las pantallas de gestión.
-7. **CA-06-07** — Dado un cliente guardado con una oportunidad vinculada, cuando el ejecutivo navega entre Clientes, Oportunidades y Buscar y, en P2, Panel, entonces cada opción abre la vista correspondiente y se conservan los identificadores, los datos y la relación entre ambos registros.
+7. **CA-06-07** — Dado un cliente guardado con una oportunidad vinculada, cuando el ejecutivo navega entre Clientes, Oportunidades, la vista de búsqueda y, en P2, el Panel, entonces cada opción abre la vista correspondiente y se conservan los identificadores, los datos y la relación entre ambos registros.
 8. **CA-06-08** — Dado que la terminología CRM está configurada, cuando el usuario recarga la aplicación en el mismo navegador, entonces las pantallas vuelven a mostrar los términos configurados y los registros guardados permanecen disponibles sin modificaciones causadas por el cambio de etiquetas.
 9. **CA-06-09** — Dado que el módulo base se inicia sin mapeos de terminología, cuando se muestran sus pantallas, entonces utiliza los términos predeterminados entidad/entidades y documento/documentos sin errores, conservando el comportamiento de navegación.
 10. **CA-06-10** — Dado un cambio de configuración con una clave personalizada que colisiona con un campo base, cuando se carga el módulo, entonces se informa el conflicto y se conserva el respaldo genérico sin sobrescribir datos.
-11. **CA-06-11** — Dado la barra lateral, cuando el ejecutivo selecciona Clientes u Oportunidades, entonces se abre el formulario y selector de registros del área, con el área activa resaltada.
+11. **CA-06-11** — Dado la barra lateral, cuando el ejecutivo expande Clientes u Oportunidades, entonces encuentra las entradas “Listado” y “Nuevo”, el grupo expone `aria-expanded`, la vista activa queda resaltada con `aria-current="page"` y “Nuevo” abre el alta en el drawer especificado en `002-crm-ui-refresh` con el formulario vacío.
 12. **CA-06-12** — Dado una pantalla estrecha, cuando se contrae la barra lateral, entonces sus iconos conservan nombres accesibles y la vista activa sigue identificada.
 
 **Notas técnicas (implementación asistida por IA)**:
@@ -510,7 +514,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **FR-033**: El sistema DEBE renderizar asunto, notas y descripciones como texto seguro, sin ejecutar HTML o scripts.
 - **FR-034**: El sistema DEBE mantener búsquedas correctas con 500 clientes y 1000 oportunidades y actualizar en menos de 500 ms en al menos 19 de 20 búsquedas.
 - **FR-035**: El sistema DEBE permitir navegar y operar con teclado, con foco visible, etiquetas asociadas, mensajes de error comprensibles y contraste suficiente.
-- **FR-036**: El sistema DEBE mantener barra superior y lateral con Clientes, Oportunidades y Buscar en P1, y Panel en P2, resaltar la vista activa y proteger cambios sin guardar al navegar.
+- **FR-036**: El sistema DEBE mantener una barra superior con la búsqueda global y la acción principal, y una barra lateral con Clientes, Oportunidades y Panel (este último en P2); DEBE organizar Clientes y Oportunidades en los submenús “Listado” y “Nuevo”, resaltar la vista activa y proteger los cambios sin guardar al navegar. La búsqueda deja de ser una entrada del menú lateral; el detalle está en `002-crm-ui-refresh`.
 
 > **Nota de trazabilidad**: FR-027 a FR-035 reformulan el requisito no funcional correspondiente para que cada requisito funcional sea autónomo y verificable por separado. Es una redundancia intencional; ante cualquier conflicto de redacción, prevalece el NFR.
 

@@ -3,6 +3,8 @@
 Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades, registrar tickets de soporte y consultar un panel con seis indicadores descriptivos.
 
 > **Estado**: MVP P1 y segunda iteración P2 (tickets y panel) implementados y verificados con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes.
+>
+> **Iteración 3 — rediseño de interfaz**: especificada en `specs/002-crm-ui-refresh/` (navegación, drawers, tablas, filtros y panel accionable). No modifica entidades, reglas ni persistencia.
 
 ## Integrantes
 
@@ -52,6 +54,14 @@ specs/001-crm-module/
   tasks.md
   contracts/entity-storage.md
   checklists/requirements.md
+specs/002-crm-ui-refresh/
+  spec.md
+  plan.md
+  research.md
+  data-model.md
+  quickstart.md
+  tasks.md
+  contracts/ui-shell.md
 src/
   main.js
   app.js
@@ -73,6 +83,11 @@ src/
     search-bar.js
     ticket-form.js
     ticket-list.js
+    ui-overlay.js
+    ui.js
+    data-table.js
+    quick-create-client.js
+    filter-chips.js
 tests/
   unit/
   integration/
@@ -215,3 +230,4 @@ Se contrastaron `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstar
 - [Contrato de almacenamiento](specs/001-crm-module/contracts/entity-storage.md)
 - [Checklist](specs/001-crm-module/checklists/requirements.md)
 - [MER (Mermaid, en `data-model.md`)](specs/001-crm-module/data-model.md)
+- **Iteración 3 — rediseño de interfaz** (`specs/002-crm-ui-refresh/`): [especificación](specs/002-crm-ui-refresh/spec.md), [plan](specs/002-crm-ui-refresh/plan.md), [investigación](specs/002-crm-ui-refresh/research.md), [modelo de datos](specs/002-crm-ui-refresh/data-model.md), [contrato de interfaz](specs/002-crm-ui-refresh/contracts/ui-shell.md) y [validación](specs/002-crm-ui-refresh/quickstart.md). No agrega entidades ni cambios de esquema.
