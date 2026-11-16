@@ -202,11 +202,11 @@ describe('US5 — gestionar oportunidades y ciclo de vida', () => {
 
   it('deletes only the opportunity after confirmation and keeps the client', () => {
     const client = seedClient();
-    seedOpportunity(client);
+    const opportunity = seedOpportunity(client);
     qs('nav-documents').click();
 
-    const remove = qs('opportunity-list-items').querySelector('[data-delete-document]');
-    remove.click();
+    qs('edit-document').value = opportunity.id;
+    qs('delete-document').click();
 
     expect(globalThis.confirm).toHaveBeenCalled();
     expect(storage.loadDocuments().length).toBe(0);
@@ -215,11 +215,12 @@ describe('US5 — gestionar oportunidades y ciclo de vida', () => {
 
   it('keeps the opportunity when deletion is cancelled', () => {
     const client = seedClient();
-    seedOpportunity(client);
+    const opportunity = seedOpportunity(client);
     qs('nav-documents').click();
     globalThis.confirm = vi.fn(() => false);
 
-    qs('opportunity-list-items').querySelector('[data-delete-document]').click();
+    qs('edit-document').value = opportunity.id;
+    qs('delete-document').click();
     expect(storage.loadDocuments().length).toBe(1);
   });
 
@@ -228,7 +229,7 @@ describe('US5 — gestionar oportunidades y ciclo de vida', () => {
     const opportunity = seedOpportunity(client);
     qs('nav-documents').click();
 
-    qs('opportunity-list-items').querySelector('[data-edit-document]').click();
+    qs('opportunity-list-items').querySelector('[data-action="edit"]').click();
     expect(qs('document-id').value).toBe(opportunity.id);
     expect(qs('document-submit-button').textContent).toMatch(/Actualizar/i);
     expect(qs('cf-opportunityTitle').value).toContain('compresor');

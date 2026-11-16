@@ -2,6 +2,8 @@ import { loadDocuments } from '../storage.js';
 import { labelFor, getConfig } from '../module-config.js';
 import { createDocumentItem } from './document-list.js';
 import { getTargetDateStatus, todayLocal } from '../crm-rules.js';
+import { renderDataTable } from './data-table.js';
+import { renderMonogram } from './ui.js';
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -16,6 +18,11 @@ const STATUS_CLASS = {
   Programado: '',
   'Sin programar': 'status-none'
 };
+
+function display(value, fallback = 'sin información') {
+  if (value === undefined || value === null || String(value).trim() === '') return fallback;
+  return String(value);
+}
 
 export function createEntityItem(entity) {
   const li = document.createElement('li');
@@ -67,62 +74,125 @@ export function renderEntityList(listEl, entities) {
 }
 
 /**
- * Resumen de cliente para la gestión: identificación, clasificación,
- * responsable, origen y estado del próximo contacto.
+ * Columnas de la tabla de clientes: identificación con monograma, tipo,
+ * responsable, origen, próximo contacto y una única acción «Editar».
  */
-export function createClientSummary(entity, today = todayLocal()) {
-  const li = document.createElement('li');
-  li.className = 'client-summary';
-  li.dataset.entityId = entity.entity_id || '';
+export function clientTableColumns() {
+  return [
+    {
+      key: 'name',
+      label: 'Cliente',
+      sortable: true,
+      className: 'cell-truncate',
+      value: (row) => row.name || '',
+      render: (row) => {
+        const content = document.createElement('div');
+        content.className = 'name-cell';
+        content.appendChild(renderMonogram(row.name));
 
-  const headline = document.createElement('div');
-  headline.className = 'client-summary-headline';
-  const name = document.createElement('strong');
-  name.textContent = entity.name || 'Sin nombre';
-  headline.appendChild(name);
-  const status = getTargetDateStatus(entity.targetDate, today);
-  const badge = document.createElement('span');
-  badge.className = `status-badge ${STATUS_CLASS[status] || ''}`.trim();
-  badge.textContent = status;
-  badge.dataset.targetStatus = status;
-  headline.appendChild(badge);
-  li.appendChild(headline);
+        const text = document.createElement('span');
+        text.className = 'name-cell__text';
 
-  const meta = document.createElement('div');
-  meta.className = 'client-summary-meta';
-  meta.textContent = [
-    `Código: ${entity.code || 'sin información'}`,
-    `Tipo: ${entity.category || 'sin información'}`,
-    `Responsable: ${entity.accountOwner || 'sin información'}`,
-    `Origen: ${entity.acquisitionSource || 'sin información'}`,
-    `Próximo contacto: ${entity.targetDate || 'sin información'}`
-  ].join(' · ');
-  li.appendChild(meta);
+        const name = document.createElement('button');
+        name.type = 'button';
+        name.className = 'link-button name-cell__name';
+        name.dataset.openEntity = row.entity_id || '';
+        name.setAttribute('aria-label', `Ver ficha de ${display(row.name, 'cliente')}`);
+        name.textContent = display(row.name, 'Sin nombre');
+        text.appendChild(name);
 
-  const actions = document.createElement('div');
-  actions.className = 'inline-actions';
-  const edit = document.createElement('button');
-  edit.type = 'button';
-  edit.className = 'link-button';
-  edit.dataset.action = 'edit';
-  edit.dataset.editEntity = entity.entity_id || '';
-  edit.setAttribute('aria-label', `Editar ${entity.name || 'cliente'}`);
-  edit.textContent = 'Editar';
-  actions.appendChild(edit);
-  const open = document.createElement('button');
-  open.type = 'button';
-  open.className = 'link-button';
-  open.dataset.openEntity = entity.entity_id || '';
-  open.textContent = 'Ver ficha';
-  actions.appendChild(open);
-  li.appendChild(actions);
+        const code = document.createElement('span');
+        code.className = 'muted';
+        code.textContent = display(row.code);
+        text.appendChild(code);
 
-  return li;
+        content.appendChild(text);
+        return content;
+      }
+    },
+    {
+      key: 'category',
+      label: 'Tipo',
+      sortable: true,
+      className: 'cell-truncate',
+      render: (row) => display(row.category)
+    },
+    {
+      key: 'accountOwner',
+      label: 'Responsable',
+      sortable: true,
+      className: 'cell-truncate',
+      render: (row) => display(row.accountOwner)
+    },
+    {
+      key: 'acquisitionSource',
+      label: 'Origen',
+      sortable: true,
+      className: 'cell-truncate',
+      render: (row) => display(row.acquisitionSource)
+    },
+    {
+      key: 'targetDate',
+      label: 'Próximo contacto',
+      sortable: true,
+      numeric: true,
+      value: (row) => row.targetDate || '',
+      render: (row) => {
+        const content = document.createElement('span');
+        content.className = 'date-cell';
+        const status = getTargetDateStatus(row.targetDate, todayLocal());
+        const badge = document.createElement('span');
+        badge.className = `status-badge ${STATUS_CLASS[status] || ''}`.trim();
+        badge.textContent = status;
+        badge.dataset.targetStatus = status;
+        const date = document.createElement('span');
+        date.className = 'muted';
+        date.textContent = display(row.targetDate);
+        content.append(date, badge);
+        return content;
+      }
+    },
+    {
+      key: 'actions',
+      label: 'Acciones',
+      sortable: false,
+      render: (row) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-ghost btn-sm';
+        button.dataset.action = 'edit';
+        button.dataset.editEntity = row.entity_id || '';
+        button.setAttribute('aria-label', `Editar ${display(row.name, 'cliente')}`);
+        button.textContent = 'Editar';
+        return button;
+      }
+    }
+  ];
 }
 
-export function renderClientList(listEl, entities) {
-  listEl.innerHTML = '';
-  if (!entities || entities.length === 0) return false;
-  for (const e of entities) listEl.appendChild(createClientSummary(e));
-  return true;
+/**
+ * Tabla de clientes. El estado vacío lo decide quien llama para distinguir
+ * «sin registros» de «sin coincidencias».
+ */
+export function renderClientTable({
+  entities = [],
+  sortKey = 'name',
+  sortDirection = 'asc',
+  onSort = null,
+  emptyState = null,
+  caption = 'Clientes',
+  ariaLabel = ''
+} = {}) {
+  return renderDataTable({
+    caption,
+    ariaLabel: ariaLabel || caption,
+    columns: clientTableColumns(),
+    rows: entities,
+    sortKey,
+    sortDirection,
+    onSort,
+    emptyState,
+    rowClassName: () => 'client-summary',
+    getRowKey: (row) => row.entity_id || row.id
+  });
 }

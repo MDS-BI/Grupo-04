@@ -32,20 +32,22 @@ import {
   searchOpportunities
 } from './crm-rules.js';
 import { clearEntityForm, startEntityEdit, collectEntityPayload, showEntityErrors } from './components/entity-form.js';
-import { createEntityItem, createClientSummary } from './components/entity-list.js';
+import { createEntityItem, renderClientTable } from './components/entity-list.js';
 import {
   clearDocumentForm,
   startDocumentEdit,
   collectDocumentPayload,
   showDocumentErrors
 } from './components/document-form.js';
-import { createDocumentItem, folioLabel, renderOpportunityList } from './components/document-list.js';
+import { createDocumentItem, folioLabel, renderOpportunityTable } from './components/document-list.js';
 import { renderLogo, applyShellLabels, setActiveNav, toggleNavSection } from './components/shell.js';
 import { renderDashboard } from './components/dashboard.js';
 import { setupSearchBar, readSearchFilters, clearSearchFilters } from './components/search-bar.js';
 import { renderSearchResults } from './components/search-results.js';
 import { renderEntityDetail, renderOpportunityDetail } from './components/entity-detail.js';
 import { openOverlay, closeOverlay, getTopOverlay } from './components/ui-overlay.js';
+import { renderEmptyState } from './components/ui.js';
+import { renderFilterChips, syncFilterChips } from './components/filter-chips.js';
 import { openQuickCreateClient } from './components/quick-create-client.js';
 import {
   prepareTicketForm,
@@ -83,6 +85,24 @@ let currentClientEntityId = null;
 let dirty = false;
 let staleStorage = false;
 let openFormOverlay = null;
+let filtersExpanded = false;
+let clientSort = { key: 'name', direction: 'asc' };
+let opportunitySort = { key: 'folio', direction: 'asc' };
+let searchClientSort = { key: 'name', direction: 'asc' };
+let searchOpportunitySort = { key: 'folio', direction: 'asc' };
+
+function nextSortState(state, key) {
+  if (state.key === key) {
+    return { key, direction: state.direction === 'asc' ? 'desc' : 'asc' };
+  }
+  return { key, direction: 'asc' };
+}
+
+function focusSortHeader(container, key) {
+  if (!container) return;
+  const button = container.querySelector(`th button[data-sort="${key}"]`);
+  if (button && typeof button.focus === 'function') button.focus();
+}
 
 function availableViews() {
   return ['dashboard', 'entities', 'documents', 'search'];
@@ -505,6 +525,32 @@ function renderClientTickets(entityId) {
   emptyEl.hidden = rendered;
 }
 
+function appendEntityItems(listEl, entities) {
+  const ul = document.createElement('ul');
+  ul.className = 'entity-list';
+  entities.forEach((entity) => ul.appendChild(createEntityItem(entity)));
+  listEl.appendChild(ul);
+}
+
+function emptyClientState() {
+  const feminine = esFemenina(labelFor('entity'));
+  const entityClass = feminine ? 'registradas' : 'registrados';
+  return {
+    reason: 'no-records',
+    message: `No hay ${labelFor('entities').toLowerCase()} ${entityClass}`,
+    ctaLabel: `${feminine ? 'Nueva' : 'Nuevo'} ${labelFor('entity')}`,
+    textId: 'client-list-empty-text',
+    ctaId: 'client-list-create',
+    ctaAction: openCreateEntityDrawer,
+    icon: 'users'
+  };
+}
+
+function openCreateEntityDrawer() {
+  if (!showModule('entities')) return;
+  openFormDrawer('entities', 'new');
+}
+
 function renderClientList() {
   const listEl = qs('client-list-items');
   const emptyEl = qs('client-list-empty');
@@ -516,14 +562,66 @@ function renderClientList() {
   } catch (error) {
     reportDataError(error);
   }
-  emptyEl.hidden = entities.length > 0;
-  const crm = isCrmProfile(getConfig());
-  entities.forEach((entity) => listEl.appendChild(crm ? createClientSummary(entity) : createEntityItem(entity)));
+
+  if (!isCrmProfile(getConfig())) {
+    if (entities.length > 0) {
+      emptyEl.hidden = true;
+      emptyEl.innerHTML = '';
+      appendEntityItems(listEl, entities);
+    } else {
+      emptyEl.innerHTML = '';
+      emptyEl.appendChild(renderEmptyState(emptyClientState()));
+      emptyEl.hidden = false;
+    }
+    return;
+  }
+
+  const output = renderClientTable({
+    entities,
+    sortKey: clientSort.key,
+    sortDirection: clientSort.direction,
+    onSort: handleClientSort,
+    emptyState: emptyClientState(),
+    caption: `${labelFor('entities')} registrados`,
+    ariaLabel: `Tabla de ${labelFor('entities').toLowerCase()} registrados`
+  });
+
+  if (entities.length === 0) {
+    emptyEl.innerHTML = '';
+    emptyEl.appendChild(output);
+    emptyEl.hidden = false;
+  } else {
+    emptyEl.innerHTML = '';
+    emptyEl.hidden = true;
+    listEl.appendChild(output);
+  }
+}
+
+function handleClientSort(key) {
+  clientSort = nextSortState(clientSort, key);
+  renderClientList();
+  focusSortHeader(qs('client-list-items'), key);
+}
+
+function openCreateDocumentDrawer() {
+  if (!showModule('documents')) return;
+  openFormDrawer('documents', 'new');
+}
+
+function emptyOpportunityState() {
+  return {
+    reason: 'no-records',
+    message: `No se encontraron ${labelFor('documents').toLowerCase()}`,
+    ctaLabel: `${esFemenina(labelFor('document')) ? 'Nueva' : 'Nuevo'} ${labelFor('document')}`,
+    textId: 'opportunity-list-empty',
+    ctaAction: openCreateDocumentDrawer,
+    icon: 'target'
+  };
 }
 
 function renderOpportunityPanel() {
   const listEl = qs('opportunity-list-items');
-  const emptyEl = qs('opportunity-list-empty');
+  const emptyEl = qs('opportunity-list-empty-state');
   if (!listEl || !emptyEl) return;
   listEl.innerHTML = '';
   let documents = [];
@@ -534,19 +632,75 @@ function renderOpportunityPanel() {
   } catch (error) {
     reportDataError(error);
   }
-  emptyEl.hidden = documents.length > 0;
+
   const crm = isCrmProfile(getConfig());
-  if (crm) {
-    renderOpportunityList(listEl, documents, (doc) => {
-      const entity = entities.find((e) => e.entity_id === doc.entity_id);
-      return entity ? `${entity.name} (${entity.code})` : undefined;
-    });
+  if (!crm) {
+    if (documents.length > 0) {
+      emptyEl.hidden = true;
+      emptyEl.innerHTML = '';
+      const ul = document.createElement('ul');
+      ul.className = 'document-list';
+      documents.forEach((doc) => {
+        const entity = entities.find((e) => e.entity_id === doc.entity_id);
+        ul.appendChild(createDocumentItem(doc, entity ? entity.name : undefined));
+      });
+      listEl.appendChild(ul);
+    } else {
+      emptyEl.innerHTML = '';
+      emptyEl.appendChild(renderEmptyState(emptyOpportunityState()));
+      emptyEl.hidden = false;
+    }
     return;
   }
-  documents.forEach((doc) => {
-    const entity = entities.find((e) => e.entity_id === doc.entity_id);
-    listEl.appendChild(createDocumentItem(doc, entity ? entity.name : undefined));
+
+  const output = renderOpportunityTable({
+    items: documents,
+    entityNameFor: (doc) => {
+      const entity = entities.find((e) => e.entity_id === doc.entity_id);
+      return entity ? `${entity.name} (${entity.code})` : undefined;
+    },
+    sortKey: opportunitySort.key,
+    sortDirection: opportunitySort.direction,
+    onSort: handleOpportunitySort,
+    emptyState: emptyOpportunityState(),
+    caption: labelFor('documents'),
+    ariaLabel: `Tabla de ${labelFor('documents').toLowerCase()}`,
+    openDetail: false
   });
+
+  if (documents.length === 0) {
+    emptyEl.innerHTML = '';
+    emptyEl.appendChild(output);
+    emptyEl.hidden = false;
+  } else {
+    emptyEl.innerHTML = '';
+    emptyEl.hidden = true;
+    listEl.appendChild(output);
+  }
+}
+
+function handleOpportunitySort(key) {
+  opportunitySort = nextSortState(opportunitySort, key);
+  renderOpportunityPanel();
+  focusSortHeader(qs('opportunity-list-items'), key);
+}
+
+function clearFiltersKeepingCriterion() {
+  clearSearchFilters();
+  syncFilterChips();
+  refreshSearch();
+}
+
+function handleSearchClientSort(key) {
+  searchClientSort = nextSortState(searchClientSort, key);
+  refreshSearch();
+  focusSortHeader(qs('search-results-list'), key);
+}
+
+function handleSearchOpportunitySort(key) {
+  searchOpportunitySort = nextSortState(searchOpportunitySort, key);
+  refreshSearch();
+  focusSortHeader(qs('search-opportunities-list'), key);
 }
 
 function refreshSearch() {
@@ -556,6 +710,7 @@ function refreshSearch() {
   const term = input ? input.value : '';
   const emptyEl = qs('search-empty');
   const hintEl = qs('search-hint');
+  const clientsSection = qs('search-clients');
   const opportunitiesSection = qs('search-opportunities');
   const opportunitiesList = qs('search-opportunities-list');
   const hasCriterion = String(term || '').trim() !== '';
@@ -564,11 +719,17 @@ function refreshSearch() {
     listEl.innerHTML = '';
     if (opportunitiesSection) opportunitiesSection.hidden = true;
     if (opportunitiesList) opportunitiesList.innerHTML = '';
+    if (emptyEl) {
+      emptyEl.innerHTML = '';
+      emptyEl.hidden = true;
+      emptyEl.textContent = 'Sin coincidencias para tu búsqueda.';
+    }
     if (!hasCriterion) {
+      if (clientsSection) clientsSection.hidden = true;
       if (hintEl) hintEl.hidden = false;
-      if (emptyEl) emptyEl.hidden = true;
       return;
     }
+    if (clientsSection) clientsSection.hidden = false;
     let results = [];
     try {
       results = searchEntities(term);
@@ -576,8 +737,11 @@ function refreshSearch() {
       reportDataError(error);
     }
     if (hintEl) hintEl.hidden = true;
-    if (emptyEl) emptyEl.hidden = results.length > 0;
-    results.forEach((entity) => listEl.appendChild(createEntityItem(entity)));
+    if (results.length > 0) appendEntityItems(listEl, results);
+    if (emptyEl) {
+      emptyEl.hidden = results.length > 0;
+      if (results.length === 0) emptyEl.textContent = 'Sin coincidencias para tu búsqueda.';
+    }
     return;
   }
 
@@ -591,15 +755,24 @@ function refreshSearch() {
   } catch (error) {
     reportDataError(error);
   }
+
   renderSearchResults({
     clients,
     opportunities,
     listEl,
     emptyEl,
     hintEl,
+    clientsSection,
     opportunitiesSection,
     opportunitiesList,
-    hasCriterion
+    hasCriterion,
+    criterion: term,
+    hasFilters: Object.keys(filters).length > 0,
+    clientSort: searchClientSort,
+    opportunitySort: searchOpportunitySort,
+    onSortClients: handleSearchClientSort,
+    onSortOpportunities: handleSearchOpportunitySort,
+    onClearFilters: clearFiltersKeepingCriterion
   });
 }
 
@@ -666,38 +839,6 @@ function editOpportunityById(documentId) {
   if (qs('folio')) qs('folio').focus();
 }
 
-function deleteOpportunityById(documentId) {
-  if (!documentId) return;
-  const feminine = esFemenina(labelFor('document'));
-  const noun = labelFor('document').toLowerCase();
-  if (
-    !confirm(
-      `¿Eliminar ${demostrativo(labelFor('document'))} ${noun}? El ${labelFor('entity').toLowerCase()} asociado no se eliminará.`
-    )
-  )
-    return;
-  if (staleStorage) {
-    showFormMessage(
-      'opportunity-message',
-      'Los datos cambiaron en otra pestaña. Recarga la página antes de eliminar.',
-      'error'
-    );
-    return;
-  }
-  try {
-    deleteDocument(documentId);
-    dirty = false;
-    if (qs('document-id').value === documentId) clearDocumentForm();
-    showFormMessage(
-      'opportunity-message',
-      `${labelFor('document')} ${feminine ? 'eliminada' : 'eliminado'} correctamente.`
-    );
-  } catch (error) {
-    showFormMessage('opportunity-message', error.message, 'error');
-  }
-  refreshAll();
-}
-
 function openClientFromList(entityId) {
   const entity = loadEntities().find((e) => e.entity_id === entityId);
   if (!entity) return;
@@ -759,6 +900,23 @@ function ensureCategoryControl() {
   holder.appendChild(control);
 }
 
+function applyFiltersVisibility() {
+  const container = qs('search-filters');
+  const toggle = qs('toggle-filters');
+  const available = Boolean(container && container.dataset.available === 'true');
+  const expanded = available && filtersExpanded;
+  if (toggle) {
+    toggle.hidden = !available;
+    toggle.setAttribute('aria-expanded', String(expanded));
+  }
+  if (container) container.hidden = !expanded;
+}
+
+function handleFiltersChanged() {
+  syncFilterChips();
+  refreshSearch();
+}
+
 function ensureSearchFilters() {
   const catalogs = getConfig().catalogs || {};
   const definitions = [
@@ -786,7 +944,10 @@ function ensureSearchFilters() {
     }
   });
   const container = qs('search-filters');
-  if (container) container.hidden = !(any && isCrmProfile(getConfig()));
+  if (container) {
+    container.dataset.available = any && isCrmProfile(getConfig()) ? 'true' : 'false';
+  }
+  applyFiltersVisibility();
 }
 
 function applyProfileVisibility() {
@@ -839,8 +1000,10 @@ function applyLabels(config) {
   qs('edit-entity-heading').textContent = `Editar o eliminar ${articulo(entity)} ${entity.toLowerCase()}`;
   qs('delete-entity').textContent = `Eliminar ${articulo(entity)} ${entity.toLowerCase()} ${seleccionada(entity)}`;
   qs('client-list-heading').textContent = `${entities} ${entityClass}`;
-  qs('client-list-empty-text').textContent = `No hay ${entities.toLowerCase()} ${entityClass}`;
-  qs('client-list-create').textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
+  const clientEmptyText = qs('client-list-empty-text');
+  if (clientEmptyText) clientEmptyText.textContent = `No hay ${entities.toLowerCase()} ${entityClass}`;
+  const clientCreate = qs('client-list-create');
+  if (clientCreate) clientCreate.textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
 
   qs('documents-view-heading').textContent = documents;
   qs('document-form-heading').textContent = `Agregar / Editar ${document_}`;
@@ -848,12 +1011,15 @@ function applyLabels(config) {
   qs('delete-document').textContent =
     `Eliminar ${articulo(document_)} ${document_.toLowerCase()} ${seleccionada(document_)}`;
   qs('document-entity-label').textContent = `${entity} *`;
-  qs('opportunity-list-empty').textContent = `No se encontraron ${documents.toLowerCase()}`;
+  const opportunityEmpty = qs('opportunity-list-empty');
+  if (opportunityEmpty) opportunityEmpty.textContent = `No se encontraron ${documents.toLowerCase()}`;
   qs('document-no-clients-text').textContent = `Primero debes registrar ${articulo(entity)} ${entity.toLowerCase()}.`;
   qs('document-no-clients-action').textContent = 'Crear cliente ahora';
 
   qs('search-view-heading').textContent = `Buscar ${entities}`;
   qs('search-heading').textContent = `Buscar ${articulo(entity)} ${entity.toLowerCase()}`;
+  const searchClientsHeading = qs('search-clients-heading');
+  if (searchClientsHeading) searchClientsHeading.textContent = entities;
   const searchInput = qs('global-search-input');
   if (searchInput) {
     searchInput.placeholder = `Buscar ${entities.toLowerCase()} y ${documents.toLowerCase()}...`;
@@ -1259,9 +1425,6 @@ function wireEvents() {
     const edit = event.target.closest ? event.target.closest('[data-edit-ticket]') : null;
     if (edit) editTicketById(edit.dataset.editTicket);
   });
-  qs('client-list-create').addEventListener('click', () =>
-    showModule('entities', { newRecord: true, focusForm: true })
-  );
   qs('document-no-clients-action').addEventListener('click', () => {
     openQuickCreateClient({
       returnFocus: qs('document-entity') || document.activeElement,
@@ -1273,9 +1436,10 @@ function wireEvents() {
       }
     });
   });
-  qs('clear-filters').addEventListener('click', () => {
-    clearSearchFilters();
-    refreshSearch();
+  qs('clear-filters').addEventListener('click', clearFiltersKeepingCriterion);
+  qs('toggle-filters').addEventListener('click', () => {
+    filtersExpanded = !filtersExpanded;
+    applyFiltersVisibility();
   });
   qs('search-results-list').addEventListener('click', (event) => {
     const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
@@ -1287,6 +1451,11 @@ function wireEvents() {
     if (button) showClientDetail(button.dataset.openEntity);
   });
   qs('search-opportunities-list').addEventListener('click', (event) => {
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
+    if (edit) {
+      editOpportunityById(edit.dataset.editDocument);
+      return;
+    }
     const button = event.target.closest ? event.target.closest('[data-open-document]') : null;
     if (button) showOpportunityDetail(button.dataset.openDocument);
   });
@@ -1300,13 +1469,16 @@ function wireEvents() {
     if (button) openClientFromList(button.dataset.openEntity);
   });
   qs('opportunity-list-items').addEventListener('click', (event) => {
-    const edit = event.target.closest ? event.target.closest('[data-edit-document]') : null;
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
     if (edit) {
       editOpportunityById(edit.dataset.editDocument);
       return;
     }
-    const remove = event.target.closest ? event.target.closest('[data-delete-document]') : null;
-    if (remove) deleteOpportunityById(remove.dataset.deleteDocument);
+    const open = event.target.closest ? event.target.closest('[data-open-document]') : null;
+    if (open) {
+      if (!showModule('search')) return;
+      showOpportunityDetail(open.dataset.openDocument);
+    }
   });
   qs('entity-detail-body').addEventListener('click', (event) => {
     const ticket = event.target.closest ? event.target.closest('[data-new-ticket]') : null;
@@ -1334,7 +1506,7 @@ function wireEvents() {
     refreshSearch();
   });
   ['search-filter-category', 'search-filter-owner', 'search-filter-source'].forEach((id) => {
-    if (qs(id)) qs(id).addEventListener('change', () => refreshSearch());
+    if (qs(id)) qs(id).addEventListener('change', handleFiltersChanged);
   });
   qs('edit-entity').addEventListener('change', onEditEntityChange);
   qs('edit-document').addEventListener('change', onEditDocumentChange);
@@ -1356,6 +1528,7 @@ export function initApp(resolved) {
   applyLabels(resolved.config);
   ensureCategoryControl();
   ensureSearchFilters();
+  renderFilterChips(qs('search-filter-chips'), { onChange: handleFiltersChanged });
   applyProfileVisibility();
   wireEvents();
   prepareTicketForm();

@@ -102,7 +102,9 @@ export function renderEmptyState({
   message = '',
   ctaLabel = '',
   ctaAction = null,
-  icon = 'inbox'
+  icon = 'inbox',
+  textId = '',
+  ctaId = ''
 } = {}) {
   const wrapper = document.createElement('div');
   wrapper.className = 'empty-state';
@@ -125,6 +127,7 @@ export function renderEmptyState({
     const paragraph = document.createElement('p');
     paragraph.className = 'empty-state__text';
     paragraph.textContent = message;
+    if (textId) paragraph.id = textId;
     wrapper.appendChild(paragraph);
   }
 
@@ -134,6 +137,7 @@ export function renderEmptyState({
     cta.className = 'btn btn-primary empty-state__cta';
     cta.setAttribute('data-empty-cta', '');
     cta.textContent = ctaLabel;
+    if (ctaId) cta.id = ctaId;
     if (typeof ctaAction === 'function') cta.addEventListener('click', ctaAction);
     wrapper.appendChild(cta);
   }

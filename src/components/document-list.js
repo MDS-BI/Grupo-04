@@ -1,3 +1,5 @@
+import { renderDataTable } from './data-table.js';
+
 function escapeHtml(s) {
   return String(s ?? '')
     .replaceAll('&', '&amp;')
@@ -35,63 +37,129 @@ export function renderDocumentList(listEl, documents, entityNameFor) {
   return true;
 }
 
-/** Fila de oportunidad en la gestión: asunto, folio, etapa, monto, responsable y fechas. */
-export function createOpportunityItem(doc, entityName) {
-  const li = document.createElement('li');
-  li.className = 'opportunity-item';
-
-  const headline = document.createElement('div');
-  headline.className = 'client-summary-headline';
-  const title = document.createElement('strong');
-  title.textContent = doc.opportunityTitle || 'Sin asunto';
-  headline.appendChild(title);
-  const badge = document.createElement('span');
-  badge.className = 'status-badge';
-  badge.textContent = doc.status || 'Sin etapa';
-  headline.appendChild(badge);
-  li.appendChild(headline);
-
-  const amount =
-    doc.totalAmount === undefined || doc.totalAmount === null
-      ? 'sin monto'
-      : `${doc.totalAmount} ${doc.currency || ''}`.trim();
-  const meta = document.createElement('div');
-  meta.className = 'client-summary-meta';
-  meta.textContent = [
-    `Folio: ${folioLabel(doc)}`,
-    `Monto: ${amount}`,
-    `Responsable: ${doc.opportunityOwner || 'sin información'}`,
-    `Fechas: ${doc.startDate || 'sin información'} → ${doc.endDate || 'sin información'}`,
-    `Cliente: ${entityName || 'sin información'}`
-  ].join(' · ');
-  li.appendChild(meta);
-
-  const actions = document.createElement('div');
-  actions.className = 'inline-actions';
-  const edit = document.createElement('button');
-  edit.type = 'button';
-  edit.className = 'link-button';
-  edit.dataset.action = 'edit';
-  edit.dataset.editDocument = doc.id || '';
-  edit.setAttribute('aria-label', `Editar ${folioLabel(doc)}`);
-  edit.textContent = 'Editar';
-  const remove = document.createElement('button');
-  remove.type = 'button';
-  remove.className = 'link-button';
-  remove.dataset.deleteDocument = doc.id || '';
-  remove.textContent = 'Eliminar';
-  actions.appendChild(edit);
-  actions.appendChild(remove);
-  li.appendChild(actions);
-
-  return li;
+function display(value, fallback = 'sin información') {
+  if (value === undefined || value === null || String(value).trim() === '') return fallback;
+  return String(value);
 }
 
-export function renderOpportunityList(listEl, documents, entityNameFor) {
-  listEl.innerHTML = '';
-  if (!documents || documents.length === 0) return false;
-  for (const doc of documents) {
-    listEl.appendChild(createOpportunityItem(doc, entityNameFor ? entityNameFor(doc) : undefined));
-  }
-  return true;
+const AMOUNT_FORMATTER = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 });
+
+function formatAmount(amount, currency) {
+  if (amount === undefined || amount === null || String(amount).trim() === '') return 'sin monto';
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric)) return String(amount);
+  return `${AMOUNT_FORMATTER.format(numeric)}${currency ? ` ${currency}` : ''}`;
+}
+
+function normalizeOpportunity(item, entityNameFor) {
+  const document_ = item && item.document ? item.document : item;
+  const client = item && item.client ? item.client : null;
+  let clientName = 'Cliente desconocido';
+  if (client) clientName = client.code ? `${client.name} (${client.code})` : display(client.name);
+  else if (entityNameFor) clientName = entityNameFor(document_) || 'Cliente desconocido';
+  return { ...document_, clientName };
+}
+
+/** Columnas de la tabla de oportunidades con el cliente vinculado. */
+export function opportunityTableColumns({ openDetail = true } = {}) {
+  return [
+    {
+      key: 'clientName',
+      label: 'Cliente',
+      sortable: true,
+      className: 'cell-truncate',
+      render: (row) => display(row.clientName, 'Cliente desconocido')
+    },
+    {
+      key: 'folio',
+      label: 'Folio',
+      sortable: true,
+      numeric: true,
+      render: (row) => {
+        if (!openDetail) {
+          const text = document.createElement('span');
+          text.textContent = folioLabel(row);
+          return text;
+        }
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'link-button';
+        button.dataset.openDocument = row.id || '';
+        button.setAttribute('aria-label', `Ver detalle de ${folioLabel(row)}`);
+        button.textContent = folioLabel(row);
+        return button;
+      }
+    },
+    {
+      key: 'opportunityTitle',
+      label: 'Asunto',
+      sortable: true,
+      className: 'cell-truncate',
+      render: (row) => display(row.opportunityTitle, 'Sin asunto')
+    },
+    {
+      key: 'status',
+      label: 'Estado',
+      sortable: true,
+      render: (row) => {
+        const badge = document.createElement('span');
+        badge.className = 'status-badge';
+        badge.textContent = display(row.status, 'Sin etapa');
+        return badge;
+      }
+    },
+    {
+      key: 'totalAmount',
+      label: 'Monto',
+      sortable: true,
+      numeric: true,
+      render: (row) => formatAmount(row.totalAmount, row.currency)
+    },
+    {
+      key: 'actions',
+      label: 'Acciones',
+      sortable: false,
+      render: (row) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-ghost btn-sm';
+        button.dataset.action = 'edit';
+        button.dataset.editDocument = row.id || '';
+        button.setAttribute('aria-label', `Editar ${folioLabel(row)}`);
+        button.textContent = 'Editar';
+        return button;
+      }
+    }
+  ];
+}
+
+/**
+ * Tabla de oportunidades. Acepta documentos o resultados de búsqueda
+ * (`{ document, client }`) y resuelve el nombre del cliente en el render.
+ */
+export function renderOpportunityTable({
+  items = [],
+  entityNameFor = null,
+  sortKey = 'folio',
+  sortDirection = 'asc',
+  onSort = null,
+  emptyState = null,
+  caption = 'Oportunidades',
+  ariaLabel = '',
+  rowClassName = 'opportunity-item',
+  openDetail = true
+} = {}) {
+  const rows = (items || []).map((item) => normalizeOpportunity(item, entityNameFor));
+  return renderDataTable({
+    caption,
+    ariaLabel: ariaLabel || caption,
+    columns: opportunityTableColumns({ openDetail }),
+    rows,
+    sortKey,
+    sortDirection,
+    onSort,
+    emptyState,
+    rowClassName: () => rowClassName,
+    getRowKey: (row) => row.id
+  });
 }

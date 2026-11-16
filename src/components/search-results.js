@@ -1,56 +1,17 @@
-import { createClientSummary } from './entity-list.js';
+import { renderClientTable } from './entity-list.js';
+import { renderOpportunityTable } from './document-list.js';
+import { renderEmptyState } from './ui.js';
 
-/**
- * Resultados de oportunidades en la búsqueda: asunto, folio, etapa,
- * monto y cliente vinculado. Se muestran en una sección propia para no
- * mezclarlos sin etiqueta con los resultados de clientes.
- */
-export function createOpportunityResult({ document: opportunity, client }) {
-  const li = document.createElement('li');
-  li.className = 'opportunity-result';
-
-  const headline = document.createElement('div');
-  headline.className = 'client-summary-headline';
-  const title = document.createElement('strong');
-  title.textContent = opportunity.opportunityTitle || 'Sin asunto';
-  headline.appendChild(title);
-  const badge = document.createElement('span');
-  badge.className = 'status-badge';
-  badge.textContent = opportunity.status || 'Sin etapa';
-  headline.appendChild(badge);
-  li.appendChild(headline);
-
-  const meta = document.createElement('div');
-  meta.className = 'client-summary-meta';
-  const folio = `${opportunity.series ? `${opportunity.series}-` : ''}${opportunity.folio}`;
-  const amount =
-    opportunity.totalAmount === undefined || opportunity.totalAmount === null
-      ? 'sin monto'
-      : `${opportunity.totalAmount} ${opportunity.currency || ''}`.trim();
-  meta.textContent = [
-    `Folio: ${folio}`,
-    `Monto: ${amount}`,
-    `Responsable: ${opportunity.opportunityOwner || 'sin información'}`,
-    `Cliente: ${client ? `${client.name} (${client.code})` : 'sin información'}`
-  ].join(' · ');
-  li.appendChild(meta);
-
-  const actions = document.createElement('div');
-  actions.className = 'inline-actions';
-  const open = document.createElement('button');
-  open.type = 'button';
-  open.className = 'link-button';
-  open.dataset.openDocument = opportunity.id || '';
-  open.textContent = 'Ver detalle';
-  actions.appendChild(open);
-  li.appendChild(actions);
-
-  return li;
+function captionFor(kind, criterion, hasFilters) {
+  const suffix = criterion ? ` para «${criterion}»` : '';
+  const filters = hasFilters ? ' con filtros activos' : '';
+  return `${kind}${suffix}${filters}`;
 }
 
 /**
- * Renderiza los resultados de clientes y la sección de oportunidades.
- * No escribe en localStorage: buscar y consultar son operaciones de lectura.
+ * Renderiza las dos secciones de tabla de la búsqueda (clientes y
+ * oportunidades). No escribe en localStorage: buscar y consultar son
+ * operaciones de lectura.
  */
 export function renderSearchResults({
   clients = [],
@@ -58,27 +19,93 @@ export function renderSearchResults({
   listEl,
   emptyEl,
   hintEl,
+  clientsSection,
   opportunitiesSection,
   opportunitiesList,
-  hasCriterion
+  hasCriterion,
+  criterion = '',
+  hasFilters = false,
+  clientSort = { key: 'name', direction: 'asc' },
+  opportunitySort = { key: 'folio', direction: 'asc' },
+  onSortClients = null,
+  onSortOpportunities = null,
+  onClearFilters = null
 }) {
   listEl.innerHTML = '';
   opportunitiesList.innerHTML = '';
+  if (emptyEl) {
+    emptyEl.innerHTML = '';
+    emptyEl.hidden = true;
+  }
 
   if (!hasCriterion) {
     if (hintEl) hintEl.hidden = false;
-    if (emptyEl) emptyEl.hidden = true;
+    if (emptyEl) emptyEl.textContent = 'Sin coincidencias para tu búsqueda.';
+    if (clientsSection) clientsSection.hidden = true;
     if (opportunitiesSection) opportunitiesSection.hidden = true;
     return { clients: 0, opportunities: 0 };
   }
 
   if (hintEl) hintEl.hidden = true;
-  for (const client of clients) listEl.appendChild(createClientSummary(client));
-  for (const opportunity of opportunities) {
-    opportunitiesList.appendChild(createOpportunityResult(opportunity));
+  if (clientsSection) clientsSection.hidden = false;
+
+  const total = clients.length + opportunities.length;
+  if (total === 0) {
+    if (opportunitiesSection) opportunitiesSection.hidden = true;
+    if (emptyEl) {
+      emptyEl.appendChild(
+        renderEmptyState({
+          reason: 'no-matches',
+          message: 'Sin coincidencias para tu búsqueda.',
+          ctaLabel: 'Limpiar filtros',
+          ctaAction: onClearFilters,
+          icon: 'search'
+        })
+      );
+      emptyEl.hidden = false;
+    }
+    return { clients: 0, opportunities: 0 };
   }
-  if (opportunitiesSection) opportunitiesSection.hidden = opportunities.length === 0;
-  if (emptyEl) emptyEl.hidden = clients.length + opportunities.length > 0;
+
+  if (clients.length > 0) {
+    listEl.appendChild(
+      renderClientTable({
+        entities: clients,
+        sortKey: clientSort.key,
+        sortDirection: clientSort.direction,
+        onSort: onSortClients,
+        caption: captionFor('Clientes encontrados', criterion, hasFilters),
+        ariaLabel: 'Resultados de clientes'
+      })
+    );
+  } else {
+    listEl.appendChild(
+      renderEmptyState({
+        reason: 'no-matches',
+        message: 'Sin clientes que coincidan con la búsqueda.',
+        ctaLabel: 'Limpiar filtros',
+        ctaAction: onClearFilters,
+        icon: 'search'
+      })
+    );
+  }
+
+  if (opportunities.length > 0) {
+    if (opportunitiesSection) opportunitiesSection.hidden = false;
+    opportunitiesList.appendChild(
+      renderOpportunityTable({
+        items: opportunities,
+        sortKey: opportunitySort.key,
+        sortDirection: opportunitySort.direction,
+        onSort: onSortOpportunities,
+        caption: captionFor('Oportunidades encontradas', criterion, hasFilters),
+        ariaLabel: 'Resultados de oportunidades',
+        rowClassName: 'opportunity-result'
+      })
+    );
+  } else if (opportunitiesSection) {
+    opportunitiesSection.hidden = true;
+  }
 
   return { clients: clients.length, opportunities: opportunities.length };
 }

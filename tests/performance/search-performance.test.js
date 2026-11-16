@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
+import { sortRows } from '../../src/components/data-table.js';
 
 const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
@@ -139,6 +140,59 @@ describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidade
     expect(underBudget).toBeGreaterThanOrEqual(19);
     console.info(
       `[T063] panel: ${underBudget}/20 recálculos bajo 500 ms; más lento ${Math.max(...measurements).toFixed(1)} ms`
+    );
+  });
+});
+
+const clientSortColumns = [
+  { key: 'name', label: 'Cliente', sortable: true },
+  { key: 'accountOwner', label: 'Responsable', sortable: true },
+  { key: 'targetDate', label: 'Próximo contacto', sortable: true, numeric: true }
+];
+
+const opportunitySortColumns = [
+  { key: 'folio', label: 'Folio', sortable: true, numeric: true },
+  { key: 'opportunityTitle', label: 'Asunto', sortable: true },
+  { key: 'totalAmount', label: 'Monto', sortable: true, numeric: true }
+];
+
+function storageSnapshot() {
+  const data = {};
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    data[key] = localStorage.getItem(key);
+  }
+  return data;
+}
+
+describe('T030 — rendimiento de ordenamiento con 500 clientes y 1000 oportunidades', () => {
+  it('sorts 20 times with 19 of 20 under 500 ms and without touching localStorage', () => {
+    const clients = buildClients();
+    const documents = buildDocuments();
+    const before = storageSnapshot();
+    const measurements = [];
+
+    const targets = [
+      { rows: clients, columns: clientSortColumns, keys: ['name', 'accountOwner', 'targetDate'] },
+      { rows: documents, columns: opportunitySortColumns, keys: ['folio', 'opportunityTitle', 'totalAmount'] }
+    ];
+
+    for (let index = 0; index < 20; index += 1) {
+      const target = targets[index % targets.length];
+      const key = target.keys[index % target.keys.length];
+      const direction = index % 2 === 0 ? 'asc' : 'desc';
+      const start = performance.now();
+      const sorted = sortRows(target.rows, target.columns, key, direction);
+      measurements.push(performance.now() - start);
+      expect(sorted.length).toBe(target.rows.length);
+    }
+
+    expect(storageSnapshot()).toEqual(before);
+    const underBudget = measurements.filter((value) => value < 500).length;
+    expect(measurements.length).toBe(20);
+    expect(underBudget).toBeGreaterThanOrEqual(19);
+    console.info(
+      `[T030] ordenamientos: ${underBudget}/20 bajo 500 ms; más lento ${Math.max(...measurements).toFixed(1)} ms`
     );
   });
 });
