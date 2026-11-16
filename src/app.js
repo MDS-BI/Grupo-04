@@ -329,6 +329,12 @@ function closeFormDrawer({ force = true } = {}) {
   closeOverlay(openFormOverlay.id, { force });
 }
 
+/** Abre el drawer de alta sobre el módulo indicado (acciones del panel). */
+function openNewDrawer(module) {
+  if (!showModule(module, { newRecord: true })) return false;
+  return Boolean(openFormDrawer(module, 'new'));
+}
+
 /** Cierra el drawer del módulo tras guardar, sin abrir la confirmación. */
 function finishFormDrawer(module) {
   if (openFormOverlay && openFormOverlay.module === module) closeFormDrawer({ force: true });
@@ -990,6 +996,8 @@ function applyLabels(config) {
   qs('action-open-entities-sub').textContent = `Abrir la gestión de ${entities.toLowerCase()}`;
   qs('action-find-title').textContent = crm ? 'Buscar' : 'Buscar registros';
   qs('action-find-sub').textContent = `Buscar ${entities.toLowerCase()}`;
+  const emptyCta = qs('dashboard-empty-cta');
+  if (emptyCta) emptyCta.textContent = `Registra tu primer ${entity.toLowerCase()}`;
   const emptyHint = qs('dashboard-empty-hint');
   if (emptyHint) {
     emptyHint.textContent = `Aún no hay datos en el panel. Comienza registrando ${articulo(entity)} ${entity.toLowerCase()} y luego crea su primera ${document_.toLowerCase()}.`;
@@ -1404,10 +1412,10 @@ function wireEvents() {
     const card = event.target.closest('button[data-opportunity-id]');
     if (card && showModule('documents')) editOpportunityById(card.dataset.opportunityId);
   });
-  qs('action-new-entity').addEventListener('click', () => showModule('entities', { newRecord: true, focusForm: true }));
-  qs('action-new-document').addEventListener('click', () =>
-    showModule('documents', { newRecord: true, focusForm: true })
-  );
+  qs('action-new-entity').addEventListener('click', () => openNewDrawer('entities'));
+  qs('action-new-document').addEventListener('click', () => openNewDrawer('documents'));
+  const dashboardEmptyCta = qs('dashboard-empty-cta');
+  if (dashboardEmptyCta) dashboardEmptyCta.addEventListener('click', () => openNewDrawer('entities'));
   qs('action-open-entities').addEventListener('click', () => showModule('entities'));
   qs('action-find').addEventListener('click', () => showModule('search'));
   qs('entity-form').addEventListener('submit', handleEntitySubmit);

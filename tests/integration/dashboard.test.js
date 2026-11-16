@@ -190,7 +190,10 @@ describe('US7 — panel CRM con indicadores descriptivos', () => {
     await bootCrmDashboard();
     expect(qs('nav-dashboard').hidden).toBe(false);
     expect(qs('view-dashboard').hidden).toBe(false);
-    expect(qs('crm-stat-grid').hidden).toBe(false);
+    expect(qs('crm-stat-grid').hidden).toBe(true);
+    expect(qs('stage-distribution').hidden).toBe(true);
+    expect(qs('commercial-board').hidden).toBe(true);
+    expect(qs('dashboard-empty-state').hidden).toBe(false);
     expect(qs('stat-clients').textContent).toBe('0');
   });
 
@@ -208,6 +211,9 @@ describe('US7 — panel CRM con indicadores descriptivos', () => {
     expect(qs('stat-close-rate').textContent).toBe('Sin datos');
     expect(qs('dashboard-empty-hint').hidden).toBe(false);
     expect(qs('dashboard-empty-hint').textContent).toMatch(/comienz|registr/i);
+    expect(qs('crm-stat-grid').hidden).toBe(true);
+    expect(qs('stage-distribution').hidden).toBe(true);
+    expect(qs('commercial-board').hidden).toBe(true);
   });
 
   it('calculates the six indicators with the data-model control fixture', async () => {
@@ -221,6 +227,11 @@ describe('US7 — panel CRM con indicadores descriptivos', () => {
     expect(qs('stat-today-contacts').textContent).toBe('1');
     expect(qs('stat-close-rate').textContent).toBe('50%');
     expect(qs('dashboard-empty-hint').hidden).toBe(true);
+    expect(qs('dashboard-empty-state').hidden).toBe(true);
+    expect(qs('crm-stat-grid').hidden).toBe(false);
+    expect(qs('stage-distribution').hidden).toBe(false);
+    expect(qs('commercial-board').hidden).toBe(false);
+    expect(qs('crm-stat-grid').className).toContain('kpi-band');
   });
 
   it('removes a lost opportunity from the open amount when returning to the panel', async () => {

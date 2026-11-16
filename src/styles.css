@@ -266,6 +266,34 @@ textarea:focus-visible {
   font-size: var(--text-sm);
 }
 
+/* Banda compacta de indicadores del panel CRM. */
+.kpi-band {
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.kpi-band .stat-card,
+.kpi {
+  flex: 1 1 150px;
+  max-width: none;
+  gap: 4px;
+  padding: 16px;
+}
+
+.kpi-band .stat-value,
+.kpi__value {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-band .stat-label,
+.kpi__label {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
 #quick-actions-heading {
   margin-bottom: 12px;
 }
@@ -673,6 +701,18 @@ body.crm {
   gap: 14px;
   margin-bottom: 28px;
 }
+.board-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 8px;
+}
+.board-scroll .commercial-columns {
+  margin-bottom: 0;
+}
+.board-scroll:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
 .commercial-column {
   background: #e6ede9;
   border-radius: 12px;
@@ -710,6 +750,54 @@ body.crm {
 .commercial-card:hover {
   border-color: var(--accent);
   box-shadow: 0 3px 12px #123c3612;
+}
+
+/* Distribución por etapa: una fila por estado con conteo, monto y barra. */
+.stage-distribution {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.stage-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 140px) 40px 110px minmax(80px, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.stage-row:last-child {
+  border-bottom: 0;
+}
+
+.stage-row__label {
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.stage-row__count,
+.stage-row__amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.stage-row__amount {
+  color: var(--text-muted);
+}
+
+.stage-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  max-width: 100%;
 }
 @media (max-width: 800px) {
   .commercial-columns {
@@ -1184,6 +1272,32 @@ body.has-overlay {
   gap: 8px;
   padding: 24px;
   text-align: center;
+}
+
+.empty-state__icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.empty-state__icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+}
+
+.empty-state__cta {
+  margin-top: 8px;
 }
 
 .empty-state__text {

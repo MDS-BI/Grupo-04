@@ -83,3 +83,28 @@ export function closeRate(documents = []) {
 export function formatCloseRate(rate) {
   return rate === null || rate === undefined ? 'Sin datos' : `${rate}%`;
 }
+
+/**
+ * Distribución de oportunidades por estado del ciclo de vida.
+ *
+ * Devuelve un `StageBucket` por estado, en el orden recibido e incluyendo los
+ * estados en cero. No depende de `ModuleConfig`, no persiste nada y no calcula
+ * tasas de conversión: es una vista descriptiva para la banda de distribución
+ * y el tablero, que comparten esta única llamada.
+ */
+export function stageDistribution(documents = [], statuses = []) {
+  if (!Array.isArray(statuses) || statuses.length === 0) return [];
+  const buckets = statuses.map((status) => ({ status, count: 0, amount: 0 }));
+  const byStatus = new Map(buckets.map((bucket) => [bucket.status, bucket]));
+  if (!Array.isArray(documents)) return buckets;
+
+  for (const document of documents) {
+    if (!document) continue;
+    const bucket = byStatus.get(document.status);
+    if (!bucket) continue;
+    bucket.count += 1;
+    const amount = Number(document.totalAmount);
+    if (Number.isFinite(amount) && amount >= 0) bucket.amount += amount;
+  }
+  return buckets;
+}

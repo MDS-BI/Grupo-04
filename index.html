@@ -187,7 +187,7 @@
             </div>
           </div>
 
-          <div class="stat-grid" id="crm-stat-grid" hidden>
+          <div class="stat-grid kpi-band" id="crm-stat-grid" hidden>
             <div class="stat-card">
               <span class="stat-value" id="stat-clients">0</span>
               <span class="stat-label" id="stat-clients-label">Clientes registrados</span>
@@ -214,9 +214,39 @@
             </div>
           </div>
 
-          <p class="empty" id="dashboard-empty-hint" hidden>
-            Aún no hay datos en el panel. Comienza registrando un cliente y luego crea su primera oportunidad.
-          </p>
+          <div class="empty-state" id="dashboard-empty-state" hidden>
+            <span class="empty-state__icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 20 20"
+                width="48"
+                height="48"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M3 4.5h14v11H3z"></path>
+                <path d="M3 11h4l1.5 2h3L13 11h4"></path>
+              </svg>
+            </span>
+            <h2 class="empty-state__title">Tu panel está vacío</h2>
+            <p class="empty" id="dashboard-empty-hint" hidden>
+              Aún no hay datos en el panel. Comienza registrando un cliente y luego crea su primera oportunidad.
+            </p>
+            <button type="button" class="btn btn-primary empty-state__cta" id="dashboard-empty-cta">
+              Registra tu primer cliente
+            </button>
+          </div>
+
+          <section
+            id="stage-distribution"
+            class="stage-distribution"
+            hidden
+            aria-label="Distribución por etapa"
+          ></section>
 
           <section id="commercial-board" hidden aria-labelledby="commercial-board-heading">
             <div class="commercial-title">
@@ -225,7 +255,9 @@
                 Abre una oportunidad para gestionar su etapa. Los montos son estimaciones comerciales.
               </p>
             </div>
-            <div id="commercial-columns" class="commercial-columns"></div>
+            <div class="board-scroll" role="region" aria-label="Tablero comercial por etapa" tabindex="0">
+              <div id="commercial-columns" class="commercial-columns"></div>
+            </div>
           </section>
           <h2 id="quick-actions-heading">Acciones rápidas</h2>
           <div class="action-grid">

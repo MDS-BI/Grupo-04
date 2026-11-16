@@ -1,4 +1,5 @@
 import { getConfig, isCrmProfile } from '../module-config.js';
+import { stageDistribution } from '../crm-metrics.js';
 
 const money = (value) =>
   new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
@@ -13,22 +14,26 @@ let renderedSection;
 let renderedKey;
 
 // Deriva el tablero de los mismos registros del panel, sin una segunda persistencia.
+// Los conteos y montos vienen de `stageDistribution()`: misma fuente que la banda.
 export function renderCommercialBoard(clients, opportunities) {
   const section = document.getElementById('commercial-board');
   if (!section) return;
-  section.hidden = !isCrmProfile(getConfig());
-  const key = JSON.stringify([section.hidden, getConfig().statusLifecycle, clients, opportunities]);
+  const config = getConfig();
+  const statuses = (config.statusLifecycle && config.statusLifecycle.statuses) || [];
+  const buckets = stageDistribution(opportunities, statuses);
+  section.hidden = !isCrmProfile(config) || buckets.every((bucket) => bucket.count === 0);
+  const key = JSON.stringify([section.hidden, config.statusLifecycle, clients, opportunities]);
   if (renderedSection === section && renderedKey === key) return;
   renderedSection = section;
   renderedKey = key;
   const board = document.getElementById('commercial-columns');
   board.replaceChildren();
   if (section.hidden) return;
-  for (const status of getConfig().statusLifecycle.statuses) {
-    const rows = opportunities.filter((item) => item.status === status);
+  for (const bucket of buckets) {
+    const rows = opportunities.filter((item) => item.status === bucket.status);
     const column = element('section', '', 'commercial-column');
-    column.append(element('h3', `${status} · ${rows.length}`));
-    column.append(element('p', money(rows.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0)), 'muted'));
+    column.append(element('h3', `${bucket.status} · ${bucket.count}`));
+    column.append(element('p', money(bucket.amount), 'muted'));
     for (const item of rows) {
       const card = element('button', '', 'commercial-card');
       card.type = 'button';
