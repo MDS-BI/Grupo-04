@@ -12,6 +12,12 @@ function qs(id) {
   return document.getElementById(id);
 }
 
+function typeSearch(value) {
+  const input = qs('global-search-input');
+  input.value = value;
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+}
+
 function submitForm(id) {
   qs(id).dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
 }
@@ -106,17 +112,14 @@ describe('T070 — recorrido crítico del MVP P1', () => {
       expect(storage.loadDocuments()[0].status).toBe(stage);
     }
 
-    qs('nav-search').click();
-    qs('search-input').value = '3001';
-    qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    typeSearch('3001');
     const results = [...qs('search-opportunities-list').querySelectorAll('.opportunity-result')];
     expect(results.length).toBe(1);
     results[0].querySelector('[data-open-document]').click();
     expect(qs('opportunity-detail-body').textContent).toContain('Ganada');
     expect(qs('opportunity-detail-body').textContent).toContain('Empresa Demo 1');
 
-    qs('search-input').value = 'demo';
-    qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    typeSearch('demo');
     const clients = [...qs('search-results-list').querySelectorAll('.client-summary')];
     expect(clients.length).toBe(1);
     clients[0].querySelector('[data-open-entity]').click();

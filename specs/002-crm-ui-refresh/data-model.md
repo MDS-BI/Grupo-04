@@ -33,11 +33,13 @@ Los campos, obligatoriedad, validaciones y transiciones están definidos en `001
 | `ClientRow` | `Entity` | `entity_id`, `name`, `code`, `category`, `accountOwner`, `acquisitionSource`, `targetDate` | Estado de `targetDate` con `getTargetDateStatus` de `001` | No |
 | `OpportunityRow` | `Document` | `id`, `entity_id`, `opportunityTitle`, `series`, `folio`, `status`, `totalAmount`, `opportunityOwner`, `startDate`, `endDate` | Cliente asociado resuelto por `entity_id` | No |
 | `KpiBand` | `crm-metrics.js` | Los seis indicadores de `FR-024` | Fórmulas exactas de `001` | No |
-| `StageBucket` | `Document` | `status`, `count`, `amount` | Un bucket por estado del ciclo de vida, renderizado en el embudo existente | No |
+| `StageBucket` | `Document` | `status`, `count`, `amount` | Un bucket por estado del ciclo de vida; fuente única de la distribución y del tablero | No |
+| `StageBar` | `StageBucket[]` | `status`, `share` | Ancho proporcional al conteo sobre el total de oportunidades; `0` cuando el total es `0` | No |
 | `FilterChip` | `ModuleConfig` | `filterKey`, `value`, `label`, `active` | Activo si coincide con el `<select>` correspondiente | No |
 | `TableRowAction` | UI | `entityId`, `entityType`, `label` | Única acción por fila: “Editar”; abre el drawer y nunca elimina | No |
 | `TableEmptyState` | UI | `reason`, `ctaLabel`, `ctaAction` | `no-records` → “Nuevo cliente/oportunidad”; `no-matches` → “Limpiar filtros” | No |
 | `OverlayEntry` | UI | `id`, `variant`, `returnFocus`, `dirty` | Pila en memoria para drawer y modal, incluida la confirmación de descarte | No |
+| `NavPanelState` | UI | `open`, `returnFocus` | Panel de navegación desplegable bajo 900 px; estado en memoria | No |
 
 ### `ClientRow`
 
@@ -96,7 +98,22 @@ Reglas:
 - `totalAmount` se suma tal como está almacenado; no se convierten monedas ni se aplican impuestos.
 - Es **descriptivo**: no calcula probabilidades, no pondera etapas y no es una tasa de conversión.
 - Se recalcula en cada render del panel; nunca se escribe en `localStorage`.
-- El consumidor único es `renderCommercialBoard()`. No existe un `#stage-distribution` separado: el embudo es la distribución.
+- **Dos consumidores, una fuente**: `src/components/stage-distribution.js` (banda compacta) y `src/components/commercial-board.js` (tablero accionable) leen la misma llamada a `stageDistribution()` en el mismo render. No existe un segundo cálculo ni un agregado persistido, de modo que ambas presentaciones no pueden divergir.
+
+### `StageBar`
+
+```text
+StageBar
+  status  string   estado del ciclo de vida
+  share   número   0..1, count / total de oportunidades del render
+```
+
+Reglas:
+
+- `share` es una vista de presentación del ancho de la barra; el conteo y el monto visibles siguen siendo texto del `StageBucket`.
+- Si el total de oportunidades es `0`, `share` vale `0` en todos los estados: no se divide por cero ni se muestra `NaN` (`CA-UX-04-12`).
+- La barra es decorativa (`aria-hidden="true"`); la información accesible está en la etiqueta, el conteo y el monto.
+- No se persiste ni se guarda entre renders.
 
 ### `FilterChip`
 
@@ -140,6 +157,7 @@ Reglas:
 - `no-matches` cuando hay criterio en `#global-search-input` o algún filtro activo; la CTA limpia filtros y **no** borra el criterio.
 - `no-records` cuando no hay criterio, ni filtros, ni registros del tipo; la CTA abre el drawer de alta.
 - Con estado vacío no se renderiza `<tbody>`.
+- El icono del estado vacío es presentación pura: no forma parte del registro, es `aria-hidden` y no se persiste.
 - Es una vista de render: no se persiste ni se calcula antes de conocer los resultados.
 
 ### `OverlayEntry`
@@ -161,6 +179,21 @@ Reglas:
 - `confirm-discard` siempre usa `variant: 'modal'` y dos acciones: “Descartar” (`danger`) y “Seguir editando”.
 - La pila no se persiste ni sobrevive a una recarga.
 
+### `NavPanelState`
+
+```text
+NavPanelState
+  open         booleano   panel de navegación desplegable abierto (< 900 px)
+  returnFocus  HTMLElement  `#nav-toggle`, destino del foco al cerrar
+```
+
+Reglas:
+
+- Solo existe bajo 900 px; por encima de ese ancho la navegación es la barra lateral fija y no hay estado que guardar.
+- Se abre y cierra sin escribir en `localStorage`; una recarga vuelve al estado cerrado.
+- Al cerrar con `Escape`, clic en el fondo o el propio botón, el foco vuelve a `#nav-toggle`.
+- No sustituye a `OverlayEntry`: es navegación, no un diálogo, y no participa de la pila de overlays.
+
 ## Relaciones e integridad
 
 Sin cambios respecto de `001`:
@@ -179,6 +212,8 @@ Sin cambios respecto de `001`:
 - El orden de tabla y los filtros no se persisten; una recarga vuelve al orden por defecto y a la barra de filtros sin chips activos.
 - El criterio de `#global-search-input` y los filtros activos viven en memoria de la sesión de página; al vaciar el criterio se conservan los filtros y la vista de búsqueda permanece.
 - Las acciones por fila y los estados vacíos son vistas de render: no se escriben en `localStorage`.
+- El tema oscuro y el movimiento reducido **no son datos**: se resuelven con `prefers-color-scheme` y `prefers-reduced-motion` en CSS, no agregan claves ni se guardan, y no afectan `schemaVersion`.
+- El panel de navegación móvil vive en memoria (`NavPanelState`) y no se persiste.
 
 ## Modelo entidad-relación
 

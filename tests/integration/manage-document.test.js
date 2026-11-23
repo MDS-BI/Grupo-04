@@ -162,9 +162,9 @@ describe('User Story 12 - configured document status lifecycle', () => {
       status: 'order'
     });
 
-    qs('nav-search').click();
-    qs('search-input').value = 'acme';
-    qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    const searchInput = qs('global-search-input');
+    searchInput.value = 'acme';
+    searchInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
     const badge = qs('search-results-list').querySelector('.status-badge');
     expect(badge).not.toBeNull();
     expect(badge.textContent).toBe('order');

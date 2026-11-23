@@ -77,9 +77,9 @@ describe('User Story 7 - declare custom fields for records', () => {
     expect(saved.ingresosAnuales).toBe(5000);
     expect(saved.region).toBe('EMEA');
 
-    qs('nav-search').click();
-    qs('search-input').value = 'emea';
-    qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    const searchInput = qs('global-search-input');
+    searchInput.value = 'emea';
+    searchInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
     const items = [...qs('search-results-list').querySelectorAll('.entity-item')];
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('Región: EMEA');

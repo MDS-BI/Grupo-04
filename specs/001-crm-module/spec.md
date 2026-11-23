@@ -658,3 +658,247 @@ El curso permite desarrollar la parte técnica con IA. Registrar en el README o 
 - [ ] La terminología CRM se aplica en todas las vistas y existe fallback genérico.
 - [ ] La versión integrada se ejecuta con `npm test` y `npm run build` y los resultados quedan registrados.
 - [ ] Los tickets P2 están especificados y modelados, aunque se implementen en la segunda iteración.
+
+### Historia de Usuario 8 — Recuperar una operación de almacenamiento interrumpida (Prioridad: P1)
+
+Como **ejecutivo comercial**, quiero recuperar la información cuando una operación de guardado se interrumpe, para evitar que clientes, oportunidades y tickets queden incompletos o pierdan su relación.
+
+**Por qué esta prioridad**: Una falla puede afectar varios registros relacionados. Antes de informar éxito, el sistema debe disponer de una versión completa y recuperable.
+
+**Prueba independiente**: Registrar una empresa ficticia con una oportunidad y un ticket. Simular fallos durante el guardado, la eliminación y la recuperación. Reiniciar la aplicación y comprobar que no se acepta una combinación parcial de versiones.
+
+**Dependencias**: Gestión de clientes, oportunidades y tickets; persistencia local. La comprobación de integridad se complementa con la Historia de Usuario 9.
+
+#### Requisitos funcionales
+
+- **FR-08-01**: El sistema DEBE conservar una versión completa recuperable antes de sustituir información previamente guardada.
+- **FR-08-02**: El sistema DEBE tratar las operaciones que afectan registros relacionados como una unidad: se confirma el conjunto completo o se conserva la versión anterior.
+- **FR-08-03**: El sistema DEBE detectar operaciones interrumpidas al iniciar y completar su recuperación antes de habilitar nuevas escrituras.
+- **FR-08-04**: El sistema DEBE bloquear nuevas escrituras si no puede verificar una versión íntegra, informando el problema sin mostrar éxito falso.
+- **FR-08-05**: El sistema DEBE confirmar un guardado únicamente después de comprobar que la versión completa quedó persistida.
+- **FR-08-06**: El sistema DEBE informar y solicitar confirmación antes de una migración, conservando una versión recuperable y evitando conversiones silenciosas.
+
+#### Escenarios de aceptación
+
+1. **CA-08-01** — **Dado** un conjunto guardado, **cuando** se interrumpe una actualización, **entonces** se conserva una versión completa recuperable y no se confirma el cambio como terminado.
+
+2. **CA-08-02** — **Dado** un cliente con oportunidades y tickets, **cuando** falla su eliminación en cascada, **entonces** la recuperación conserva el conjunto anterior completo o la eliminación completa confirmada, sin aceptar una eliminación parcial.
+
+3. **CA-08-03** — **Dada** una operación interrumpida, **cuando** se inicia la aplicación, **entonces** se comprueba si existe una recuperación pendiente antes de permitir modificaciones.
+
+4. **CA-08-04** — **Dada** una recuperación que no puede completarse, **cuando** se intenta modificar información, **entonces** se bloquea la escritura y se informa el problema sin asegurar una conservación que no pudo verificarse.
+
+5. **CA-08-05** — **Dado** un guardado confirmado, **cuando** se recarga la aplicación, **entonces** permanecen todos los cambios confirmados y sus relaciones.
+
+6. **CA-08-06** — **Dado** un formato anterior que necesita conversión, **cuando** se solicita migrarlo, **entonces** se explica el cambio, se pide confirmación y se conserva una versión recuperable.
+
+7. **CA-08-07** — **Dada** una migración propuesta, **cuando** el usuario cancela, **entonces** se conserva el formato original y no se habilitan operaciones incompatibles con esa versión.
+
+8. **CA-08-08** — **Dado** que no existe espacio suficiente para preparar una versión recuperable, **cuando** se intenta guardar, **entonces** se rechaza la operación antes de reemplazar la versión vigente y se conserva el formulario.
+
+#### Notas técnicas
+
+- Centralizar la escritura y recuperación en `src/storage.js`; los componentes no escriben directamente en `localStorage`.
+- Documentar en `contracts/entity-storage.md` el protocolo utilizado para preparar, confirmar y recuperar una versión.
+- No considerar varias escrituras separadas como una transacción garantizada sin un mecanismo de recuperación.
+- Validar el conjunto antes de confirmarlo, reutilizando la comprobación de integridad de la Historia de Usuario 9.
+- Distinguir una migración del formato persistido de una recuperación del mismo formato.
+- Si se incorporan claves o versiones nuevas, actualizar modelo, contrato y documentación de migración. Este cambio corresponde a persistencia, no al rediseño visual.
+- La recuperación protege frente a interrupciones de la aplicación; no sustituye un respaldo externo ni recupera datos borrados por el usuario desde el navegador.
+- Probar fallos en cada etapa, incluidos fallos durante la propia recuperación y reinicios entre escrituras.
+
+**Trazabilidad**: FR-08-01 y FR-08-02 → CA-08-01, CA-08-02 y CA-08-08; FR-08-03 y FR-08-04 → CA-08-03 y CA-08-04; FR-08-05 → CA-08-05; FR-08-06 → CA-08-06 y CA-08-07.
+
+---
+
+### Historia de Usuario 9 — Verificar la integridad de la cartera almacenada (Prioridad: P1)
+
+Como **usuario del CRM**, quiero comprobar la integridad de clientes, oportunidades y tickets antes de utilizarlos o guardar cambios, para trabajar con información coherente y evitar registros incompatibles o sin relación.
+
+**Por qué esta prioridad**: La integridad debe protegerse tanto en formularios como en guardados completos y datos provenientes de versiones anteriores.
+
+**Prueba independiente**: Preparar datos sintéticos con referencias huérfanas, identificadores repetidos, códigos duplicados y valores inválidos. Comprobar que se detectan sin eliminar ni corregir automáticamente los originales.
+
+**Dependencias**: Modelo de clientes, oportunidades y tickets; reglas de dominio existentes. Complementa la recuperación de la Historia de Usuario 8.
+
+#### Requisitos funcionales
+
+- **FR-09-01**: El sistema DEBE verificar la estructura, versión, campos obligatorios y tipos de los registros antes de habilitar su modificación.
+- **FR-09-02**: El sistema DEBE comprobar la unicidad de los identificadores y códigos según las reglas del modelo, incluida la pareja serie y folio de las oportunidades.
+- **FR-09-03**: El sistema DEBE comprobar que cada oportunidad y ticket esté vinculado a un cliente existente.
+- **FR-09-04**: El sistema DEBE aplicar las mismas reglas de dominio en formularios, operaciones individuales y guardados completos.
+- **FR-09-05**: El sistema DEBE validar los cambios de estado comparándolos con la versión anterior, rechazando transiciones no permitidas.
+- **FR-09-06**: El sistema DEBE rechazar un conjunto inválido sin persistirlo parcialmente, indicando el registro o campo afectado.
+- **FR-09-07**: El sistema DEBE conservar campos históricos desconocidos sin reinterpretarlos y requerir una migración explícita cuando exista incompatibilidad.
+
+#### Escenarios de aceptación
+
+1. **CA-09-01** — **Dados** registros almacenados, **cuando** se inicia la aplicación, **entonces** se verifican su estructura, campos obligatorios y relaciones antes de habilitar modificaciones.
+
+2. **CA-09-02** — **Dada** una oportunidad o un ticket cuyo cliente no existe, **cuando** se verifica el conjunto, **entonces** se identifica la referencia inválida y no se asigna otro cliente automáticamente.
+
+3. **CA-09-03** — **Dados** identificadores repetidos o códigos duplicados después de normalizarlos, **cuando** se intenta guardar, **entonces** se rechaza la operación sin alterar la versión anterior.
+
+4. **CA-09-04** — **Dada** una oportunidad con monto, fechas o etapa incompatibles, **cuando** se guarda por cualquier mecanismo disponible, **entonces** se aplican las mismas reglas del formulario.
+
+5. **CA-09-05** — **Dado** un cambio de etapa, **cuando** se valida, **entonces** se compara con el estado anterior y se rechazan saltos y reaperturas no permitidos.
+
+6. **CA-09-06** — **Dada** una inconsistencia en un guardado completo, **cuando** se confirma la operación, **entonces** no se guarda únicamente una parte ni se muestra éxito.
+
+7. **CA-09-07** — **Dados** campos históricos desconocidos, **cuando** se revisan o actualizan los registros, **entonces** se conservan sin reinterpretarlos y se informa cualquier incompatibilidad que requiera migración.
+
+8. **CA-09-08** — **Dadas** dos oportunidades con la misma pareja de serie y folio, **cuando** se valida el conjunto, **entonces** se rechaza el duplicado y se identifican los registros afectados.
+
+9. **CA-09-09** — **Dado** un conjunto válido con oportunidades cerradas, **cuando** se carga para consulta, **entonces** sus estados se conservan sin exigir reconstruir transiciones históricas que el sistema no registra.
+
+10. **CA-09-10** — **Dada** una eliminación válida de cliente con sus registros relacionados, **cuando** se verifica el conjunto resultante, **entonces** no quedan oportunidades ni tickets huérfanos.
+
+#### Notas técnicas
+
+- Mantener las reglas de negocio en `src/crm-rules.js` y utilizarlas desde `src/storage.js` y los formularios.
+- Incorporar una validación del conjunto completo antes de confirmar cualquier escritura.
+- Diferenciar la validación de un estado almacenado de la validación de una transición: cargar una oportunidad “Ganada” válida no equivale a crearla directamente en esa etapa.
+- Comparar las actualizaciones con los registros anteriores para proteger identificadores inmutables y estados finales.
+- No inferir ni inventar un historial de transiciones.
+- Los errores deben identificar registros mediante referencias comprensibles, como código de cliente o serie y folio.
+- Los mecanismos de preparación de datos de prueba no deben habilitar excepciones de validación en producción.
+- Añadir pruebas unitarias de integridad y pruebas de integración que comparen el almacenamiento antes y después de un rechazo.
+
+**Trazabilidad**: FR-09-01 → CA-09-01 y CA-09-09; FR-09-02 → CA-09-03 y CA-09-08; FR-09-03 → CA-09-02 y CA-09-10; FR-09-04 → CA-09-04; FR-09-05 → CA-09-05; FR-09-06 → CA-09-06; FR-09-07 → CA-09-07.
+
+---
+
+### Historia de Usuario 10 — Proteger el trabajo en el alta rápida de clientes (Prioridad: P1)
+
+Como **ejecutivo comercial**, quiero conservar la información que completo cuando registro un cliente desde una oportunidad, para continuar el proceso sin perder datos ni guardar sobre información desactualizada.
+
+**Por qué esta prioridad**: El alta rápida conecta clientes y oportunidades y necesita las mismas protecciones de guardado y descarte que los formularios principales.
+
+**Prueba independiente**: Completar parcialmente una oportunidad, abrir el alta rápida y modificar ambos formularios. Probar guardar, cancelar, cerrar con teclado y recibir un cambio relevante desde otra pestaña.
+
+**Dependencias**: Registro de clientes y oportunidades; alta rápida y ventanas superpuestas del rediseño de interfaz.
+
+#### Requisitos funcionales
+
+- **FR-10-01**: El sistema debe conservar los datos de la oportunidad mientras se abre, utiliza o cancela el alta rápida.
+- **FR-10-02**: El sistema debe solicitar confirmación antes de descartar cambios del alta rápida, independientemente del mecanismo de cierre.
+- **FR-10-03**: El sistema debe seleccionar en la oportunidad al cliente creado correctamente, sin borrar los demás campos.
+- **FR-10-04**: El sistema debe distinguir el cliente ya guardado de la oportunidad todavía pendiente, aclarando que cancelar esta última no elimina al cliente.
+- **FR-10-05**: El sistema debe bloquear el guardado del alta rápida cuando existan cambios relevantes de otra pestaña que vuelvan obsoleto el formulario.
+- **FR-10-06**: El sistema debe mantener el foco dentro de la ventana superior y devolverlo al control correspondiente al cerrarla.
+- **FR-10-07**: El sistema debe conservar lo escrito ante errores de validación o persistencia y evitar confirmaciones de éxito falsas.
+- **FR-10-08**: El sistema debe ignorar cambios de almacenamiento ajenos al CRM al determinar si el formulario está obsoleto.
+
+#### Escenarios de aceptación
+
+1. **CA-10-01** — **Dada** una oportunidad con información ingresada, **cuando** se abre el alta rápida, **entonces** se conservan sus campos.
+
+2. **CA-10-02** — **Dada** un alta rápida modificada, **cuando** se intenta cerrar con Cancelar, Escape o clic fuera, **entonces** se ofrecen “Descartar” y “Seguir editando”.
+
+3. **CA-10-03** — **Dada** esa confirmación, **cuando** se selecciona “Seguir editando”, **entonces** se conserva todo lo introducido.
+
+4. **CA-10-04** — **Dada** esa confirmación, **cuando** se selecciona “Descartar”, **entonces** se cierra únicamente el alta rápida, no se crea el cliente y la oportunidad conserva sus datos.
+
+5. **CA-10-05** — **Dado** un cliente válido guardado al vuelo, **cuando** finaliza el guardado, **entonces** queda seleccionado en la oportunidad sin borrar lo escrito.
+
+6. **CA-10-06** — **Dado** un cliente creado al vuelo, **cuando** posteriormente se cancela la oportunidad, **entonces** el cliente permanece guardado y se aclara ese resultado.
+
+7. **CA-10-07** — **Dado** un cambio relevante del CRM desde otra pestaña, **cuando** se intenta guardar en el alta rápida, **entonces** se bloquea la operación, se conserva lo escrito y se informa que debe recargarse la aplicación. Antes de recargar se permite revisar y copiar los datos pendientes.
+
+8. **CA-10-08** — **Dados** formularios superpuestos, **cuando** se utiliza el teclado, **entonces** solo el elemento superior recibe el foco y, al cerrarlo, este vuelve al control que lo abrió.
+
+9. **CA-10-09** — **Dado** un cambio de almacenamiento ajeno al CRM, **cuando** se recibe el aviso del navegador, **entonces** no se bloquea innecesariamente el formulario.
+
+10. **CA-10-10** — **Dado** un cliente con campos inválidos o código duplicado, **cuando** se intenta guardar desde el alta rápida, **entonces** se muestran los errores, no se crea el registro y se conservan ambos formularios.
+
+11. **CA-10-11** — **Dado** un error de almacenamiento durante el alta rápida, **cuando** falla el guardado, **entonces** no se cierra el formulario ni se selecciona un cliente inexistente en la oportunidad.
+
+12. **CA-10-12** — **Dado** un alta rápida sin cambios, **cuando** se cierra, **entonces** se vuelve a la oportunidad sin solicitar un descarte innecesario.
+
+#### Notas técnicas
+
+- Reutilizar `validateClient` y las operaciones de `src/storage.js`; no duplicar reglas en `src/components/quick-create-client.js`.
+- Compartir la protección ante datos obsoletos con los formularios principales de `src/app.js`.
+- Considerar relevantes las claves utilizadas por el CRM y el borrado completo del almacenamiento; ignorar claves de otras funcionalidades.
+- Registrar cambios reales en el alta rápida para decidir si corresponde mostrar la confirmación de descarte.
+- Utilizar el controlador de `src/components/ui-overlay.js` para foco, cierre y superposición.
+- Conservar el formulario de oportunidad en memoria mientras se utiliza el alta rápida. Esta historia no promete restaurar borradores después de recargar.
+- El cliente y la oportunidad son guardados independientes: un cliente confirmado permanece aunque luego se cancele la oportunidad.
+- Ampliar las pruebas de alta rápida con cancelación, errores, cambio de pestaña, foco y conservación de campos.
+
+**Trazabilidad**: FR-10-01 → CA-10-01 y CA-10-04; FR-10-02 → CA-10-02, CA-10-03 y CA-10-12; FR-10-03 → CA-10-05; FR-10-04 → CA-10-06; FR-10-05 → CA-10-07; FR-10-06 → CA-10-08; FR-10-07 → CA-10-10 y CA-10-11; FR-10-08 → CA-10-09.
+
+---
+
+### Historia de Usuario 11 — Registrar la solución del ticket y distinguir el equipo atendido (Prioridad: P2)
+
+Como **técnico de soporte**, quiero identificar el equipo atendido y registrar la solución aplicada al resolver un ticket, para consultar qué problema presentó y qué atención recibió.
+
+**Por qué esta prioridad**: Marcar un ticket como resuelto no explica qué se hizo. Distinguir equipos del mismo producto completa el seguimiento de posventa sin exigir un módulo de inventario.
+
+**Prueba independiente**: Crear dos tickets de una empresa ficticia para equipos del mismo producto con referencias distintas. Resolverlos con soluciones diferentes y comprobar que los datos permanecen después de recargar.
+
+**Dependencias**: Registro y consulta de tickets. Los cambios de esquema utilizan la migración explícita y la protección de datos de las Historias de Usuario 8 y 9.
+
+#### Requisitos funcionales
+
+- **FR-11-01**: El sistema DEBE permitir una referencia opcional del equipo, como número de serie o código interno, sin exigir un catálogo de inventario.
+- **FR-11-02**: El sistema DEBE mostrar “Equipo no individualizado” cuando no exista referencia.
+- **FR-11-03**: El sistema DEBE exigir un resumen de solución no vacío al pasar un ticket de “En proceso” a “Resuelto”.
+- **FR-11-04**: El sistema DEBE guardar la solución, el estado final y la fecha y hora de resolución como una sola operación.
+- **FR-11-05**: El sistema DEBE mostrar y conservar la referencia del equipo, la solución y la fecha de resolución después de navegar o recargar.
+- **FR-11-06**: El sistema DEBE conservar el estado final, la solución y la fecha de resolución al editar otros campos permitidos, sin permitir reapertura.
+- **FR-11-07**: El sistema DEBE conservar los tickets históricos mediante una migración explícita, identificando los datos de resolución ausentes sin inventarlos.
+- **FR-11-08**: El sistema DEBE presentar los textos ingresados como contenido seguro, sin ejecutar HTML ni scripts.
+
+#### Escenarios de aceptación
+
+1. **CA-11-01** — **Dado** un ticket asociado a cliente y producto, **cuando** se conoce la referencia individual del equipo, **entonces** puede registrarse su número de serie o código interno.
+
+2. **CA-11-02** — **Dado** que no se conoce esa referencia, **cuando** se completan los demás campos obligatorios, **entonces** se permite guardar y el detalle muestra “Equipo no individualizado”.
+
+3. **CA-11-03** — **Dado** un ticket “En proceso”, **cuando** se solicita resolverlo, **entonces** se exige un resumen de la solución o atención realizada.
+
+4. **CA-11-04** — **Dado** un resumen vacío o compuesto solo por espacios, **cuando** se confirma la resolución, **entonces** se impide el cambio y se conserva lo escrito.
+
+5. **CA-11-05** — **Dado** un resumen válido, **cuando** se confirma la resolución, **entonces** se guarda la solución, se genera la fecha y hora de resolución y el estado cambia a “Resuelto”.
+
+6. **CA-11-06** — **Dado** un ticket resuelto, **cuando** se consulta, **entonces** se muestran cliente, producto, referencia disponible, problema, solución y fecha de resolución.
+
+7. **CA-11-07** — **Dados** equipos del mismo producto con referencias distintas, **cuando** se consultan sus tickets, **entonces** se distingue cuál corresponde a cada equipo.
+
+8. **CA-11-08** — **Dado** un ticket resuelto guardado, **cuando** se recarga, **entonces** permanecen su estado, referencia, solución y fecha de resolución.
+
+9. **CA-11-09** — **Dado** un ticket histórico resuelto sin esos datos, **cuando** se migra explícitamente, **entonces** se conserva identificado como histórico, sin inventar solución ni fecha.
+
+10. **CA-11-10** — **Dado** un ticket resuelto, **cuando** se editan otros campos permitidos, **entonces** se conservan el estado final, la solución y la fecha de resolución; no se permite reabrirlo.
+
+11. **CA-11-11** — **Dado** un error durante el guardado de la resolución, **cuando** la operación no puede completarse, **entonces** no se confirma el ticket como resuelto y se conserva el resumen escrito para volver a intentarlo.
+
+12. **CA-11-12** — **Dado** un resumen que contiene etiquetas HTML o código, **cuando** se guarda y consulta, **entonces** se muestra como texto sin ejecutarse.
+
+#### Actualización del modelo de datos
+
+Se incorporan los siguientes campos a Ticket:
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `equipmentReference` | Texto opcional | Referencia del equipo, recortada. No es una clave única global ni sustituye a `productId`. |
+| `resolutionSummary` | Texto | Obligatorio al resolver un ticket nuevo; no puede contener únicamente espacios. |
+| `resolvedAt` | Fecha y hora ISO 8601 | Generada por el sistema al resolver; se conserva en ediciones posteriores. |
+| `legacyResolutionIncomplete` | Booleano | Generado únicamente por la migración para identificar tickets históricos resueltos sin solución o fecha verificable. No editable por el usuario. |
+
+Los tickets nuevos se crean en “En proceso”, sin `resolvedAt`. La ausencia de datos de resolución solo se admite en tickets históricos identificados por la migración. Los campos existentes de cliente, producto, motivo, descripción, prioridad y estado conservan su significado.
+
+#### Notas técnicas
+
+- Ampliar las reglas de tickets en `src/crm-rules.js` y sus operaciones en `src/storage.js`.
+- Actualizar formulario, listado o detalle en `src/components/ticket-form.js` y `src/components/ticket-list.js`.
+- La acción “Resolver” debe solicitar el resumen antes de confirmar el cambio.
+- Generar `resolvedAt` desde el sistema, no como un campo ingresado manualmente.
+- Guardar estado, resumen y fecha mediante el mismo mecanismo protegido de persistencia.
+- Actualizar `data-model.md`, el contrato, el MER y la documentación de migración.
+- Mantener Producto como referencia externa; no crear tablas de inventario, ventas o garantías.
+- Añadir pruebas de resolución válida, resumen vacío, persistencia, errores de escritura, datos históricos y renderizado seguro.
+
+**Trazabilidad**: FR-11-01 → CA-11-01 y CA-11-07; FR-11-02 → CA-11-02; FR-11-03 → CA-11-03 y CA-11-04; FR-11-04 → CA-11-05 y CA-11-11; FR-11-05 → CA-11-06 y CA-11-08; FR-11-06 → CA-11-10; FR-11-07 → CA-11-09; FR-11-08 → CA-11-12.

@@ -4,7 +4,7 @@ Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite r
 
 > **Estado**: MVP P1 y segunda iteración P2 (tickets y panel) implementados y verificados con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes.
 >
-> **Iteración 3 — rediseño de interfaz**: especificada en `specs/002-crm-ui-refresh/` (navegación, drawers, tablas, filtros y panel accionable). Parte de la integración visual del equipo (`5aa9799`) y la formaliza: conserva el embudo comercial y la identidad verde, extrae su cálculo a una función con pruebas y cubre el estado vacío, atendiendo el hallazgo del Avance 03. No modifica entidades, reglas ni persistencia.
+> **Iteración 3 — rediseño de interfaz**: especificada en `specs/002-crm-ui-refresh/` (navegación, drawers, tablas densas, filtros, panel accionable, identidad neutra y alcance responsive). Parte de la integración visual del equipo (`5aa9799`) y la formaliza: conserva el embudo comercial como tablero accionable, añade una banda compacta de distribución por etapa alimentada por el mismo cálculo, aplica una escala tipográfica cerrada y cubre el estado vacío con icono, atendiendo el hallazgo del Avance 03. El sistema visual se completa con base neutra, escala de espacio de 8 px, superficies jerarquizadas, componentes unificados, movimiento con `prefers-reduced-motion` y navegación desplegable bajo 900 px con tabla como tarjetas bajo 640 px; el tema oscuro es opcional y solo por tokens. No modifica entidades, reglas ni persistencia. **Estado de la iteración**: fases 1–3 (T001–T017: base visual, overlays, búsqueda global y navegación) implementadas; fases 4–11 pendientes.
 
 ## Integrantes
 
@@ -183,6 +183,33 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 | 2026-11-15 | Rendimiento (T063): 500 clientes y 1000 oportunidades, 20 búsquedas y 20 recálculos del panel | `npx vitest run tests/performance/search-performance.test.js --reporter=verbose` | jsdom sobre Node.js 24.20.0, Windows 11, equipo de desarrollo del grupo. Búsquedas: 20/20 bajo 500 ms (más lenta 4,3 ms). Panel: 20/20 recálculos bajo 500 ms (más lento 35,7 ms). Cada medición validó el resultado renderizado (coincidencia única de cliente/folio y los seis indicadores correctos). |
 | Pendiente | Validación manual en navegadores (T066) | Escenarios 1–4 y 6 de `quickstart.md` en Chrome y Firefox actuales; Edge/Safari y pantalla estrecha | **Pendiente declarada**: no se ejecutó en navegadores reales. Las comprobaciones DOM se hicieron en jsdom. |
 | Pendiente | Protocolo de usabilidad (T069) | 5 participantes, 4 tareas, SC-001 a SC-004 | **Pendiente declarada**: no se ejecutó. No se reportan tiempos ni tasas de éxito sin medición. |
+
+### Evidencias de la feature 002 — fases 1–3 (2026-11-16)
+
+**T001 — enmienda de `001`**: verificada sin ediciones. `FR-036` está en `specs/001-crm-module/spec.md:517`, `CA-06-11` en `:422` y los punteros a `002` en `:7` y `:20` (commit `0caa9e0`).
+
+**T002 — línea base sobre `e47f4d9`**:
+
+| Comando | Salida real |
+|---|---|
+| `npm test -- --run` | 29 archivos y 280 pruebas aprobadas; 67,88 s (transform 706 ms, setup 598 ms, import 865 ms, tests 14,59 s, environment 43,92 s). |
+| `npm run lint` | ESLint sin hallazgos. |
+| `npm run format:check` | `All matched files use Prettier code style!` |
+| `npm run build` | Vite correcto: HTML 25,73 kB (gzip 4,21 kB), CSS 8,67 kB (gzip 2,54 kB), JS 70,76 kB (gzip 18,79 kB); 180 ms. |
+
+**Cierre de las fases 1–3 (T001–T017)**:
+
+| Comando | Salida real |
+|---|---|
+| `npm test -- --run` | 31 archivos y 296 pruebas aprobadas: 280 heredadas + 7 de `ui-overlay` + 9 de `ui-shell`; 66,26 s. |
+| `npm run lint` | ESLint sin hallazgos. |
+| `npm run format:check` | `All matched files use Prettier code style!` |
+| `npm run build` | Vite correcto: HTML 27,42 kB (gzip 4,44 kB), CSS 12,73 kB (gzip 3,33 kB), JS 80,63 kB (gzip 21,52 kB); 139 ms. |
+
+- **Fase 2 entregada**: `#overlay-root`, tokens (`--radius-lg`, `--radius-xl`, `--shadow-sm`, `--shadow-md`, escala tipográfica cerrada 12/14/16/20/28, pesos 400/500/600 y `--text-muted`), `:focus-visible` global, `.req`, etiquetas en peso 500, `ui-overlay.js` (pila en memoria, trampa de foco, `returnFocus`, `confirm-discard`, `aria-modal` y bloqueo de fondo sin `inert`), `ui.js` y estilos de drawer (480 px), modal, velo, pantalla completa bajo 640 px y variantes `.btn-*`.
+- **Fase 3 entregada**: búsqueda global en `header.topbar`, submenús “Listado / Nuevo” generados desde `ModuleConfig`, `#topbar-primary-action`, drawer que traslada el formulario existente sin clonarlo, `confirmDiscardChanges()` usado en `showModule()`, `onLocationChange()` y `hashchange`/`popstate`, y un único `aria-current="page"` según vista y modo. `#nav-search`, `#search-input` y `opts.focusSearch` ya no existen.
+- **Recorrido del Escenario 1 de `quickstart.md`**: ejecutado a nivel DOM con jsdom sobre `index.html` y el perfil CRM (buscar `CLI-DEMO-003`, llegar a resultados, expandir Clientes y Oportunidades, abrir “Nuevo” con foco en el primer campo, navegar con cambios y ver el modal, “Seguir editando” y “Descartar”, enlace directo `#/search`, ruta inválida con respaldo, vaciar el criterio conservando filtros y comprobar la lupa decorativa). **La validación en navegador real sigue pendiente (T051)**; no se declara ejecutada.
+- **Desviación declarada**: `tests/integration/dashboard.test.js` conserva su migración completa para T041, pero se ajustó **una sola línea** (`qs('search-input')` → `qs('global-search-input')`) en el caso del foco de `#action-find`, porque T012/T017 eliminan el input de la vista y, sin ese ajuste, la suite heredada no podía quedar en verde. No se añadieron los asertos de `hidden` de T041.
 
 ### Pendientes declarados
 

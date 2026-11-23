@@ -48,23 +48,27 @@ export function renderDashboard() {
     reportReadError(error);
   }
 
+  const isEmpty = entities.length === 0 && documents.length === 0;
+
   renderCommercialBoard(entities, documents);
 
   const baseGrid = document.getElementById('base-stat-grid');
   if (baseGrid) baseGrid.hidden = crm;
   const crmGrid = document.getElementById('crm-stat-grid');
-  if (crmGrid) crmGrid.hidden = !crm;
+  if (crmGrid) crmGrid.hidden = !crm || isEmpty;
+  const distribution = document.getElementById('stage-distribution');
+  if (distribution) distribution.hidden = !crm || isEmpty;
+  const emptyState = document.getElementById('dashboard-empty-state');
+  if (emptyState) emptyState.hidden = !crm || !isEmpty;
+  const hint = document.getElementById('dashboard-empty-hint');
+  if (hint) hint.hidden = !crm || !isEmpty;
 
   setText('stat-entities', entities.length);
   setText('stat-documents', documents.length);
   setText('stat-entities-label', labels.entities);
   setText('stat-documents-label', labels.documents);
 
-  const hint = document.getElementById('dashboard-empty-hint');
-  if (!crm) {
-    if (hint) hint.hidden = true;
-    return;
-  }
+  if (!crm) return;
 
   const clients = countClients(entities);
   const openCount = countOpenOpportunities(documents);
@@ -86,6 +90,4 @@ export function renderDashboard() {
   setText('stat-overdue-followups-label', 'Seguimientos vencidos');
   setText('stat-today-contacts-label', 'Contactos para hoy');
   setText('stat-close-rate-label', 'Tasa de cierre');
-
-  if (hint) hint.hidden = !(entities.length === 0 && documents.length === 0);
 }

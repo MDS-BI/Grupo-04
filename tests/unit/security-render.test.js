@@ -89,9 +89,9 @@ describe('T060 — renderizado seguro de texto', () => {
     expect(list.textContent).toContain(SCRIPT_NAME);
     expect(list.querySelector('img')).toBeNull();
 
-    qs('nav-search').click();
-    qs('search-input').value = 'img';
-    qs('search-input').dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    const searchInput = qs('global-search-input');
+    searchInput.value = 'img';
+    searchInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
     const results = qs('search-opportunities-list');
     expect(results.textContent).toContain(SCRIPT_NAME);
     expect(results.querySelector('img')).toBeNull();

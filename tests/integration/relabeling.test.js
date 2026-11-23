@@ -12,6 +12,12 @@ function qs(id) {
   return document.getElementById(id);
 }
 
+function typeSearch(value = '') {
+  const input = qs('global-search-input');
+  input.value = value;
+  input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+}
+
 beforeEach(async () => {
   dom = new JSDOM(html, { url: 'http://localhost/' });
   const w = dom.window;
@@ -44,7 +50,7 @@ describe('User Story 6 - relabel screens from configuration', () => {
     qs('nav-entities').click();
     expect(qs('entity-form-heading').textContent).toBe('Agregar / Editar Entidad');
     expect(qs('delete-entity').textContent).toBe('Eliminar la entidad seleccionada');
-    qs('nav-search').click();
+    typeSearch('');
     expect(qs('search-view-heading').textContent).toBe('Buscar Entidades');
   });
 
@@ -73,7 +79,7 @@ describe('User Story 6 - relabel screens from configuration', () => {
     expect(qs('edit-document-heading').textContent).toBe('Editar o eliminar el pedido de venta');
     expect(qs('delete-document').textContent).toBe('Eliminar el pedido de venta seleccionado');
 
-    qs('nav-search').click();
+    typeSearch('');
     expect(qs('search-view-heading').textContent).toBe('Buscar Clientes');
     expect(qs('search-empty').textContent).toContain('coincidencias');
   });
@@ -116,7 +122,7 @@ describe('US6 — terminología comercial consistente con el perfil CRM', () => 
     expect(qs('brand-name').textContent).toBe('CRM — Clientes y Oportunidades');
     expect(qs('nav-entities-label').textContent).toBe('Clientes');
     expect(qs('nav-documents-label').textContent).toBe('Oportunidades');
-    expect(qs('nav-search-label').textContent).toBe('Buscar');
+    expect(qs('nav-search-label')).toBeNull();
     expect(qs('nav-dashboard-label').textContent).toBe('Panel');
     expect(qs('nav-dashboard').hidden).toBe(false);
     expect(qs('view-dashboard').hidden).toBe(false);
@@ -141,10 +147,10 @@ describe('US6 — terminología comercial consistente con el perfil CRM', () => 
     expect(qs('document-entity-label').textContent).toBe('Cliente *');
     expect(qs('document-fixed').textContent).toContain('OPP');
 
-    qs('nav-search').click();
+    typeSearch('');
     expect(qs('search-view-heading').textContent).toBe('Buscar Clientes');
     expect(qs('search-heading').textContent).toBe('Buscar el cliente');
-    expect(qs('search-hint').textContent).toBe('Ingresa un criterio');
+    expect(qs('search-hint').textContent).toBe('Escribe para buscar');
     expect(qs('entity-detail-heading').textContent).toBe('Ficha del cliente');
     expect(qs('opportunity-detail-heading').textContent).toBe('Detalle de la oportunidad');
   });
@@ -215,7 +221,7 @@ describe('US6 — terminología comercial consistente con el perfil CRM', () => 
 
   it('keeps accessible names and the active view identified with a collapsed sidebar', async () => {
     await bootCrm();
-    document.querySelectorAll('.nav-module').forEach((btn) => {
+    document.querySelectorAll('.nav-module, .nav-section').forEach((btn) => {
       expect(btn.getAttribute('aria-label')).toBeTruthy();
       expect(btn.querySelector('.nav-label')).not.toBeNull();
     });
@@ -228,6 +234,6 @@ describe('US6 — terminología comercial consistente con el perfil CRM', () => 
     qs('nav-documents').click();
     expect(qs('nav-documents').getAttribute('aria-current')).toBe('page');
     expect(qs('nav-entities').hasAttribute('aria-current')).toBe(false);
-    expect(qs('nav-documents').getAttribute('aria-label')).toBe('Oportunidades');
+    expect(qs('nav-section-documents').getAttribute('aria-label')).toBe('Oportunidades');
   });
 });

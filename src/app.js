@@ -32,19 +32,23 @@ import {
   searchOpportunities
 } from './crm-rules.js';
 import { clearEntityForm, startEntityEdit, collectEntityPayload, showEntityErrors } from './components/entity-form.js';
-import { createEntityItem, createClientSummary } from './components/entity-list.js';
+import { createEntityItem, renderClientTable } from './components/entity-list.js';
 import {
   clearDocumentForm,
   startDocumentEdit,
   collectDocumentPayload,
   showDocumentErrors
 } from './components/document-form.js';
-import { createDocumentItem, folioLabel, renderOpportunityList } from './components/document-list.js';
-import { renderLogo, applyShellLabels, setActiveModule } from './components/shell.js';
+import { createDocumentItem, folioLabel, renderOpportunityTable } from './components/document-list.js';
+import { renderLogo, applyShellLabels, setActiveNav, toggleNavSection } from './components/shell.js';
 import { renderDashboard } from './components/dashboard.js';
 import { setupSearchBar, readSearchFilters, clearSearchFilters } from './components/search-bar.js';
 import { renderSearchResults } from './components/search-results.js';
 import { renderEntityDetail, renderOpportunityDetail } from './components/entity-detail.js';
+import { openOverlay, closeOverlay, getTopOverlay } from './components/ui-overlay.js';
+import { renderEmptyState } from './components/ui.js';
+import { renderFilterChips, syncFilterChips } from './components/filter-chips.js';
+import { openQuickCreateClient } from './components/quick-create-client.js';
 import {
   prepareTicketForm,
   clearTicketForm,
@@ -80,6 +84,25 @@ let currentView = null;
 let currentClientEntityId = null;
 let dirty = false;
 let staleStorage = false;
+let openFormOverlay = null;
+let filtersExpanded = false;
+let clientSort = { key: 'name', direction: 'asc' };
+let opportunitySort = { key: 'folio', direction: 'asc' };
+let searchClientSort = { key: 'name', direction: 'asc' };
+let searchOpportunitySort = { key: 'folio', direction: 'asc' };
+
+function nextSortState(state, key) {
+  if (state.key === key) {
+    return { key, direction: state.direction === 'asc' ? 'desc' : 'asc' };
+  }
+  return { key, direction: 'asc' };
+}
+
+function focusSortHeader(container, key) {
+  if (!container) return;
+  const button = container.querySelector(`th button[data-sort="${key}"]`);
+  if (button && typeof button.focus === 'function') button.focus();
+}
 
 function availableViews() {
   return ['dashboard', 'entities', 'documents', 'search'];
@@ -148,26 +171,237 @@ function showFormMessage(id, message, kind = 'success') {
   el.className = `message${kind === 'error' ? ' message-error' : ' message-success'}`;
 }
 
+/**
+ * Confirmación única de descarte. Usa el modal `confirm-discard` de
+ * `ui-overlay`; nunca `window.confirm()`.
+ */
+function confirmDiscardChanges({ onDiscard, onKeepEditing } = {}) {
+  if (getTopOverlay() && getTopOverlay().id === 'confirm-discard') return null;
+
+  const content = document.createElement('div');
+  content.className = 'overlay__confirm';
+
+  const text = document.createElement('p');
+  text.className = 'overlay__text';
+  text.textContent = 'Tienes cambios sin guardar. Si descartas, se perderán.';
+  content.appendChild(text);
+
+  const actions = document.createElement('div');
+  actions.className = 'overlay__actions';
+  const keep = document.createElement('button');
+  keep.type = 'button';
+  keep.className = 'btn btn-secondary';
+  keep.setAttribute('data-cancel-discard', '');
+  keep.textContent = 'Seguir editando';
+  const discard = document.createElement('button');
+  discard.type = 'button';
+  discard.className = 'btn btn-danger';
+  discard.setAttribute('data-confirm-discard', '');
+  discard.textContent = 'Descartar';
+  actions.append(keep, discard);
+  content.appendChild(actions);
+
+  let settled = false;
+  openOverlay({
+    id: 'confirm-discard',
+    variant: 'modal',
+    title: 'Descartar cambios',
+    content,
+    returnFocus: document.activeElement,
+    onClose: () => {
+      if (settled) return;
+      settled = true;
+      if (typeof onKeepEditing === 'function') onKeepEditing();
+    }
+  });
+
+  keep.addEventListener('click', () => {
+    settled = true;
+    closeOverlay('confirm-discard', { force: true });
+    if (typeof onKeepEditing === 'function') onKeepEditing();
+  });
+
+  discard.addEventListener('click', () => {
+    settled = true;
+    closeOverlay('confirm-discard', { force: true });
+    dirty = false;
+    if (typeof onDiscard === 'function') onDiscard();
+  });
+
+  return { keep, discard };
+}
+
+function firstFormField(container) {
+  if (!container) return null;
+  return (
+    [...container.querySelectorAll('input, select, textarea')].find(
+      (element) => element.type !== 'hidden' && !element.disabled && !element.hidden && !element.closest('[hidden]')
+    ) || null
+  );
+}
+
+function focusFirstInvalid(container) {
+  const scope = container || document;
+  const invalid = scope.querySelector('[aria-invalid="true"]');
+  if (invalid && typeof invalid.focus === 'function') {
+    invalid.focus();
+    return true;
+  }
+  return false;
+}
+
+const FORM_DRAWERS = {
+  entities: { formId: 'entity-form', labelKey: 'entity' },
+  documents: { formId: 'document-form', labelKey: 'document' },
+  tickets: { formId: 'ticket-form', labelKey: null }
+};
+
+function drawerTitle(module, mode) {
+  if (module === 'tickets') return mode === 'new' ? 'Nuevo ticket' : 'Editar ticket';
+  const def = FORM_DRAWERS[module];
+  const label = labelFor(def.labelKey);
+  return mode === 'new'
+    ? `${esFemenina(label) ? 'Nueva' : 'Nuevo'} ${label.toLowerCase()}`
+    : `Editar ${label.toLowerCase()}`;
+}
+
+/**
+ * Traslada el formulario existente al drawer, sin clonarlo ni recrearlo, y lo
+ * devuelve a su contenedor original al cerrar. Las tarjetas de cliente y
+ * oportunidad viajan completas; el formulario de ticket viaja solo porque
+ * vive dentro de la ficha del cliente.
+ */
+function openFormDrawer(module, mode = 'new') {
+  const def = FORM_DRAWERS[module];
+  if (!def) return null;
+  const form = qs(def.formId);
+  if (!form) return null;
+  const content = module === 'tickets' ? form : form.closest('.card');
+  if (!content) return null;
+
+  if (openFormOverlay && openFormOverlay.module === module) {
+    const field = firstFormField(content);
+    if (field) field.focus();
+    return openFormOverlay.id;
+  }
+  if (openFormOverlay) closeFormDrawer({ force: true });
+
+  if (mode === 'new') {
+    if (module === 'entities') clearEntityForm();
+    else if (module === 'documents') clearDocumentForm();
+    else clearTicketForm();
+  }
+  dirty = false;
+
+  const parent = content.parentNode;
+  const next = content.nextSibling;
+  const returnFocus = document.activeElement;
+  const id = `${module}-drawer`;
+  if (module === 'tickets') content.hidden = false;
+
+  openOverlay({
+    id,
+    variant: 'drawer',
+    title: drawerTitle(module, mode),
+    content,
+    returnFocus,
+    isDirty: () => dirty,
+    onClose: () => {
+      if (next && next.parentNode === parent) parent.insertBefore(content, next);
+      else parent.appendChild(content);
+      if (module === 'tickets') content.hidden = true;
+      dirty = false;
+      openFormOverlay = null;
+      setActiveNav({ view: currentView, mode: 'list' });
+    }
+  });
+
+  openFormOverlay = { id, module, card: content, parent, next };
+  setActiveNav({ view: currentView, mode: mode === 'new' ? 'new' : 'list' });
+
+  const field = firstFormField(content);
+  if (field) field.focus();
+  return id;
+}
+
+function closeFormDrawer({ force = true } = {}) {
+  if (!openFormOverlay) return;
+  closeOverlay(openFormOverlay.id, { force });
+}
+
+/** Abre el drawer de alta sobre el módulo indicado (acciones del panel). */
+function openNewDrawer(module) {
+  if (!showModule(module, { newRecord: true })) return false;
+  return Boolean(openFormDrawer(module, 'new'));
+}
+
+/** Cierra el drawer del módulo tras guardar, sin abrir la confirmación. */
+function finishFormDrawer(module) {
+  if (openFormOverlay && openFormOverlay.module === module) closeFormDrawer({ force: true });
+  dirty = false;
+}
+
+/** Cancelar del formulario: confirma el descarte si hay cambios. */
+function cancelFormEdition(module) {
+  const def = FORM_DRAWERS[module];
+  if (!def) return;
+  const isOpen = openFormOverlay && openFormOverlay.module === module;
+  if (!isOpen) {
+    if (module === 'entities') clearEntityForm();
+    else if (module === 'documents') clearDocumentForm();
+    else clearTicketForm();
+    hideStorageWarning();
+    return;
+  }
+  if (!dirty) {
+    closeFormDrawer({ force: true });
+    if (module === 'entities') clearEntityForm();
+    else if (module === 'documents') clearDocumentForm();
+    else clearTicketForm();
+    return;
+  }
+  confirmDiscardChanges({
+    onDiscard: () => {
+      closeFormDrawer({ force: true });
+      if (module === 'entities') clearEntityForm();
+      else if (module === 'documents') clearDocumentForm();
+      else clearTicketForm();
+    },
+    onKeepEditing: () => {
+      const field = firstFormField(openFormOverlay ? openFormOverlay.card : null);
+      if (field) field.focus();
+    }
+  });
+}
+
 function showModule(name, opts = {}) {
   const views = availableViews();
   if (!views.includes(name)) name = fallbackView();
 
   if (currentView && name !== currentView && dirty && !opts.skipGuard) {
-    const proceed =
-      typeof confirm === 'function' ? confirm('Hay cambios sin guardar. ¿Descartarlos y continuar?') : true;
-    if (!proceed) {
-      updateHash(currentView, true);
-      return false;
-    }
-    dirty = false;
+    confirmDiscardChanges({
+      onDiscard: () => {
+        closeFormDrawer({ force: true });
+        dirty = false;
+        showModule(name, { ...opts, skipGuard: true });
+      },
+      onKeepEditing: () => {
+        updateHash(currentView, true);
+        setActiveNav({ view: currentView, mode: openFormOverlay ? 'new' : 'list' });
+      }
+    });
+    return false;
   }
+
+  if (currentView && name !== currentView && openFormOverlay) closeFormDrawer({ force: true });
 
   currentView = name;
   Object.entries(VIEW_IDS).forEach(([view, id]) => {
     const section = qs(id);
     if (section) section.hidden = view !== name;
   });
-  setActiveModule(name);
+  const navMode = openFormOverlay && openFormOverlay.module === name ? 'new' : 'list';
+  setActiveNav({ view: name, mode: navMode });
 
   if (name === 'dashboard') renderDashboard();
   if (name === 'entities') {
@@ -185,7 +419,8 @@ function showModule(name, opts = {}) {
   }
   if (name === 'search') {
     refreshSearch();
-    if (opts.focusSearch) qs('search-input').focus();
+    const searchInput = qs('global-search-input');
+    if (searchInput && typeof searchInput.focus === 'function') searchInput.focus();
   }
 
   if (!opts.skipHistory) updateHash(name, opts.replaceHash);
@@ -296,6 +531,32 @@ function renderClientTickets(entityId) {
   emptyEl.hidden = rendered;
 }
 
+function appendEntityItems(listEl, entities) {
+  const ul = document.createElement('ul');
+  ul.className = 'entity-list';
+  entities.forEach((entity) => ul.appendChild(createEntityItem(entity)));
+  listEl.appendChild(ul);
+}
+
+function emptyClientState() {
+  const feminine = esFemenina(labelFor('entity'));
+  const entityClass = feminine ? 'registradas' : 'registrados';
+  return {
+    reason: 'no-records',
+    message: `No hay ${labelFor('entities').toLowerCase()} ${entityClass}`,
+    ctaLabel: `${feminine ? 'Nueva' : 'Nuevo'} ${labelFor('entity')}`,
+    textId: 'client-list-empty-text',
+    ctaId: 'client-list-create',
+    ctaAction: openCreateEntityDrawer,
+    icon: 'users'
+  };
+}
+
+function openCreateEntityDrawer() {
+  if (!showModule('entities')) return;
+  openFormDrawer('entities', 'new');
+}
+
 function renderClientList() {
   const listEl = qs('client-list-items');
   const emptyEl = qs('client-list-empty');
@@ -307,14 +568,66 @@ function renderClientList() {
   } catch (error) {
     reportDataError(error);
   }
-  emptyEl.hidden = entities.length > 0;
-  const crm = isCrmProfile(getConfig());
-  entities.forEach((entity) => listEl.appendChild(crm ? createClientSummary(entity) : createEntityItem(entity)));
+
+  if (!isCrmProfile(getConfig())) {
+    if (entities.length > 0) {
+      emptyEl.hidden = true;
+      emptyEl.innerHTML = '';
+      appendEntityItems(listEl, entities);
+    } else {
+      emptyEl.innerHTML = '';
+      emptyEl.appendChild(renderEmptyState(emptyClientState()));
+      emptyEl.hidden = false;
+    }
+    return;
+  }
+
+  const output = renderClientTable({
+    entities,
+    sortKey: clientSort.key,
+    sortDirection: clientSort.direction,
+    onSort: handleClientSort,
+    emptyState: emptyClientState(),
+    caption: `${labelFor('entities')} registrados`,
+    ariaLabel: `Tabla de ${labelFor('entities').toLowerCase()} registrados`
+  });
+
+  if (entities.length === 0) {
+    emptyEl.innerHTML = '';
+    emptyEl.appendChild(output);
+    emptyEl.hidden = false;
+  } else {
+    emptyEl.innerHTML = '';
+    emptyEl.hidden = true;
+    listEl.appendChild(output);
+  }
+}
+
+function handleClientSort(key) {
+  clientSort = nextSortState(clientSort, key);
+  renderClientList();
+  focusSortHeader(qs('client-list-items'), key);
+}
+
+function openCreateDocumentDrawer() {
+  if (!showModule('documents')) return;
+  openFormDrawer('documents', 'new');
+}
+
+function emptyOpportunityState() {
+  return {
+    reason: 'no-records',
+    message: `No se encontraron ${labelFor('documents').toLowerCase()}`,
+    ctaLabel: `${esFemenina(labelFor('document')) ? 'Nueva' : 'Nuevo'} ${labelFor('document')}`,
+    textId: 'opportunity-list-empty',
+    ctaAction: openCreateDocumentDrawer,
+    icon: 'target'
+  };
 }
 
 function renderOpportunityPanel() {
   const listEl = qs('opportunity-list-items');
-  const emptyEl = qs('opportunity-list-empty');
+  const emptyEl = qs('opportunity-list-empty-state');
   if (!listEl || !emptyEl) return;
   listEl.innerHTML = '';
   let documents = [];
@@ -325,33 +638,104 @@ function renderOpportunityPanel() {
   } catch (error) {
     reportDataError(error);
   }
-  emptyEl.hidden = documents.length > 0;
+
   const crm = isCrmProfile(getConfig());
-  if (crm) {
-    renderOpportunityList(listEl, documents, (doc) => {
-      const entity = entities.find((e) => e.entity_id === doc.entity_id);
-      return entity ? `${entity.name} (${entity.code})` : undefined;
-    });
+  if (!crm) {
+    if (documents.length > 0) {
+      emptyEl.hidden = true;
+      emptyEl.innerHTML = '';
+      const ul = document.createElement('ul');
+      ul.className = 'document-list';
+      documents.forEach((doc) => {
+        const entity = entities.find((e) => e.entity_id === doc.entity_id);
+        ul.appendChild(createDocumentItem(doc, entity ? entity.name : undefined));
+      });
+      listEl.appendChild(ul);
+    } else {
+      emptyEl.innerHTML = '';
+      emptyEl.appendChild(renderEmptyState(emptyOpportunityState()));
+      emptyEl.hidden = false;
+    }
     return;
   }
-  documents.forEach((doc) => {
-    const entity = entities.find((e) => e.entity_id === doc.entity_id);
-    listEl.appendChild(createDocumentItem(doc, entity ? entity.name : undefined));
+
+  const output = renderOpportunityTable({
+    items: documents,
+    entityNameFor: (doc) => {
+      const entity = entities.find((e) => e.entity_id === doc.entity_id);
+      return entity ? `${entity.name} (${entity.code})` : undefined;
+    },
+    sortKey: opportunitySort.key,
+    sortDirection: opportunitySort.direction,
+    onSort: handleOpportunitySort,
+    emptyState: emptyOpportunityState(),
+    caption: labelFor('documents'),
+    ariaLabel: `Tabla de ${labelFor('documents').toLowerCase()}`,
+    openDetail: false
   });
+
+  if (documents.length === 0) {
+    emptyEl.innerHTML = '';
+    emptyEl.appendChild(output);
+    emptyEl.hidden = false;
+  } else {
+    emptyEl.innerHTML = '';
+    emptyEl.hidden = true;
+    listEl.appendChild(output);
+  }
+}
+
+function handleOpportunitySort(key) {
+  opportunitySort = nextSortState(opportunitySort, key);
+  renderOpportunityPanel();
+  focusSortHeader(qs('opportunity-list-items'), key);
+}
+
+function clearFiltersKeepingCriterion() {
+  clearSearchFilters();
+  syncFilterChips();
+  refreshSearch();
+}
+
+function handleSearchClientSort(key) {
+  searchClientSort = nextSortState(searchClientSort, key);
+  refreshSearch();
+  focusSortHeader(qs('search-results-list'), key);
+}
+
+function handleSearchOpportunitySort(key) {
+  searchOpportunitySort = nextSortState(searchOpportunitySort, key);
+  refreshSearch();
+  focusSortHeader(qs('search-opportunities-list'), key);
 }
 
 function refreshSearch() {
   const listEl = qs('search-results-list');
   if (!listEl) return;
-  const term = qs('search-input').value;
+  const input = qs('global-search-input');
+  const term = input ? input.value : '';
   const emptyEl = qs('search-empty');
   const hintEl = qs('search-hint');
+  const clientsSection = qs('search-clients');
   const opportunitiesSection = qs('search-opportunities');
   const opportunitiesList = qs('search-opportunities-list');
+  const hasCriterion = String(term || '').trim() !== '';
 
   if (!isCrmProfile(getConfig())) {
     listEl.innerHTML = '';
     if (opportunitiesSection) opportunitiesSection.hidden = true;
+    if (opportunitiesList) opportunitiesList.innerHTML = '';
+    if (emptyEl) {
+      emptyEl.innerHTML = '';
+      emptyEl.hidden = true;
+      emptyEl.textContent = 'Sin coincidencias para tu búsqueda.';
+    }
+    if (!hasCriterion) {
+      if (clientsSection) clientsSection.hidden = true;
+      if (hintEl) hintEl.hidden = false;
+      return;
+    }
+    if (clientsSection) clientsSection.hidden = false;
     let results = [];
     try {
       results = searchEntities(term);
@@ -359,8 +743,11 @@ function refreshSearch() {
       reportDataError(error);
     }
     if (hintEl) hintEl.hidden = true;
-    emptyEl.hidden = results.length > 0;
-    results.forEach((entity) => listEl.appendChild(createEntityItem(entity)));
+    if (results.length > 0) appendEntityItems(listEl, results);
+    if (emptyEl) {
+      emptyEl.hidden = results.length > 0;
+      if (results.length === 0) emptyEl.textContent = 'Sin coincidencias para tu búsqueda.';
+    }
     return;
   }
 
@@ -374,15 +761,24 @@ function refreshSearch() {
   } catch (error) {
     reportDataError(error);
   }
+
   renderSearchResults({
     clients,
     opportunities,
     listEl,
     emptyEl,
     hintEl,
+    clientsSection,
     opportunitiesSection,
     opportunitiesList,
-    hasCriterion: String(term || '').trim() !== ''
+    hasCriterion,
+    criterion: term,
+    hasFilters: Object.keys(filters).length > 0,
+    clientSort: searchClientSort,
+    opportunitySort: searchOpportunitySort,
+    onSortClients: handleSearchClientSort,
+    onSortOpportunities: handleSearchOpportunitySort,
+    onClearFilters: clearFiltersKeepingCriterion
   });
 }
 
@@ -398,7 +794,9 @@ function showClientDetail(entityId) {
   }
   if (!entity) return;
   currentClientEntityId = entityId;
-  renderEntityDetail(qs('entity-detail-body'), entity, opportunities);
+  renderEntityDetail(qs('entity-detail-body'), entity, opportunities, undefined, {
+    showTicketAction: isCrmProfile(getConfig())
+  });
   qs('entity-detail').hidden = false;
   qs('opportunity-detail').hidden = true;
   const ticketSection = qs('ticket-section');
@@ -426,6 +824,16 @@ function showOpportunityDetail(documentId) {
   qs('entity-detail').hidden = true;
 }
 
+function editEntityById(entityId) {
+  if (!entityId) return;
+  const entity = loadEntities().find((e) => e.entity_id === entityId || e.id === entityId);
+  if (!entity) return;
+  const select = qs('edit-entity');
+  if (select) select.value = entity.id;
+  startEntityEdit(entity);
+  openFormDrawer('entities', 'edit');
+}
+
 function editOpportunityById(documentId) {
   if (!documentId) return;
   const document_ = loadDocuments().find((d) => d.id === documentId);
@@ -433,46 +841,16 @@ function editOpportunityById(documentId) {
   const select = qs('edit-document');
   if (select) select.value = documentId;
   startDocumentEdit(document_);
+  openFormDrawer('documents', 'edit');
   if (qs('folio')) qs('folio').focus();
-}
-
-function deleteOpportunityById(documentId) {
-  if (!documentId) return;
-  const feminine = esFemenina(labelFor('document'));
-  const noun = labelFor('document').toLowerCase();
-  if (
-    !confirm(
-      `¿Eliminar ${demostrativo(labelFor('document'))} ${noun}? El ${labelFor('entity').toLowerCase()} asociado no se eliminará.`
-    )
-  )
-    return;
-  if (staleStorage) {
-    showFormMessage(
-      'opportunity-message',
-      'Los datos cambiaron en otra pestaña. Recarga la página antes de eliminar.',
-      'error'
-    );
-    return;
-  }
-  try {
-    deleteDocument(documentId);
-    dirty = false;
-    if (qs('document-id').value === documentId) clearDocumentForm();
-    showFormMessage(
-      'opportunity-message',
-      `${labelFor('document')} ${feminine ? 'eliminada' : 'eliminado'} correctamente.`
-    );
-  } catch (error) {
-    showFormMessage('opportunity-message', error.message, 'error');
-  }
-  refreshAll();
 }
 
 function openClientFromList(entityId) {
   const entity = loadEntities().find((e) => e.entity_id === entityId);
   if (!entity) return;
   showModule('search');
-  qs('search-input').value = entity.code || entity.name || '';
+  const searchInput = qs('global-search-input');
+  if (searchInput) searchInput.value = entity.code || entity.name || '';
   refreshSearch();
   showClientDetail(entityId);
   qs('entity-detail').scrollIntoView?.({ block: 'start' });
@@ -528,6 +906,23 @@ function ensureCategoryControl() {
   holder.appendChild(control);
 }
 
+function applyFiltersVisibility() {
+  const container = qs('search-filters');
+  const toggle = qs('toggle-filters');
+  const available = Boolean(container && container.dataset.available === 'true');
+  const expanded = available && filtersExpanded;
+  if (toggle) {
+    toggle.hidden = !available;
+    toggle.setAttribute('aria-expanded', String(expanded));
+  }
+  if (container) container.hidden = !expanded;
+}
+
+function handleFiltersChanged() {
+  syncFilterChips();
+  refreshSearch();
+}
+
 function ensureSearchFilters() {
   const catalogs = getConfig().catalogs || {};
   const definitions = [
@@ -555,7 +950,10 @@ function ensureSearchFilters() {
     }
   });
   const container = qs('search-filters');
-  if (container) container.hidden = !(any && isCrmProfile(getConfig()));
+  if (container) {
+    container.dataset.available = any && isCrmProfile(getConfig()) ? 'true' : 'false';
+  }
+  applyFiltersVisibility();
 }
 
 function applyProfileVisibility() {
@@ -598,6 +996,8 @@ function applyLabels(config) {
   qs('action-open-entities-sub').textContent = `Abrir la gestión de ${entities.toLowerCase()}`;
   qs('action-find-title').textContent = crm ? 'Buscar' : 'Buscar registros';
   qs('action-find-sub').textContent = `Buscar ${entities.toLowerCase()}`;
+  const emptyCta = qs('dashboard-empty-cta');
+  if (emptyCta) emptyCta.textContent = `Registra tu primer ${entity.toLowerCase()}`;
   const emptyHint = qs('dashboard-empty-hint');
   if (emptyHint) {
     emptyHint.textContent = `Aún no hay datos en el panel. Comienza registrando ${articulo(entity)} ${entity.toLowerCase()} y luego crea su primera ${document_.toLowerCase()}.`;
@@ -608,8 +1008,10 @@ function applyLabels(config) {
   qs('edit-entity-heading').textContent = `Editar o eliminar ${articulo(entity)} ${entity.toLowerCase()}`;
   qs('delete-entity').textContent = `Eliminar ${articulo(entity)} ${entity.toLowerCase()} ${seleccionada(entity)}`;
   qs('client-list-heading').textContent = `${entities} ${entityClass}`;
-  qs('client-list-empty-text').textContent = `No hay ${entities.toLowerCase()} ${entityClass}`;
-  qs('client-list-create').textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
+  const clientEmptyText = qs('client-list-empty-text');
+  if (clientEmptyText) clientEmptyText.textContent = `No hay ${entities.toLowerCase()} ${entityClass}`;
+  const clientCreate = qs('client-list-create');
+  if (clientCreate) clientCreate.textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
 
   qs('documents-view-heading').textContent = documents;
   qs('document-form-heading').textContent = `Agregar / Editar ${document_}`;
@@ -617,15 +1019,23 @@ function applyLabels(config) {
   qs('delete-document').textContent =
     `Eliminar ${articulo(document_)} ${document_.toLowerCase()} ${seleccionada(document_)}`;
   qs('document-entity-label').textContent = `${entity} *`;
-  qs('opportunity-list-empty').textContent = `No se encontraron ${documents.toLowerCase()}`;
+  const opportunityEmpty = qs('opportunity-list-empty');
+  if (opportunityEmpty) opportunityEmpty.textContent = `No se encontraron ${documents.toLowerCase()}`;
   qs('document-no-clients-text').textContent = `Primero debes registrar ${articulo(entity)} ${entity.toLowerCase()}.`;
-  qs('document-no-clients-action').textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
+  qs('document-no-clients-action').textContent = 'Crear cliente ahora';
 
   qs('search-view-heading').textContent = `Buscar ${entities}`;
   qs('search-heading').textContent = `Buscar ${articulo(entity)} ${entity.toLowerCase()}`;
-  qs('search-input').placeholder = `Buscar ${entities.toLowerCase()} por nombre o código...`;
-  qs('search-input').setAttribute('aria-label', `Buscar ${entities.toLowerCase()}`);
-  qs('search-hint').textContent = 'Ingresa un criterio';
+  const searchClientsHeading = qs('search-clients-heading');
+  if (searchClientsHeading) searchClientsHeading.textContent = entities;
+  const searchInput = qs('global-search-input');
+  if (searchInput) {
+    searchInput.placeholder = `Buscar ${entities.toLowerCase()} y ${documents.toLowerCase()}...`;
+    searchInput.setAttribute('aria-label', `Buscar ${entities.toLowerCase()} y ${documents.toLowerCase()}`);
+  }
+  const primaryAction = qs('topbar-primary-action');
+  if (primaryAction) primaryAction.textContent = `${femEntity ? 'Nueva' : 'Nuevo'} ${entity}`;
+  qs('search-hint').textContent = 'Escribe para buscar';
   qs('search-empty').textContent = 'Sin coincidencias para tu búsqueda.';
   qs('search-opportunities-heading').textContent = documents;
   qs('entity-detail-heading').textContent = `Ficha ${deArticulo(entity)} ${entity.toLowerCase()}`;
@@ -772,6 +1182,7 @@ function handleEntitySubmit(ev) {
       `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
       'error'
     );
+    focusFirstInvalid(qs('entity-form'));
     return;
   }
   try {
@@ -779,6 +1190,7 @@ function handleEntitySubmit(ev) {
     else addEntity(payload);
     dirty = false;
     clearEntityForm();
+    finishFormDrawer('entities');
     showFormMessage('entity-message', `${labelFor('entity')} guardado correctamente.`);
   } catch (error) {
     showFormMessage('entity-message', error.message, 'error');
@@ -837,6 +1249,7 @@ function handleDocumentSubmit(ev) {
       `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
       'error'
     );
+    focusFirstInvalid(qs('document-form'));
     return;
   }
   try {
@@ -844,6 +1257,7 @@ function handleDocumentSubmit(ev) {
     else addDocument(payload);
     dirty = false;
     clearDocumentForm();
+    finishFormDrawer('documents');
     const feminine = esFemenina(labelFor('document'));
     const verb = id ? (feminine ? 'actualizada' : 'actualizado') : feminine ? 'registrada' : 'registrado';
     showFormMessage('opportunity-message', `${labelFor('document')} ${verb} correctamente.`);
@@ -884,12 +1298,14 @@ function handleTicketSubmit(ev) {
       `${Object.values(errors)[0]} Revisa los campos marcados antes de guardar.`,
       'error'
     );
+    focusFirstInvalid(qs('ticket-form'));
     return;
   }
   try {
     const saved = id ? updateTicket(id, payload) : addTicket(payload);
     currentClientEntityId = saved.entity_id || currentClientEntityId;
     clearTicketForm();
+    finishFormDrawer('tickets');
     populateTicketEntitySelect(currentClientEntityId);
     renderClientTickets(currentClientEntityId);
     showFormMessage('ticket-message', id ? 'Ticket actualizado correctamente.' : 'Ticket registrado correctamente.');
@@ -918,6 +1334,17 @@ function resolveTicketById(ticketId) {
   }
 }
 
+function openNewTicketDrawer(entityId) {
+  if (!isCrmProfile(getConfig())) return;
+  currentClientEntityId = entityId || currentClientEntityId;
+  const opened = openFormDrawer('tickets', 'new');
+  if (!opened) return;
+  populateTicketEntitySelect(currentClientEntityId);
+  const select = qs('ticket-entity');
+  if (select && currentClientEntityId) select.value = currentClientEntityId;
+  if (qs('ticket-product-name')) qs('ticket-product-name').focus();
+}
+
 function editTicketById(ticketId) {
   let ticket;
   try {
@@ -930,7 +1357,8 @@ function editTicketById(ticketId) {
   currentClientEntityId = ticket.entity_id;
   populateTicketEntitySelect(ticket.entity_id);
   startTicketEdit(ticket);
-  qs('ticket-description').focus();
+  openFormDrawer('tickets', 'edit');
+  if (qs('ticket-description')) qs('ticket-description').focus();
 }
 
 function onStorageChange(event) {
@@ -945,7 +1373,19 @@ function onStorageChange(event) {
 
 function onLocationChange() {
   const view = readViewFromHash();
-  if (view !== currentView) showModule(view, { skipHistory: true });
+  if (view === currentView) return;
+  if (dirty) {
+    confirmDiscardChanges({
+      onDiscard: () => {
+        closeFormDrawer({ force: true });
+        dirty = false;
+        showModule(view, { skipHistory: true, skipGuard: true });
+      },
+      onKeepEditing: () => updateHash(currentView, true)
+    });
+    return;
+  }
+  showModule(view, { skipHistory: true });
 }
 
 function wireEvents() {
@@ -954,33 +1394,36 @@ function wireEvents() {
   document.querySelectorAll('.nav-module').forEach((btn) => {
     btn.addEventListener('click', () => showModule(btn.dataset.module));
   });
+  document.querySelectorAll('.nav-section').forEach((btn) => {
+    btn.addEventListener('click', () => toggleNavSection(btn.dataset.module));
+  });
+  document.querySelectorAll('.nav-subitem').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const module = btn.dataset.module;
+      if (!showModule(module)) return;
+      if (btn.dataset.mode === 'new') openFormDrawer(module, 'new');
+    });
+  });
+  qs('topbar-primary-action').addEventListener('click', () => {
+    if (!showModule('entities')) return;
+    openFormDrawer('entities', 'new');
+  });
   qs('commercial-columns').addEventListener('click', (event) => {
     const card = event.target.closest('button[data-opportunity-id]');
     if (card && showModule('documents')) editOpportunityById(card.dataset.opportunityId);
   });
-  qs('action-new-entity').addEventListener('click', () => showModule('entities', { newRecord: true, focusForm: true }));
-  qs('action-new-document').addEventListener('click', () =>
-    showModule('documents', { newRecord: true, focusForm: true })
-  );
+  qs('action-new-entity').addEventListener('click', () => openNewDrawer('entities'));
+  qs('action-new-document').addEventListener('click', () => openNewDrawer('documents'));
+  const dashboardEmptyCta = qs('dashboard-empty-cta');
+  if (dashboardEmptyCta) dashboardEmptyCta.addEventListener('click', () => openNewDrawer('entities'));
   qs('action-open-entities').addEventListener('click', () => showModule('entities'));
-  qs('action-find').addEventListener('click', () => showModule('search', { focusSearch: true }));
+  qs('action-find').addEventListener('click', () => showModule('search'));
   qs('entity-form').addEventListener('submit', handleEntitySubmit);
-  qs('cancel-edit').addEventListener('click', () => {
-    dirty = false;
-    clearEntityForm();
-    hideStorageWarning();
-  });
+  qs('cancel-edit').addEventListener('click', () => cancelFormEdition('entities'));
   qs('document-form').addEventListener('submit', handleDocumentSubmit);
-  qs('document-cancel-edit').addEventListener('click', () => {
-    dirty = false;
-    clearDocumentForm();
-    hideStorageWarning();
-  });
+  qs('document-cancel-edit').addEventListener('click', () => cancelFormEdition('documents'));
   qs('ticket-form').addEventListener('submit', handleTicketSubmit);
-  qs('ticket-cancel-edit').addEventListener('click', () => {
-    dirty = false;
-    clearTicketForm();
-  });
+  qs('ticket-cancel-edit').addEventListener('click', () => cancelFormEdition('tickets'));
   qs('ticket-list-items').addEventListener('click', (event) => {
     const resolve = event.target.closest ? event.target.closest('[data-resolve-ticket]') : null;
     if (resolve) {
@@ -990,38 +1433,67 @@ function wireEvents() {
     const edit = event.target.closest ? event.target.closest('[data-edit-ticket]') : null;
     if (edit) editTicketById(edit.dataset.editTicket);
   });
-  qs('client-list-create').addEventListener('click', () =>
-    showModule('entities', { newRecord: true, focusForm: true })
-  );
-  qs('document-no-clients-action').addEventListener('click', () =>
-    showModule('entities', { newRecord: true, focusForm: true })
-  );
-  qs('clear-filters').addEventListener('click', () => {
-    clearSearchFilters();
-    refreshSearch();
+  qs('document-no-clients-action').addEventListener('click', () => {
+    openQuickCreateClient({
+      returnFocus: qs('document-entity') || document.activeElement,
+      onCreated: (created) => {
+        populateDocumentEntitySelect();
+        const select = qs('document-entity');
+        if (select && created) select.value = created.entity_id;
+        if (select) select.focus();
+      }
+    });
+  });
+  qs('clear-filters').addEventListener('click', clearFiltersKeepingCriterion);
+  qs('toggle-filters').addEventListener('click', () => {
+    filtersExpanded = !filtersExpanded;
+    applyFiltersVisibility();
   });
   qs('search-results-list').addEventListener('click', (event) => {
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
+    if (edit) {
+      editEntityById(edit.dataset.editEntity);
+      return;
+    }
     const button = event.target.closest ? event.target.closest('[data-open-entity]') : null;
     if (button) showClientDetail(button.dataset.openEntity);
   });
   qs('search-opportunities-list').addEventListener('click', (event) => {
-    const button = event.target.closest ? event.target.closest('[data-open-document]') : null;
-    if (button) showOpportunityDetail(button.dataset.openDocument);
-  });
-  qs('client-list-items').addEventListener('click', (event) => {
-    const button = event.target.closest ? event.target.closest('[data-open-entity]') : null;
-    if (button) openClientFromList(button.dataset.openEntity);
-  });
-  qs('opportunity-list-items').addEventListener('click', (event) => {
-    const edit = event.target.closest ? event.target.closest('[data-edit-document]') : null;
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
     if (edit) {
       editOpportunityById(edit.dataset.editDocument);
       return;
     }
-    const remove = event.target.closest ? event.target.closest('[data-delete-document]') : null;
-    if (remove) deleteOpportunityById(remove.dataset.deleteDocument);
+    const button = event.target.closest ? event.target.closest('[data-open-document]') : null;
+    if (button) showOpportunityDetail(button.dataset.openDocument);
+  });
+  qs('client-list-items').addEventListener('click', (event) => {
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
+    if (edit) {
+      editEntityById(edit.dataset.editEntity);
+      return;
+    }
+    const button = event.target.closest ? event.target.closest('[data-open-entity]') : null;
+    if (button) openClientFromList(button.dataset.openEntity);
+  });
+  qs('opportunity-list-items').addEventListener('click', (event) => {
+    const edit = event.target.closest ? event.target.closest('[data-action="edit"]') : null;
+    if (edit) {
+      editOpportunityById(edit.dataset.editDocument);
+      return;
+    }
+    const open = event.target.closest ? event.target.closest('[data-open-document]') : null;
+    if (open) {
+      if (!showModule('search')) return;
+      showOpportunityDetail(open.dataset.openDocument);
+    }
   });
   qs('entity-detail-body').addEventListener('click', (event) => {
+    const ticket = event.target.closest ? event.target.closest('[data-new-ticket]') : null;
+    if (ticket) {
+      openNewTicketDrawer(ticket.dataset.newTicket);
+      return;
+    }
     const create = event.target.closest ? event.target.closest('[data-new-opportunity]') : null;
     if (!create) return;
     showModule('documents', { newRecord: true });
@@ -1037,9 +1509,12 @@ function wireEvents() {
       dirty = true;
     });
   });
-  setupSearchBar(qs('search-input'), () => refreshSearch());
+  setupSearchBar(qs('global-search-input'), () => {
+    if (!showModule('search', { skipHistory: false })) return;
+    refreshSearch();
+  });
   ['search-filter-category', 'search-filter-owner', 'search-filter-source'].forEach((id) => {
-    if (qs(id)) qs(id).addEventListener('change', () => refreshSearch());
+    if (qs(id)) qs(id).addEventListener('change', handleFiltersChanged);
   });
   qs('edit-entity').addEventListener('change', onEditEntityChange);
   qs('edit-document').addEventListener('change', onEditDocumentChange);
@@ -1061,6 +1536,7 @@ export function initApp(resolved) {
   applyLabels(resolved.config);
   ensureCategoryControl();
   ensureSearchFilters();
+  renderFilterChips(qs('search-filter-chips'), { onChange: handleFiltersChanged });
   applyProfileVisibility();
   wireEvents();
   prepareTicketForm();

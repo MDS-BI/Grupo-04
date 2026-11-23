@@ -1,4 +1,6 @@
+/** Conecta el control único de búsqueda global de la cabecera. */
 export function setupSearchBar(inputEl, onInput) {
+  if (!inputEl) return;
   inputEl.addEventListener('input', () => onInput(inputEl.value));
 }
 

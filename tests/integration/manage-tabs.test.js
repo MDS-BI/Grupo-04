@@ -33,10 +33,20 @@ afterEach(() => {
 });
 
 describe('User Story 4 - manage entities and documents via the workspace sidebar', () => {
-  it('shows a persistent module navigation with Dashboard, Entities, Documents, and Search buttons', () => {
-    const buttons = [...document.querySelectorAll('.nav-module')];
-    expect(buttons.length).toBe(4);
-    expect(buttons.map((b) => b.dataset.module)).toEqual(['dashboard', 'entities', 'documents', 'search']);
+  it('shows a persistent module navigation with Panel and the two expandable domain groups', () => {
+    const panel = [...document.querySelectorAll('.nav-module')];
+    expect(panel.map((b) => b.dataset.module)).toEqual(['dashboard']);
+
+    const sections = [...document.querySelectorAll('.nav-section')];
+    expect(sections.map((section) => section.dataset.module)).toEqual(['entities', 'documents']);
+
+    const subitems = [...document.querySelectorAll('.nav-subitem')];
+    expect(subitems.map((item) => `${item.dataset.module}:${item.dataset.mode}`)).toEqual([
+      'entities:list',
+      'entities:new',
+      'documents:list',
+      'documents:new'
+    ]);
   });
 
   it('switches between the entities and documents management views', () => {
@@ -58,8 +68,10 @@ describe('User Story 4 - manage entities and documents via the workspace sidebar
     qs('nav-entities').click();
     expect(document.getElementById('entity-list')).toBeNull();
 
-    qs('nav-search').click();
-    expect(qs('search-input')).not.toBeNull();
+    const searchInput = qs('global-search-input');
+    searchInput.value = 'Acme';
+    searchInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    expect(qs('view-search').hidden).toBe(false);
   });
 
   it('creates, edits, and deletes an entity from the entities view', () => {

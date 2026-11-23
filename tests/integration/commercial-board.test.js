@@ -50,3 +50,86 @@ it('oculta el tablero en el perfil genérico', async () => {
   await boot(null);
   expect(document.getElementById('commercial-board').hidden).toBe(true);
 });
+
+async function seedBoard() {
+  const entities = [
+    {
+      id: 'ent_1',
+      entity_id: 'cli_001',
+      name: 'Empresa Demo',
+      code: 'CLI-DEMO-001',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    }
+  ];
+  const base = {
+    entity_id: 'cli_001',
+    series: 'OPP',
+    opportunityOwner: 'Ejecutivo A',
+    currency: 'CLP',
+    startDate: '2026-11-02',
+    endDate: '2026-11-30'
+  };
+  const documents = [
+    { ...base, id: 'doc_a', folio: 2001, opportunityTitle: 'Compresor', totalAmount: 100000, status: 'Nueva' },
+    { ...base, id: 'doc_b', folio: 2002, opportunityTitle: 'Extractor', totalAmount: 250000, status: 'Nueva' },
+    { ...base, id: 'doc_c', folio: 2003, opportunityTitle: 'Bomba', totalAmount: 50000, status: 'Ganada' }
+  ];
+  localStorage.setItem('erp_base_module:entities', JSON.stringify(entities));
+  localStorage.setItem('erp_base_module:documents', JSON.stringify(documents));
+  localStorage.setItem('erp_base_module:schemaVersion', JSON.stringify({ schemaVersion: 1 }));
+  document.getElementById('nav-dashboard').click();
+  return entities[0];
+}
+
+it('alimenta las seis columnas desde stageDistribution con etiqueta, conteo y monto', async () => {
+  const { boot } = await import('../../src/app.js');
+  await boot();
+  await seedBoard();
+
+  const columns = [...document.querySelectorAll('#commercial-columns .commercial-column')];
+  expect(columns).toHaveLength(6);
+  expect(columns.map((column) => column.querySelector('h3').textContent)).toEqual([
+    'Nueva · 2',
+    'Contactada · 0',
+    'Propuesta · 0',
+    'Negociación · 0',
+    'Ganada · 1',
+    'Perdida · 0'
+  ]);
+  expect(columns[0].querySelector('p').textContent).toContain('350.000');
+  expect(columns[4].querySelector('p').textContent).toContain('50.000');
+  expect(columns[1].querySelector('p').textContent).toContain('0');
+  expect(columns[1].textContent).toContain('Sin oportunidades');
+});
+
+it('expone el tablero en una región desplazable accesible', async () => {
+  const { boot } = await import('../../src/app.js');
+  await boot();
+  await seedBoard();
+
+  const scroll = document.querySelector('.board-scroll');
+  expect(scroll).not.toBeNull();
+  expect(scroll.getAttribute('role')).toBe('region');
+  expect(scroll.getAttribute('tabindex')).toBe('0');
+  expect(scroll.getAttribute('aria-label')).toBeTruthy();
+  expect(scroll.contains(document.getElementById('commercial-columns'))).toBe(true);
+});
+
+it('oculta el tablero cuando hay clientes pero ninguna oportunidad', async () => {
+  const { boot } = await import('../../src/app.js');
+  await boot();
+  const { addEntity } = await import('../../src/storage.js');
+  addEntity({
+    name: 'Empresa Demo',
+    code: 'CLI-DEMO-001',
+    category: 'Activo',
+    accountOwner: 'Ejecutivo A',
+    acquisitionSource: 'Referido'
+  });
+  document.getElementById('nav-dashboard').click();
+
+  expect(document.getElementById('commercial-board').hidden).toBe(true);
+  expect(document.getElementById('commercial-columns').children.length).toBe(0);
+});

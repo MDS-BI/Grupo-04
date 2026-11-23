@@ -40,7 +40,7 @@ function folioLabel(document) {
 }
 
 /** Ficha del cliente en modo lectura, con sus oportunidades asociadas. */
-export function renderEntityDetail(container, client, opportunities = [], today = todayLocal()) {
+export function renderEntityDetail(container, client, opportunities = [], today = todayLocal(), options = {}) {
   container.innerHTML = '';
 
   const dl = document.createElement('dl');
@@ -77,6 +77,14 @@ export function renderEntityDetail(container, client, opportunities = [], today 
   create.dataset.newOpportunity = client.entity_id || '';
   create.textContent = 'Nueva oportunidad';
   actions.appendChild(create);
+  if (options.showTicketAction) {
+    const ticket = document.createElement('button');
+    ticket.type = 'button';
+    ticket.className = 'secondary';
+    ticket.dataset.newTicket = client.entity_id || '';
+    ticket.textContent = 'Nuevo ticket';
+    actions.appendChild(ticket);
+  }
   container.appendChild(actions);
 
   container.appendChild(sectionHeading('Oportunidades asociadas'));
