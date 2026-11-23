@@ -2,9 +2,10 @@
 
 **Rama de la funcionalidad**: `main` (sin ramas secundarias, según la instrucción del curso)
 **Creada**: 2026-10-26
-**Actualizada**: 2026-11-16
+**Actualizada**: 2026-11-23
 **Estado**: En revisión
 **Rediseño de interfaz (iteración 3)**: [`specs/002-crm-ui-refresh/spec.md`](../002-crm-ui-refresh/spec.md)
+**Actualización frontend-only (iteración 4)**: contactos múltiples, actividades, timeline y papelera de clientes; ver “Actualización frontend-only del CRM” al final.
 **Entrada**: Descripción del usuario: "La empresa vende equipos industriales a otras empresas de la Región del Biobío y pierde ventas porque no tiene un registro ordenado de sus clientes ni de las cotizaciones que manda. Se necesita un módulo CRM para guardar los clientes, seguir las oportunidades de venta y anotar los tickets de soporte después de la venta."
 
 > **Nota de consolidación**: este archivo reemplaza a `specs.md`. Las historias, requisitos y criterios de éxito que estaban en `specs.md` se fusionaron aquí para mantener una sola especificación. `specs.md` queda reemplazado por este documento.
@@ -18,7 +19,7 @@ El módulo tiene que resolver un problema bien concreto: hoy las cotizaciones qu
 - **MVP de la primera versión integrada (iteración 1, P1)**: clientes, oportunidades, búsqueda, ciclo de vida, terminología y persistencia local.
 - **Segunda iteración (P2)**: tickets de soporte (US-03) y panel con indicadores (US-07), que igual quedan especificados aquí y en `data-model.md` para no dejarlos a medias.
 - **Tercera iteración (rediseño de interfaz)**: navegación, drawers, tablas, filtros y panel accionable. Se especifica en [`specs/002-crm-ui-refresh/spec.md`](../002-crm-ui-refresh/spec.md); no modifica entidades, reglas, indicadores ni persistencia.
-- **Fuera del MVP**: envío de correos o WhatsApp, automatizaciones externas, campañas, agenda con alarmas, registro estructurado de cada interacción, cotizaciones con partidas, facturación, predicción de ventas, sincronización entre computadores y acceso simultáneo.
+- **Fuera del MVP original**: envío de correos o WhatsApp, automatizaciones externas, campañas, agenda con alarmas, registro estructurado de cada interacción, cotizaciones con partidas, facturación, predicción de ventas, sincronización entre computadores y acceso simultáneo. La actualización frontend-only de la iteración 4 incorpora contactos, actividades, timeline y papelera; no incorpora envío de correos, automatizaciones, campañas, facturación ni sincronización.
 - **Solo frontend**: los datos viven en `localStorage` del mismo navegador. No hay backend, autenticación ni permisos reales.
 - **Datos sintéticos**: la demo usa únicamente empresas, contactos y oportunidades ficticios. No se afirma que el caso haya sido investigado ni validado con una empresa real.
 - **Una oportunidad no es una factura ni un pedido**: el monto es una expectativa comercial, no un ingreso contable.
@@ -505,7 +506,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **FR-024**: El sistema DEBE mostrar los seis indicadores del panel con las fórmulas de `data-model.md`, recalcularlos al volver al panel y después de cada mutación, y no persistir totales derivados. “Seguimientos vencidos” y “Contactos para hoy” excluyen clientes `Inactivo`.
 - **FR-025**: El sistema DEBE registrar tickets con cliente, producto, motivo (soporte, reclamo o consulta), descripción, prioridad y estado; `productId` es opcional y se acepta como cadena no vacía (el módulo Producto está fuera del alcance); `productName` es un respaldo de demo.
 - **FR-026**: El sistema DEBE mostrar los tickets por cliente, permitir `En proceso → Resuelto` y permitir editar motivo, descripción y prioridad conservando el estado; no se permite reapertura en el MVP y la prioridad se limita a Alta, Media o Baja.
-- **FR-027**: El sistema DEBE guardar solo los datos de contacto necesarios del cliente y NO DEBE ofrecer exportación del listado completo.
+- **FR-027**: El sistema DEBE guardar solo los datos de contacto necesarios del cliente. En el MVP no se ofrece exportación del listado completo.
 - **FR-028**: El sistema NO DEBE usar la ubicación geográfica del cliente para ordenar ni para priorizar oportunidades o tickets.
 - **FR-029**: El sistema DEBE aplicar `moduleName`, etiquetas, campos personalizados, catálogos, ciclo de vida y color desde `ModuleConfig`; DEBE informar conflictos y conservar el respaldo genérico del template.
 - **FR-030**: El sistema DEBE usar Cliente/Clientes y Oportunidad/Oportunidades en panel, gestión, formularios, búsqueda, detalle, mensajes y estados vacíos, en singular y plural, con fallback entidad/documento cuando no haya perfil.
@@ -541,7 +542,7 @@ El detalle de campos, tipos y relaciones está en `data-model.md`.
 - **NFR-002 Rendimiento**: con 500 clientes y 1000 oportunidades, la búsqueda debe actualizarse en menos de 500 ms en al menos 19 de 20 mediciones; el panel debe recalcular sin bloquear la interfaz. Registrar navegador, equipo y mediciones.
 - **NFR-003 Persistencia y recuperación**: ante cuota agotada, JSON corrupto o pestaña obsoleta, conservar la información previa, mostrar un error recuperable y no reiniciar el almacenamiento automáticamente.
 - **NFR-004 Seguridad de renderizado**: todo texto ingresado se muestra como texto; no se inyecta HTML ni se ejecutan scripts.
-- **NFR-005 Privacidad y minimización**: solo datos de contacto necesarios, sin exportación masiva, sin datos bancarios ni contraseñas, y sin usar ubicación geográfica para ordenar o priorizar.
+- **NFR-005 Privacidad y minimización**: solo datos de contacto necesarios, sin datos bancarios ni contraseñas, y sin usar ubicación geográfica para ordenar o priorizar. En el MVP no se ofrece exportación masiva.
 - **NFR-006 Compatibilidad**: navegadores modernos de escritorio y móvil; como mínimo Chrome y Firefox actuales, con Edge y Safari cuando estén disponibles. Vite y Vanilla JS según el template base. Registrar los navegadores realmente probados.
 - **NFR-007 Integridad**: las operaciones de cascada y las transiciones de estado deben ser atómicas a nivel de la instantánea en memoria; no se aceptan escrituras parciales.
 - **NFR-008 Versionado**: el esquema CRM debe tener versión explícita y cualquier migración debe ser visible y confirmada, nunca silenciosa.
@@ -649,7 +650,7 @@ Las fórmulas exactas están en `data-model.md`, sección “Variables e indicad
 
 El curso permite desarrollar la parte técnica con IA. Registrar en el README o en `plan.md` qué se generó con IA, qué se revisó manualmente y qué se verificó con pruebas. No se deben inventar resultados, participantes ni validación empresarial.
 
-## Definición de terminado
+## Definición de terminado de la línea base
 
 - [ ] La especificación, `plan.md`, `data-model.md`, el contrato y el MER describen las mismas entidades, campos y estados.
 - [ ] Las historias P1 tienen criterios de aceptación verificables y pruebas asociadas.
@@ -902,3 +903,231 @@ Los tickets nuevos se crean en “En proceso”, sin `resolvedAt`. La ausencia d
 - Añadir pruebas de resolución válida, resumen vacío, persistencia, errores de escritura, datos históricos y renderizado seguro.
 
 **Trazabilidad**: FR-11-01 → CA-11-01 y CA-11-07; FR-11-02 → CA-11-02; FR-11-03 → CA-11-03 y CA-11-04; FR-11-04 → CA-11-05 y CA-11-11; FR-11-05 → CA-11-06 y CA-11-08; FR-11-06 → CA-11-10; FR-11-07 → CA-11-09; FR-11-08 → CA-11-12.
+
+---
+
+## Actualización frontend-only del CRM (iteración 4)
+
+**Estado**: Borrador  
+**Creada**: 2026-11-23  
+**Actualizada**: 2026-11-23 (poda a alcance esencial)  
+**Entrada**: Agregar al CRM actual, sin backend, solo las capacidades que un ejecutivo comercial usa a diario: contactos múltiples, seguimiento de actividades, historial por cliente, Kanban editable y recuperación de borrados.  
+**Referencias**: [`data-model.md`](data-model.md) para el modelo vigente.
+
+> **Nota de alcance**: esta actualización no reemplaza la línea base. Las historias US-01 a US-11 y sus requisitos siguen vigentes. Esta iteración agrega solo US-12 a US-16. Las demás historias propuestas quedan fuera de esta iteración y no se documentan como pendientes.
+
+### Decisiones de alcance de la actualización
+
+- **Solo frontend**: sin backend, servidores, APIs externas ni integraciones. Los datos viven en el almacenamiento local del navegador.
+- **Aditiva**: no se reemplazan las colecciones actuales de clientes, oportunidades y tickets ni su estructura. Los contactos, las actividades y la papelera se guardan en una capa CRM separada.
+- **Una sola organización y un solo workspace**. No hay multi-tenant ni aislamiento por organización.
+- **Moneda única CLP**. No se incorporan tipos de cambio ni multimoneda.
+- **Sin administración de datos**: no hay importación, exportación, respaldo, restauración, detección de duplicados ni fusión de registros.
+- **Sin bitácora ni historial de etapas**: el timeline se arma con actividades y tickets, no con eventos de sistema.
+- **Sin perfil local**: los responsables siguen saliendo del catálogo estático de `ModuleConfig`.
+- **Papelera de mejor esfuerzo**: conserva los últimos 50 clientes eliminados junto con sus relaciones y no sustituye un respaldo.
+
+### Fuera de alcance de la actualización
+
+- Autenticación, autorización por roles, permisos reales y multi-tenant.
+- Importación CSV, exportación CSV/JSON, respaldo, restauración y reportes descargables.
+- Detección de duplicados, fusión de registros y revisión de huérfanos.
+- Bitácora de cambios, historial de etapas y aviso de pestaña obsoleta.
+- Perfil local simulado y cualquier forma de identidad de usuario.
+- Nuevos tipos de campo personalizado y editor de campos.
+- Paginación visible: el rendimiento se mantiene como requisito no funcional (NFR-002).
+- Envío real de correos o mensajes: una actividad de tipo correo solo registra que se hizo.
+- Multimoneda, integraciones, adjuntos y sincronización en tiempo real.
+- Migraciones o cambios destructivos en las colecciones actuales.
+
+### Resumen de historias
+
+| Historia | Tema | Prioridad | Dependencias principales |
+|---|---|---|---|
+| US-12 | Contactos múltiples por cliente | P1 | US-01 |
+| US-13 | Actividades y tareas | P1 | US-01, US-12 |
+| US-14 | Timeline por cliente y oportunidad | P1 | US-13, US-03 |
+| US-15 | Kanban editable | P1 | US-05 |
+| US-16 | Papelera de clientes con cascada | P2 | US-01, US-12, US-13 |
+
+> La numeración se compactó para no dejar huecos. Equivalencia con la propuesta anterior: US-12 → US-12, US-13 → US-15, US-14 → US-16, US-15 → US-17 y US-16 → US-25. Las demás historias propuestas se descartaron.
+
+> Los responsables de US-12 a US-16 se completan con la misma convención de la tabla “Organización por integrante”: `[integrante]` o `[transversal]` según corresponda.
+
+### Historia de Usuario 12 — Contactos múltiples por cliente (Prioridad: P1)
+
+**Como** ejecutivo comercial, **quiero** registrar varios contactos por cliente y marcar uno como principal, **para** no depender de un único interlocutor y poder asociar oportunidades y actividades a la persona correcta.
+
+**Por qué esta prioridad**: hoy un cliente solo tiene un contacto principal. Sin contactos múltiples, el CRM no refleja cómo se compra en una empresa.
+
+**Prueba independiente**: crear un cliente con dos contactos, marcar el segundo como principal, buscar por el correo del primero y verificar que ambos aparecen en la ficha y pueden asociarse a una oportunidad.
+
+**Escenarios de aceptación**:
+
+1. **CA-12-01** — **Dado** un cliente existente, **cuando** agrego un contacto con nombre, cargo, correo y teléfono, **entonces** el contacto aparece en la ficha del cliente y queda disponible para oportunidades y actividades.
+2. **CA-12-02** — **Dado** un cliente con varios contactos, **cuando** marco uno como principal, **entonces** el anterior deja de serlo y queda exactamente un contacto principal.
+3. **CA-12-03** — **Dado** un cliente heredado con `contactName`, **cuando** abro su ficha por primera vez, **entonces** ese valor se convierte en el contacto principal sin duplicarlo y sin pérdida de información.
+4. **CA-12-04** — **Dado** un contacto asociado a actividades u oportunidades, **cuando** intento eliminarlo, **entonces** el sistema me advierte y me permite reasignar o confirmar la eliminación.
+5. **CA-12-05** — **Dado** un término de búsqueda que coincide con el nombre, correo o teléfono de un contacto, **cuando** busco, **entonces** aparece el cliente asociado.
+
+**Dependencias**: US-01. **Casos límite**: cliente sin contactos, eliminación del contacto principal, correo repetido, cliente eliminado con contactos asociados.
+
+---
+
+### Historia de Usuario 13 — Actividades y tareas (Prioridad: P1)
+
+**Como** ejecutivo comercial, **quiero** registrar llamadas, correos, reuniones, notas y tareas con vencimiento y responsable, **para** no perder seguimientos y saber qué hacer después.
+
+**Por qué esta prioridad**: el CRM actual solo tiene una fecha de próximo contacto. No hay historial de interacciones ni tareas accionables.
+
+**Prueba independiente**: crear una tarea con vencimiento para un cliente, completarla y verificar que desaparece de pendientes y aparece en el timeline.
+
+**Escenarios de aceptación**:
+
+1. **CA-13-01** — **Dado** un cliente, **cuando** creo una actividad de tipo llamada, correo, reunión o nota, **entonces** puedo indicar asunto, notas, fecha, responsable y vínculo opcional a contacto u oportunidad.
+2. **CA-13-02** — **Dado** una actividad de tipo tarea, **cuando** la guardo sin fecha de vencimiento, **entonces** el sistema la rechaza.
+3. **CA-13-03** — **Dado** una actividad pendiente, **cuando** la marco como completada, **entonces** se registra la fecha de cierre y deja de contar como pendiente.
+4. **CA-13-04** — **Dado** una actividad con vencimiento anterior a hoy y sin completar, **cuando** abro el panel o la ficha, **entonces** se muestra como vencida.
+5. **CA-13-05** — **Dado** un cliente con actividades, **cuando** elimino el cliente, **entonces** sus actividades se conservan en la papelera junto con el cliente (US-16).
+
+**Nota**: una actividad de tipo correo no envía correos ni mensajes; solo deja registro de que la comunicación ocurrió.
+
+**Dependencias**: US-01, US-12. **Casos límite**: actividad sin cliente, tarea sin vencimiento, actividad vinculada a una oportunidad eliminada, cambio de responsable, fechas en zona horaria local.
+
+---
+
+### Historia de Usuario 14 — Timeline por cliente y oportunidad (Prioridad: P1)
+
+**Como** ejecutivo comercial, **quiero** ver en orden cronológico las actividades y los tickets de un cliente u oportunidad, **para** entender el contexto antes de contactarlo.
+
+**Por qué esta prioridad**: la información está dispersa entre fichas, tickets y formularios. Un timeline reduce el tiempo de preparación de una llamada.
+
+**Prueba independiente**: abrir un cliente con dos actividades y un ticket, verificar el orden descendente, filtrar por tipo y comprobar que el detalle de cada evento es legible.
+
+**Escenarios de aceptación**:
+
+1. **CA-14-01** — **Dado** un cliente con actividades y tickets, **cuando** abro su timeline, **entonces** veo ambos tipos ordenados del más reciente al más antiguo.
+2. **CA-14-02** — **Dado** una oportunidad con actividades, **cuando** abro su timeline, **entonces** veo solo las actividades asociadas, sin eventos de sistema ni cambios de etapa.
+3. **CA-14-03** — **Dado** un timeline con muchos eventos, **cuando** aplico un filtro por tipo o fecha, **entonces** solo se muestran los eventos que cumplen el filtro.
+4. **CA-14-04** — **Dado** un evento del timeline, **cuando** lo selecciono, **entonces** veo tipo, fecha, responsable y resumen, sin opción de editarlo desde el timeline.
+5. **CA-14-05** — **Dado** un cliente sin actividad, **cuando** abro el timeline, **entonces** veo un estado vacío con una acción para registrar la primera actividad.
+
+**Dependencias**: US-13, US-03. **Casos límite**: historial extenso, evento sin responsable, registro eliminado, fechas inválidas, tickets cerrados.
+
+---
+
+### Historia de Usuario 15 — Kanban editable con transiciones validadas (Prioridad: P1)
+
+**Como** ejecutivo comercial, **quiero** mover oportunidades entre etapas arrastrándolas o usando el teclado, **para** actualizar el pipeline sin abrir el formulario completo.
+
+**Por qué esta prioridad**: el Kanban actual es solo lectura. Mover etapas es la operación más frecuente de un CRM.
+
+**Prueba independiente**: arrastrar una oportunidad de “Nueva” a “Contactada”, verificar la actualización; intentar un salto inválido y comprobar que la tarjeta vuelve a su columna.
+
+**Escenarios de aceptación**:
+
+1. **CA-15-01** — **Dado** el tablero Kanban, **cuando** arrastro una oportunidad a una etapa permitida, **entonces** la etapa se actualiza y los totales de ambas columnas se recalculan.
+2. **CA-15-02** — **Dado** una oportunidad en “Nueva”, **cuando** intento moverla directamente a “Ganada”, **entonces** el sistema rechaza la transición y la tarjeta vuelve a su lugar.
+3. **CA-15-03** — **Dado** una oportunidad que muevo a “Perdida”, **cuando** suelto la tarjeta, **entonces** se abre la solicitud del `lossReason` de texto libre y, si cancelo, no se modifica nada.
+4. **CA-15-04** — **Dado** un usuario que no puede arrastrar, **cuando** usa el menú de mover etapa, **entonces** puede completar la misma operación con teclado.
+
+**Dependencias**: US-05. **Casos límite**: transición inválida, motivo de pérdida cancelado, oportunidad ya cerrada, columnas vacías, muchos registros por columna.
+
+---
+
+### Historia de Usuario 16 — Papelera de clientes con cascada (Prioridad: P2)
+
+**Como** usuario, **quiero** que los clientes eliminados vayan a una papelera y puedan restaurarse con sus relaciones, **para** recuperarme de borrados accidentales sin tocar la estructura actual.
+
+**Por qué esta prioridad**: hoy el borrado de un cliente elimina en cascada sus oportunidades y tickets sin recuperación.
+
+**Prueba independiente**: eliminar un cliente con una oportunidad, un ticket, un contacto y una actividad, verificar que el conjunto aparece en la papelera y restaurarlo completo.
+
+**Escenarios de aceptación**:
+
+1. **CA-16-01** — **Dado** un cliente, **cuando** lo elimino, **entonces** se guarda un elemento recuperable con el cliente, sus oportunidades, tickets, contactos y actividades.
+2. **CA-16-02** — **Dado** un elemento en papelera, **cuando** lo restauro, **entonces** vuelve con todos sus datos y relaciones, y se detectan conflictos de identificadores.
+3. **CA-16-03** — **Dado** un elemento en papelera, **cuando** lo purgo, **entonces** se pide confirmación y la eliminación es definitiva.
+4. **CA-16-04** — **Dado** que la papelera ya conserva 50 clientes, **cuando** elimino uno más, **entonces** se descarta el más antiguo y se advierte que la papelera es local y limitada.
+5. **CA-16-05** — **Dado** la papelera, **cuando** reviso su contenido, **entonces** puedo ver tipo, fecha de eliminación y cantidad de registros asociados.
+
+**Dependencias**: US-01, US-12, US-13. **Casos límite**: restauración con ID ya existente, cliente restaurado sin una de sus oportunidades, purga del último elemento, papelera llena, cliente eliminado sin relaciones.
+
+---
+
+### Casos límite de la actualización
+
+- Cliente heredado sin contactos, actividades ni timeline.
+- Eliminación del contacto principal de un cliente con varios contactos.
+- Tarea sin vencimiento.
+- Actividad vinculada a una oportunidad eliminada.
+- Registro restaurado cuyo identificador ya existe.
+- Borrado de cliente con oportunidades, tickets, contactos y actividades.
+- Almacenamiento del navegador lleno o no disponible.
+- Fechas y vencimientos en zona horaria local.
+- Kanban con transición inválida o motivo de pérdida cancelado.
+- Papelera que alcanza el límite de 50 clientes.
+- Historial extenso en el timeline.
+
+### Entidades clave de la actualización
+
+- **Contacto**: persona asociada a un cliente, con nombre, cargo, correo, teléfono y condición de principal. Un cliente puede tener varios contactos y exactamente uno principal.
+- **Actividad**: llamada, correo, reunión, nota o tarea vinculada a un cliente y, opcionalmente, a un contacto y una oportunidad. Incluye asunto, notas, vencimiento, responsable y estado.
+- **Elemento de papelera**: conjunto recuperable formado por un cliente eliminado y sus oportunidades, tickets, contactos y actividades.
+
+La oportunidad conserva sus campos actuales; `lossReason` sigue siendo texto libre. El campo `contactName` del cliente se conserva solo como dato heredado que se migra al primer contacto. El detalle de campos, tipos y relaciones debe incorporarse a `data-model.md` durante la planificación.
+
+### Requisitos funcionales de la actualización
+
+| ID | Requisito | Historia |
+|---|---|---|
+| FR-037 | El sistema DEBE permitir varios contactos por cliente y asociarlos a oportunidades y actividades. | US-12 |
+| FR-038 | El sistema DEBE garantizar exactamente un contacto principal por cliente y migrar `contactName` al primer contacto sin duplicarlo. | US-12 |
+| FR-039 | El sistema DEBE permitir crear, editar, completar y eliminar actividades de tipo llamada, correo, reunión, nota y tarea, con responsable y vínculos opcionales. | US-13 |
+| FR-040 | El sistema DEBE exigir vencimiento en las tareas y calcular actividades vencidas con la fecha local. | US-13 |
+| FR-041 | El sistema DEBE mostrar en el panel las actividades para hoy y las vencidas. | US-13 |
+| FR-042 | El sistema DEBE mostrar un timeline cronológico de actividades y tickets por cliente y oportunidad, con filtros por tipo y fecha. | US-14 |
+| FR-043 | El sistema DEBE permitir mover oportunidades entre etapas válidas desde el Kanban y actualizar los totales. | US-15 |
+| FR-044 | El sistema DEBE rechazar transiciones inválidas en el Kanban, solicitar el motivo de pérdida al pasar a Perdida y ofrecer una alternativa por teclado. | US-15 |
+| FR-045 | El sistema DEBE conservar en papelera los últimos 50 clientes eliminados con sus relaciones, permitir restaurarlos y purgarlos con confirmación. | US-16 |
+
+### Criterios de éxito de la actualización
+
+| ID | Meta | Verificación |
+|---|---|---|
+| SC-011 | 100% de los contactos creados quedan vinculados a un cliente existente y cada cliente tiene como máximo un contacto principal | Pruebas de dominio e integración |
+| SC-012 | 100% de las tareas sin vencimiento son rechazadas y 100% de las vencidas se muestran como tales | Pruebas de validación y panel |
+| SC-013 | 0 transiciones inválidas aceptadas desde el Kanban y 100% de los motivos solicitados al pasar a Perdida | Pruebas de dominio e interfaz |
+| SC-014 | Un ciclo eliminar-restaurar de un cliente preserva 100% de sus registros y relaciones | Prueba de integración |
+| SC-015 | La búsqueda y el timeline responden en menos de 500 ms en al menos 19 de 20 mediciones con el volumen de prueba | Prueba de rendimiento |
+
+### Relación con los requisitos vigentes
+
+- **FR-027 y NFR-005** se mantienen sin cambios: la iteración no incorpora exportación.
+- **FR-024** se mantiene como mínimo: los seis indicadores originales siguen existiendo y la iteración agrega una tarjeta de actividades para hoy y vencidas.
+- **FR-022** se mantiene: `lossReason` sigue siendo obligatorio y de texto libre al pasar a Perdida; no se crea catálogo.
+- La exclusión original de “registro estructurado de cada interacción” queda superada por US-13 y US-14 para esta iteración.
+- Las colecciones actuales de clientes, oportunidades y tickets no se reemplazan. Los contactos, actividades y la papelera se guardan en una capa CRM adicional.
+- `data-model.md`, los contratos y el MER deben actualizarse durante la planificación para reflejar Contacto, Actividad y Elemento de papelera.
+
+### Supuestos y límites de la actualización
+
+- Las colecciones actuales de clientes, oportunidades y tickets se conservan sin reemplazo.
+- La actualización se apoya en una capa adicional de datos CRM, sin migraciones destructivas del modelo existente.
+- La migración de `contactName` al primer contacto ocurre una sola vez y no borra información.
+- El workspace es de una sola organización.
+- Todos los montos se expresan en CLP.
+- Las reglas de negocio se validan en la aplicación, no en una base de datos.
+- Una actividad de tipo correo no envía correo ni mensajes.
+- La papelera conserva los últimos 50 clientes eliminados y no sustituye un respaldo externo.
+- Listados, búsqueda y timeline mantienen el presupuesto de rendimiento de NFR-002.
+
+### Definición de terminado de la actualización
+
+- [ ] US-12 a US-16 tienen criterios de aceptación verificables y pruebas asociadas.
+- [ ] Las colecciones actuales siguen funcionando sin migraciones destructivas.
+- [ ] La búsqueda, el panel y el timeline se recalculan correctamente después de cada mutación.
+- [ ] Eliminar y restaurar un cliente conserva el 100% de sus registros y relaciones.
+- [ ] `spec.md`, `plan.md`, `data-model.md`, las tareas y los contratos describen las mismas entidades y reglas.
+- [ ] La suite existente sigue pasando y se agregan pruebas para contactos, actividades, timeline, Kanban y papelera.
+- [ ] `npm test` y `npm run build` se ejecutan y sus resultados quedan registrados.
