@@ -20,6 +20,7 @@ Fijar los identificadores, atributos y comportamientos que la interfaz expone a 
 |---|---|---|
 | Cabecera | `header.topbar` | Contiene marca, búsqueda global y acción principal; no se oculta al navegar |
 | Búsqueda global | `#global-search-input` | `type="search"`, `aria-label` con el término de búsqueda y la terminología CRM; al evento `input` navega a `#/search` y filtra |
+| Búsqueda sin criterio | `#global-search-input` vacío | La vista `#view-search` permanece visible y muestra la pista de búsqueda; no lista resultados, no navega y no borra filtros |
 | Acción principal | `#topbar-primary-action` | Abre el drawer de “Nuevo cliente”; texto desde `ModuleConfig` |
 | Barra lateral | `aside.sidebar` | Contiene solo Panel y los dos grupos de dominio |
 | Grupo de navegación | `button.nav-section[data-module]` | `aria-expanded` refleja si el submenú está abierto; `aria-controls` apunta al submenú |
@@ -49,10 +50,12 @@ Fijar los identificadores, atributos y comportamientos que la interfaz expone a 
 | Foco inicial | Primer campo editable; si no hay campos, el título con `tabindex="-1"` |
 | Trampa de foco | `Tab` y `Shift+Tab` ciclan dentro del overlay y nunca alcanzan el fondo |
 | Devolución de foco | Al cerrar, el foco vuelve a `returnFocus` |
-| Pila | El alta al vuelo se apila sobre el drawer de oportunidad; solo el superior responde |
-| Cambios sin guardar | Si `dirty`, cerrar pide confirmación; cancelar mantiene el overlay abierto y los datos |
+| Pila | El alta al vuelo se apila sobre el drawer de oportunidad; la confirmación de descarte se apila sobre el overlay que la origina; solo el superior responde |
+| Cambios sin guardar | Si `dirty`, cerrar o navegar abre `confirm-discard`; “Seguir editando” mantiene el overlay abierto y los datos; “Descartar” cierra sin persistir |
+| Confirmación de descarte | `id="confirm-discard"`, `variant="modal"`, título “Descartar cambios”, botón `[data-confirm-discard]` con variante `danger` y botón `[data-cancel-discard]`; prohibido `window.confirm()` |
 | Responsive | Bajo 640 px el drawer ocupa el 100 % del viewport |
 | Bloqueo de fondo | El contenido de fondo no es enfocable mientras hay un overlay; no se usa `inert` por compatibilidad con jsdom |
+| Ciclo de vida del contenido | Las tarjetas de formulario existen en el DOM al inicializar; se trasladan al overlay al abrir y se restauran a su contenedor al cerrar. No se clonan ni se recrean |
 
 ### API de `ui-overlay.js`
 
@@ -74,10 +77,11 @@ hasDirtyOverlay()
 | Encabezado | `<th scope="col">` con `<button data-sort="key">` cuando la columna es ordenable |
 | Estado de orden | `aria-sort="ascending" \| "descending" \| "none"` en el `<th>` activo |
 | Fila | `<tr data-key="...">` con clave estable |
-| Acciones | `button[data-action]` con `aria-label` que incluye el nombre del registro |
+| Acciones | `button[data-action="edit"]` con `aria-label` “Editar <nombre o folio>”; abre el drawer del registro. No existe acción de borrado por fila |
+| Barra de acciones heredada | `#edit-entity`, `#delete-entity`, `#edit-document`, `#delete-document` sobre la tabla, con ids, textos y comportamiento de `001`; el borrado solo ocurre aquí |
 | Monograma | `.avatar` con iniciales de `monogramFor(name)` y `aria-hidden="true"` |
 | Valores ausentes | “sin información” y al final del orden en ambos sentidos |
-| Vacío | No se renderiza `<tbody>`; se muestra `.empty-state` con CTA |
+| Vacío | No se renderiza `<tbody>`; `.empty-state` con CTA “Limpiar filtros” si hay criterio o filtros activos (conserva el texto) o “Nuevo cliente”/“Nueva oportunidad” si no hay registros |
 | Orden por defecto | Clientes por `name` ascendente; oportunidades por `folio` ascendente |
 | Volumen | 500 y 1000 filas sin virtualización; el orden debe mantenerse bajo 500 ms |
 
@@ -93,7 +97,8 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort })
 
 | Aspecto | Contrato |
 |---|---|
-| Barra | `#search-filters` colapsable; `#toggle-filters` con `aria-expanded` y `aria-controls` |
+| Barra | `#search-filters` colapsable **solo dentro de `#view-search`**; `#toggle-filters` con `aria-expanded` y `aria-controls` |
+| Alcance | Los listados “Listado” de Clientes y Oportunidades no montan la barra ni los chips; vuelven a la búsqueda con criterio y filtros conservados |
 | Selectores | `#search-filter-category`, `#search-filter-owner`, `#search-filter-source` conservan su contrato de `001` |
 | Chips | `button.chip[data-filter][data-value]` con `aria-pressed` |
 | Sincronización | Chip → selector al pulsar; selector → chip al cambiar; un solo valor activo por filtro |
@@ -138,6 +143,8 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort })
 | `tests/integration/workspace-shell.test.js` | `#global-search-input`, `.nav-section`, `.nav-subitem` |
 | `tests/integration/search-entities.test.js` | `#global-search-input`, `#search-results-list` |
 | `tests/integration/search-clients.test.js` | `#global-search-input`, tablas de resultados |
+| `tests/integration/table-sorting.test.js` | `.data-table`, `button[data-action="edit"]`, barra compacta heredada |
+| `tests/integration/table-empty-state.test.js` | `.empty-state`, `reason`, CTA de filtros y de alta |
 | `tests/integration/tickets.test.js` | `#global-search-input`, drawer de ticket |
 | `tests/integration/accessibility.test.js` | foco, `role="dialog"`, etiquetas |
 | `tests/integration/critical-journey.test.js` | navegación completa |
@@ -150,7 +157,10 @@ renderDataTable({ caption, columns, rows, sortKey, sortDirection, onSort })
 
 - Ningún id o atributo listado puede desaparecer sin actualizar sus pruebas en la misma tarea.
 - Toda apertura de overlay devuelve el foco al disparador al cerrarse.
+- La confirmación de descarte siempre es un `role="dialog"` propio; ninguna prueba depende de `window.confirm()`.
 - Toda tabla expone `aria-sort` en la columna activa y un `<caption>` accesible.
+- Toda tabla ofrece solo la acción “Editar” por fila; el borrado queda en la barra compacta con sus ids de `001`.
+- El estado vacío de una tabla distingue “sin coincidencias” de “sin registros” y su CTA corresponde a esa causa.
 - Chips y selectores nunca quedan desincronizados.
 - El estado vacío del panel solo aparece cuando ambas colecciones están vacías, y en ese caso oculta la banda y el embudo.
 - El embudo se oculta cuando el perfil no es CRM o no hay clientes ni oportunidades.

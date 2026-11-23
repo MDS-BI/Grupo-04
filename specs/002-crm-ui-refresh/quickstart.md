@@ -45,10 +45,12 @@ Registrar en el `README` que los datos son sintéticos.
 4. Revisar la barra lateral: debe contener Panel, Clientes y Oportunidades, **sin** una entrada “Buscar”.
 5. Expandir Clientes y verificar “Listado / Nuevo”; repetir con Oportunidades.
 6. Activar “Nuevo” en Oportunidades y comprobar que se abre el drawer vacío.
-7. Navegar a otra vista con el drawer abierto y con datos escritos; verificar la confirmación.
+7. Navegar a otra vista con el drawer abierto y con datos escritos; verificar que aparece el modal de confirmación con “Descartar” y “Seguir editando”.
 8. Usar Atrás del navegador y un enlace directo `#/search`.
+9. Borrar todo el criterio y comprobar que la vista de búsqueda permanece con la pista, sin listar resultados.
+10. Con dos chips activos, borrar el criterio y verificar que los filtros y el contador se conservan.
 
-**Resultado esperado**: la búsqueda está disponible desde cualquier vista, el criterio sobrevive la navegación, existe un único elemento activo, los submenús exponen `aria-expanded` y no hay entrada de búsqueda en el menú lateral. Al cancelar una navegación con cambios, se conserva lo escrito.
+**Resultado esperado**: la búsqueda está disponible desde cualquier vista, el criterio sobrevive la navegación, existe un único elemento activo, los submenús exponen `aria-expanded` y no hay entrada de búsqueda en el menú lateral. “Seguir editando” conserva lo escrito; “Descartar” no persiste. Sin criterio no se listan resultados y los filtros activos no se pierden.
 
 ## Escenario 2 — Drawer y alta de cliente al vuelo (US-UX-02)
 
@@ -57,15 +59,16 @@ Registrar en el `README` que los datos son sintéticos.
 3. Guardar con campos vacíos: los errores aparecen dentro del drawer y el foco va al primero.
 4. Completar `Empresa Demo 1`, `CLI-DEMO-003`, Prospecto, Ejecutivo A y Referido; guardar.
 5. Comprobar que el drawer se cierra, se confirma la creación y la fila aparece sin recargar.
-6. Editar la fila, cambiar el origen y guardar; verificar que `id` y `entity_id` no cambian.
-7. Recorrer el drawer solo con teclado: Tab, Shift+Tab y Esc; verificar que el foco no sale y vuelve al disparador.
+6. Activar “Editar” en la fila, cambiar el origen y guardar; verificar que `id` y `entity_id` no cambian. Comprobar que la fila no ofrece borrar y que el borrado solo está en la barra compacta con `#delete-entity`.
+7. Recorrer el drawer solo con teclado: Tab, Shift+Tab y Esc; verificar que el foco no sale, que Esc abre el modal de confirmación y que “Seguir editando” devuelve el foco al drawer.
 8. Abrir Oportunidades → Nuevo con almacenamiento vacío.
 9. Verificar que el selector no bloquea y que aparece “Crear cliente ahora”.
 10. Escribir asunto, folio, fechas y monto; abrir el alta al vuelo y crear un cliente válido.
 11. Confirmar que el cliente queda seleccionado y que el formulario de oportunidad conserva lo escrito.
 12. Guardar la oportunidad. Repetir el alta al vuelo y cancelar.
+13. En el listado de oportunidades, comprobar que la única acción por fila es “Editar” y que `#edit-document` / `#delete-document` siguen en la barra compacta.
 
-**Resultado esperado**: el alta y la edición no abandonan la lista; el foco entra, cicla y vuelve; los datos del formulario de oportunidad sobreviven al alta al vuelo; cancelar el alta no crea registros; las validaciones son las mismas de `001`.
+**Resultado esperado**: el alta y la edición no abandonan la lista; el foco entra, cicla y vuelve; el descarte exige el modal propio y nunca `window.confirm()`; los datos del formulario de oportunidad sobreviven al alta al vuelo; cancelar el alta no crea registros; las validaciones son las mismas de `001`; la eliminación solo existe en la barra heredada.
 
 ## Escenario 3 — Tablas, orden y filtros (US-UX-03)
 
@@ -77,9 +80,12 @@ Registrar en el `README` que los datos son sintéticos.
 6. Pulsar “Limpiar”: chips y selectores se desactivan y el criterio escrito se conserva.
 7. Repetir la búsqueda combinando texto y dos filtros; verificar AND.
 8. Buscar una oportunidad por folio y comprobar que aparece en su sección con el cliente vinculado.
-9. Repetir el recorrido solo con teclado.
+9. Escribir un criterio sin coincidencias: verificar el estado vacío con CTA “Limpiar filtros” y que el texto se conserva al limpiarlos.
+10. Vaciar el almacenamiento y abrir un listado sin registros: verificar el estado vacío con CTA “Nuevo cliente” o “Nueva oportunidad”.
+11. Ir a Clientes → Listado y confirmar que no hay barra de filtros ni chips; volver a la búsqueda y comprobar que criterio y filtros siguen activos.
+12. Repetir el recorrido solo con teclado.
 
-**Resultado esperado**: las tablas tienen caption accesible, el orden es estable y anunciado, los vacíos quedan al final, chips y selectores coinciden siempre y los resultados de oportunidades no se mezclan sin etiqueta con los de clientes.
+**Resultado esperado**: las tablas tienen caption accesible, el orden es estable y anunciado, los vacíos quedan al final, chips y selectores coinciden siempre y los resultados de oportunidades no se mezclan sin etiqueta con los de clientes. La acción por fila es solo “Editar”; el estado vacío distingue filtro de ausencia de datos; los listados no duplican la barra de filtros.
 
 ## Escenario 4 — Panel vacío, panel con datos y embudo (US-UX-04)
 
@@ -105,7 +111,7 @@ Registrar en el `README` que los datos son sintéticos.
 | Regresión | `npm test -- --run` | Las 280 pruebas actuales y las nuevas pasan |
 | Teclado | Recorrer cabecera, submenús, drawer, tabla, chips y panel | Todo alcanzable, foco visible y devuelto |
 | Foco en overlay | Abrir y cerrar solo con teclado; abrir dos overlays | El foco entra, cicla, no sale y vuelve al disparador correcto |
-| Cambios sin guardar | Escribir y cerrar con Esc, con el veló y al navegar | Confirmación; cancelar conserva, descartar no persiste |
+| Cambios sin guardar | Escribir y cerrar con Esc, con el veló y al navegar | Modal propio con “Descartar” / “Seguir editando”; “Seguir editando” conserva, “Descartar” no persiste y no aparece `window.confirm()` |
 | Responsive | 1440, 1024, 768 y 390 px | Sin desbordamiento; drawer a pantalla completa bajo 640 px; tabla con scroll horizontal |
 | Contraste | Medir texto secundario y CTA primaria | ≥ 4.5:1 en texto normal; ≥ 3:1 en controles |
 | Sin cambios de datos | Comparar `localStorage` antes/después de navegar, ordenar, filtrar y consultar | Mismas claves y campos; `schemaVersion` intacto |

@@ -81,17 +81,56 @@ Este documento resuelve las decisiones técnicas de la iteración de interfaz. N
 - **Tarjetas en grilla**: útiles en pocos registros, inmanejables en 500.
 - **Librería de tablas**: dependencia no justificada para el alcance.
 
+## Acciones por fila y estado vacío de tablas
+
+**Decisión**: la única acción por fila es “Editar”, que abre el drawer con ese registro. El borrado no se ofrece en la fila: sigue exclusivamente en la barra compacta sobre la tabla, con `#delete-entity` y `#delete-document`. La barra conserva también `#edit-entity` y `#edit-document` con sus ids, textos, selección y comportamiento. El estado vacío se muestra sin `<tbody>` y con dos variantes de CTA: “Limpiar filtros” cuando hay criterio o filtros activos —sin borrar el texto— y “Nuevo cliente” o “Nueva oportunidad” cuando no existe ningún registro.
+
+**Justificación**: `FR-UX-013` prohíbe sustituir los controles heredados y exige conservar una sola vía de borrado, mientras `FR-UX-007` pide acciones por fila. “Editar” es la única acción que gana valor en la fila y reutiliza el drawer ya especificado. Distinguir el vacío por filtro del vacío por datos evita ofrecer “crear” cuando el problema es un filtro, y “limpiar” cuando la cuenta está vacía (`FR-UX-007`, casos límite de `spec.md`).
+
+**Alternativas consideradas**:
+
+- **“Editar” y “Eliminar” por fila**: duplica la eliminación y deja dos caminos destructivos con confirmaciones distintas. Descartada.
+- **Sin acciones por fila**: obliga a seleccionar con un `<select>` antes de editar y mantiene el flujo torpe que la iteración quiere eliminar. Descartada.
+- **“Ver detalle” por fila**: la ficha ya existe en la vista de búsqueda; añadirla a la tabla duplica navegación sin requisito. Descartada.
+- **Un único estado vacío con CTA “Nuevo”**: ofrece crear cuando lo que falta es limpiar filtros. Descartada.
+
+## Confirmación de descarte: modal propio
+
+**Decisión**: la confirmación de cambios sin guardar se implementa con `openOverlay({ variant: 'modal' })`, título asociado, acción “Descartar” con variante visual `danger` y acción segura “Seguir editando”. No se usa `window.confirm()`.
+
+**Justificación**: reutiliza la primitiva de foco, cierre y pila que ya existe para el drawer, mantiene el foco atrapado y devuelto, y es verificable en jsdom sin simular diálogos del navegador (`FR-UX-005`, `CA-UX-01-07`, `CA-UX-02-04`). El diálogo nativo no es estilizable, no expone `role="dialog"` verificable y bloquea el hilo de la prueba.
+
+**Alternativas consideradas**:
+
+- **`window.confirm()`**: excluye el control visual, rompe la consistencia del sistema y complica las pruebas. Descartada.
+- **Cerrar siempre descartando**: pierde datos por accidente y contradice `FR-UX-005`. Descartada.
+- **Nativo al navegar y modal al cerrar**: dos patrones para la misma decisión. Descartada.
+
 ## Filtros con chips sincronizados
 
-**Decisión**: mantener los tres `<select>` actuales (`#search-filter-category`, `#search-filter-owner`, `#search-filter-source`) dentro de una barra colapsable y añadir chips `aria-pressed` que escriben en ellos. Un contador anuncia los filtros activos y “Limpiar” desactiva ambos sin borrar el criterio.
+**Decisión**: mantener los tres `<select>` actuales (`#search-filter-category`, `#search-filter-owner`, `#search-filter-source`) dentro de una barra colapsable y añadir chips `aria-pressed` que escriben en ellos. Un contador anuncia los filtros activos y “Limpiar” desactiva ambos sin borrar el criterio. La barra y los chips viven **solo** en `#view-search`; los listados “Listado” de Clientes y Oportunidades ofrecen tabla y orden, sin barra de filtros, y reutilizan criterio y filtros al volver a la búsqueda.
 
-**Justificación**: los selectores conservan `readSearchFilters()` y las pruebas existentes (`CA-02-14`), mientras los chips dan la lectura rápida que pide el usuario (`FR-UX-009`). La sincronización en ambos sentidos evita estados contradictorios.
+**Justificación**: los selectores conservan `readSearchFilters()` y las pruebas existentes (`CA-02-14`), mientras los chips dan la lectura rápida que pide el usuario (`FR-UX-009`). La sincronización en ambos sentidos evita estados contradictorios. Limitar los filtros a la búsqueda mantiene una sola fuente de estado y evita duplicar la barra en dos vistas (`FR-UX-009`).
 
 **Alternativas consideradas**:
 
 - **Solo chips, sin selectores**: rompe las pruebas y pierde la selección nativa accesible.
 - **Solo selectores apilados**: es el problema actual.
+- **Filtros también en “Listado”, con estado compartido**: exige montar y sincronizar la misma barra en dos vistas y decidir qué pasa al navegar entre ambas. Descartada.
+- **Filtros independientes por vista**: duplica estado y permite resultados contradictorios entre listado y búsqueda. Descartada.
 - **Persistir filtros en `localStorage`**: no hay requisito y añade estado que sobrevive a la sesión.
+
+## Búsqueda sin criterio
+
+**Decisión**: al borrar por completo `#global-search-input`, la aplicación permanece en `#view-search`, muestra la pista “Escribe para buscar”, no lista resultados y no borra los filtros activos. No navega a la vista anterior.
+
+**Justificación**: conserva el comportamiento actual de `renderSearchResults()` (`hasCriterion: false`) y evita saltos de vista mientras el usuario edita el criterio (`FR-UX-001`, `CA-UX-01-02`). Los filtros siguen visibles y activos para el siguiente criterio.
+
+**Alternativas consideradas**:
+
+- **Volver a la vista anterior**: el foco y el contexto saltan con cada borrado del campo. Descartada.
+- **Listar todos los registros**: convierte un campo vacío en un listado no solicitado y degrada el rendimiento con 500/1000 filas. Descartada.
+- **Mostrar el estado vacío con CTA**: confunde “sin criterio” con “sin coincidencias” y ofrece limpiar filtros que quizá no existen. Descartada.
 
 ## Sistema visual y tokens
 
@@ -118,7 +157,7 @@ Este documento resuelve las decisiones técnicas de la iteración de interfaz. N
 
 ## Migración de pruebas acopladas al DOM
 
-**Decisión**: los ocho archivos que dependen de `nav-search`, `search-input` o de la estructura de `#search-results-list` se actualizan en la misma tarea que cambia el shell. Se conservan los ids de los controles de formulario y de los filtros.
+**Decisión**: los doce archivos que dependen de `nav-search` o `search-input` —`workspace-shell`, `search-entities`, `search-clients`, `tickets`, `custom-fields`, `critical-journey`, `manage-document`, `manage-tabs`, `relabeling`, `dashboard`, `security-render` y `search-performance`— se actualizan en la misma tarea que cambia el shell. Se conservan los ids de los controles de formulario y de los filtros.
 
 **Justificación**: el Principio II exige que las pruebas pasen antes de declarar terminada una historia. Migrarlas en una tarea posterior deja la suite roja entre incrementos y oculta regresiones reales.
 
@@ -141,3 +180,8 @@ Este documento resuelve las decisiones técnicas de la iteración de interfaz. N
 | 7 | Chips sincronizados con los selectores | Solo chips |
 | 8 | Tokens y SVG en línea, sin dependencias | Framework CSS |
 | 9 | Cero cambios de esquema | Entidad `Actividad` |
+| 10 | “Editar” como única acción por fila; borrado solo en la barra compacta | Editar y eliminar por fila |
+| 11 | Estado vacío con dos variantes de CTA (filtros vs. sin registros) | Un único estado vacío |
+| 12 | Confirmación de descarte con modal propio de `ui-overlay`, sin `window.confirm()` | Diálogo nativo |
+| 13 | Filtros y chips solo en la vista de búsqueda | Filtros también en “Listado” |
+| 14 | Búsqueda sin criterio permanece en la vista con pista | Volver a la vista anterior |

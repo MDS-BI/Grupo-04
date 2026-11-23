@@ -15,6 +15,17 @@
 
 El CRM funciona, pero la interfaz no acompaña el trabajo del ejecutivo: los formularios ocupan una tarjeta estrecha sobre un fondo gris amplio, la búsqueda compite con las secciones del menú lateral, el panel muestra seis tarjetas de “0” sin jerarquía y el alta de una oportunidad se interrumpe cuando no existe un cliente. Esta iteración convierte la interfaz en una herramienta densa, predecible y accesible, sin tocar el modelo de datos.
 
+## Clarifications
+
+### Session 2026-11-16
+
+- Q: ¿Dónde deben quedar los controles actuales de "editar o eliminar", que hoy seleccionan un registro con un `<select>` y un botón de borrado, ahora que el alta y la edición pasan al drawer? → A: Se mueven, con sus ids y textos, a una barra compacta sobre la tabla de registros; su comportamiento de selección y borrado no cambia.
+- Q: ¿Qué debe hacer el botón de cada fila en las tablas de clientes y oportunidades, si la edición y el borrado heredados ya están en la barra compacta sobre la tabla? → A: Cada fila ofrece solo “Editar”, que abre el drawer con ese registro; el borrado no se ofrece por fila y sigue únicamente en la barra compacta con `#delete-entity` / `#delete-document`.
+- Q: Cuando una tabla no muestra resultados, ¿qué debe ofrecer su estado vacío como acción principal y debe distinguir entre “no hay registros” y “ningún registro coincide con el filtro”? → A: Dos variantes: con filtros o criterio activo, CTA “Limpiar filtros” que no borra el texto; sin registros en absoluto, CTA “Nuevo cliente” o “Nueva oportunidad”.
+- Q: ¿Cómo debe mostrarse la confirmación para descartar cambios sin guardar? → A: Modal propio sobre `ui-overlay` con `data-variant="modal"`, título, “Descartar” con variante `danger` y “Seguir editando” como acción segura; no se usa `window.confirm()`.
+- Q: ¿Dónde deben vivir la barra de filtros y los chips: solo en la vista de búsqueda o también en los listados “Listado” de Clientes y Oportunidades? → A: Solo en la vista de búsqueda; “Listado” ofrece tabla y orden, sin filtros.
+- Q: Cuando el ejecutivo borra por completo el criterio de la búsqueda global estando en la vista de resultados, ¿qué debe ocurrir? → A: Se queda en la vista de búsqueda y muestra la pista “Escribe para buscar”, sin listar resultados y sin borrar los filtros activos.
+
 ## Alcance
 
 **Incluye**:
@@ -24,7 +35,7 @@ El CRM funciona, pero la interfaz no acompaña el trabajo del ejecutivo: los for
 - Alta y edición de cliente, oportunidad y ticket en un drawer lateral.
 - Alta de cliente al vuelo desde el formulario de oportunidad.
 - Listados y resultados como tablas ordenables con monogramas.
-- Filtros en barra colapsable con chips sincronizados.
+- Filtros en barra colapsable, solo en la vista de búsqueda, con chips sincronizados.
 - Panel accionable: estado vacío ilustrado, banda compacta de indicadores y distribución por etapa sobre el embudo comercial existente.
 - Sistema visual: tokens, tarjetas, jerarquía tipográfica y estandarización de botones.
 
@@ -59,7 +70,7 @@ Los mismos de `001`: ejecutivo comercial, jefe comercial y técnico de soporte. 
 | Historia | Tema | Prioridad | Requisitos | Criterios |
 |---|---|---|---|---|
 | US-UX-01 | Navegar y buscar desde cualquier vista | P1 | FR-UX-001, FR-UX-002 | CA-UX-01-01…08 |
-| US-UX-02 | Registrar y editar sin abandonar la lista | P1 | FR-UX-003…006 | CA-UX-02-01…10 |
+| US-UX-02 | Registrar y editar sin abandonar la lista | P1 | FR-UX-003…006, FR-UX-013 | CA-UX-02-01…11 |
 | US-UX-03 | Encontrar y comparar registros | P1 | FR-UX-007…009 | CA-UX-03-01…10 |
 | US-UX-04 | Consultar un panel accionable | P2 | FR-UX-010, FR-UX-011 | CA-UX-04-01…09 |
 | Transversal | Jerarquía visual, accesibilidad y regresión | P1 | FR-UX-012, NFR-UX-001…004 | SC-UX-001…006 |
@@ -82,7 +93,7 @@ Como **ejecutivo comercial**, quiero **buscar desde cualquier pantalla y moverme
 4. **CA-UX-01-04** — Dado un grupo de navegación, cuando el ejecutivo lo expande o contrae, entonces el submenú muestra “Listado” y “Nuevo”, y `aria-expanded` refleja el estado real.
 5. **CA-UX-01-05** — Dado el submenú de Clientes u Oportunidades, cuando el ejecutivo activa “Nuevo”, entonces se abre el drawer correspondiente con el formulario vacío y el foco en el primer campo.
 6. **CA-UX-01-06** — Dada una vista activa, cuando el ejecutivo la consulta con teclado o lector de pantalla, entonces el control correspondiente expone `aria-current="page"` y se resalta visualmente.
-7. **CA-UX-01-07** — Dado un formulario con cambios sin guardar, cuando el ejecutivo navega a otra vista, entonces se le pide confirmación; cancelar conserva los datos y descartar no persiste cambios.
+7. **CA-UX-01-07** — Dado un formulario con cambios sin guardar, cuando el ejecutivo navega a otra vista, entonces se abre el modal de confirmación; “Seguir editando” conserva los datos y “Descartar” no persiste cambios.
 8. **CA-UX-01-08** — Dado un enlace directo o el botón Atrás, cuando la aplicación restaura una vista, entonces abre una vista válida o la ruta de respaldo, sin estado inconsistente.
 
 **Notas técnicas**: búsqueda en `#global-search-input`; navegación por `showModule()` y hash existentes; submenús generados desde `ModuleConfig` en `src/components/shell.js`; guardián de cambios extraído a una función compartida.
@@ -102,15 +113,16 @@ Como **ejecutivo comercial**, quiero **crear y editar clientes, oportunidades y 
 1. **CA-UX-02-01** — Dado el listado de clientes, cuando el ejecutivo activa “Nuevo cliente”, entonces se abre un drawer con el formulario vacío, los campos obligatorios marcados y el foco en el primer campo.
 2. **CA-UX-02-02** — Dado un drawer con datos válidos, cuando el ejecutivo guarda, entonces el drawer se cierra, se confirma la creación y la fila aparece en la lista sin recargar la página.
 3. **CA-UX-02-03** — Dada una fila existente, cuando el ejecutivo elige editar, entonces el drawer se abre con sus datos y al guardar se conservan `id` y `entity_id` y se actualizan solo los campos modificados.
-4. **CA-UX-02-04** — Dado un drawer con cambios, cuando el ejecutivo cierra con Esc, con el velo o con “Cancelar”, entonces se pide confirmación; continuar conserva los valores, descartar cierra sin persistir y sin mostrar éxito.
+4. **CA-UX-02-04** — Dado un drawer con cambios, cuando el ejecutivo cierra con Esc, con el velo o con “Cancelar”, entonces se abre el modal de confirmación con “Descartar” y “Seguir editando”; “Seguir editando” conserva los valores, y “Descartar” cierra sin persistir y sin mostrar éxito.
 5. **CA-UX-02-05** — Dado un formulario inválido, cuando el ejecutivo intenta guardar, entonces los errores se muestran dentro del drawer, se asocian a los campos y el foco va al primero con error, sin perder lo escrito.
 6. **CA-UX-02-06** — Dado un drawer abierto, cuando el ejecutivo lo cierra, entonces el foco vuelve al control que lo abrió.
 7. **CA-UX-02-07** — Dado un drawer abierto, cuando el ejecutivo usa Tab y Shift+Tab, entonces el foco cicla dentro del drawer y no alcanza el contenido de fondo.
 8. **CA-UX-02-08** — Dado el formulario de oportunidad sin clientes, cuando el ejecutivo activa “Crear cliente ahora”, completa los obligatorios y guarda, entonces se crea el cliente, se actualiza el selector, queda seleccionado y el formulario de oportunidad conserva asunto, folio, fechas y monto.
 9. **CA-UX-02-09** — Dado el alta de cliente al vuelo, cuando el ejecutivo cancela o envía datos inválidos, entonces no se crea ningún registro y el formulario de oportunidad no se altera.
 10. **CA-UX-02-10** — Dado el drawer de oportunidad o de ticket, cuando el ejecutivo edita y guarda, entonces se aplican las mismas validaciones, estados y mensajes de `001`, sin duplicar reglas.
+11. **CA-UX-02-11** — Dados los registros listados, cuando el ejecutivo consulta la barra de acciones de la vista, entonces encuentra el selector de registro y el botón de eliminación con los ids y textos de `001`, ubicados sobre la tabla y con el mismo comportamiento de selección y borrado.
 
-**Notas técnicas**: `src/components/ui-overlay.js` como controlador único; los formularios existentes se mueven al drawer sin reescribir su lógica; `src/components/quick-create-client.js` para el alta mínima; el drawer usa `role="dialog"`, `aria-modal="true"` y trampa de foco.
+**Notas técnicas**: `src/components/ui-overlay.js` como controlador único; los formularios existentes se mueven al drawer sin reescribir su lógica; `src/components/quick-create-client.js` para el alta mínima; el drawer usa `role="dialog"`, `aria-modal="true"` y trampa de foco. Los controles `#edit-entity`, `#delete-entity`, `#edit-document` y `#delete-document` se conservan con sus ids y textos en una barra compacta sobre la tabla, sin cambios de comportamiento.
 
 ---
 
@@ -124,7 +136,7 @@ Como **jefe comercial**, quiero **ver los registros en tablas ordenables con fil
 
 **Escenarios de aceptación**:
 
-1. **CA-UX-03-01** — Dados resultados de clientes, cuando el ejecutivo los consulta, entonces se muestran en una tabla con columnas de cliente, tipo, responsable, origen, próximo contacto y acciones.
+1. **CA-UX-03-01** — Dados resultados de clientes, cuando el ejecutivo los consulta, entonces se muestran en una tabla con columnas de cliente, tipo, responsable, origen, próximo contacto y acciones, donde la única acción de cada fila es “Editar” y abre el drawer del registro.
 2. **CA-UX-03-02** — Dado un cliente en la tabla, cuando el ejecutivo lo revisa, entonces ve su monograma con iniciales, su nombre y su código, y el monograma no se anuncia como información adicional a un lector de pantalla.
 3. **CA-UX-03-03** — Dado un encabezado ordenable, cuando el ejecutivo lo activa, entonces el orden alterna ascendente y descendente, `aria-sort` refleja el estado y los valores vacíos quedan al final.
 4. **CA-UX-03-04** — Dados clientes y oportunidades sin orden explícito, cuando se renderiza la tabla, entonces los clientes se ordenan por nombre ascendente y las oportunidades por folio ascendente.
@@ -165,18 +177,19 @@ Como **jefe comercial**, quiero **un panel que me diga qué hacer cuando está v
 
 ## Requisitos funcionales
 
-- **FR-UX-001**: El sistema DEBE ofrecer un único control de búsqueda global en la cabecera superior, disponible en todas las vistas, que al recibir un criterio muestre la vista de búsqueda con resultados, y NO DEBE mostrar una entrada de búsqueda en la barra lateral.
+- **FR-UX-001**: El sistema DEBE ofrecer un único control de búsqueda global en la cabecera superior, disponible en todas las vistas, que al recibir un criterio muestre la vista de búsqueda con resultados, y NO DEBE mostrar una entrada de búsqueda en la barra lateral. Al borrar por completo el criterio, la vista de búsqueda permanece y muestra la pista “Escribe para buscar”, sin listar resultados ni borrar los filtros activos.
 - **FR-UX-002**: El sistema DEBE presentar Clientes y Oportunidades como grupos expandibles con las entradas “Listado” y “Nuevo”, generadas desde `ModuleConfig`, con `aria-expanded` y `aria-current`, sin inventar secciones sin requisito.
 - **FR-UX-003**: El sistema DEBE abrir el alta y la edición de cliente, oportunidad y ticket en un drawer lateral, sin abandonar la vista de lista y reutilizando los formularios y validaciones existentes.
 - **FR-UX-004**: El drawer DEBE comportarse como diálogo modal accesible: `role="dialog"`, `aria-modal="true"`, título asociado, trampa de foco, cierre con Esc, cierre con el velo, devolución de foco y ancho completo bajo 640 px.
-- **FR-UX-005**: El sistema DEBE pedir confirmación antes de descartar cambios sin guardar al cerrar el drawer o cambiar de vista; cancelar conserva los datos y descartar no persiste ni muestra éxito.
+- **FR-UX-005**: El sistema DEBE pedir confirmación antes de descartar cambios sin guardar al cerrar el drawer o cambiar de vista, mediante un modal propio sobre `ui-overlay` con `data-variant="modal"`, título asociado, acción “Descartar” con variante `danger` y acción segura “Seguir editando”; NO DEBE usar `window.confirm()`. “Seguir editando” conserva los datos y descartar no persiste ni muestra éxito.
 - **FR-UX-006**: Dado el formulario de oportunidad sin clientes, el sistema DEBE ofrecer “Crear cliente ahora” con un modal de alta mínima; al guardar DEBE crear el cliente, actualizar y seleccionar el selector, y conservar el resto del formulario de oportunidad.
-- **FR-UX-007**: El sistema DEBE mostrar clientes y oportunidades en tablas con `<caption>` accesible, encabezados con `scope="col"`, monograma decorativo, columnas claras y acciones por fila.
+- **FR-UX-007**: El sistema DEBE mostrar clientes y oportunidades en tablas con `<caption>` accesible, encabezados con `scope="col"`, monograma decorativo, columnas claras y una columna de acciones cuya única acción por fila es “Editar”, que abre el drawer del registro. Cuando no haya filas NO DEBE renderizar `<tbody>` y DEBE mostrar un estado vacío con CTA: “Limpiar filtros” si hay filtros o criterio activo —sin borrar el texto—, y “Nuevo cliente” o “Nueva oportunidad” si no existe ningún registro.
 - **FR-UX-008**: El sistema DEBE permitir ordenar por columna alternando ascendente y descendente, exponer `aria-sort` en la columna activa, dejar los valores vacíos al final y usar un orden por defecto estable.
-- **FR-UX-009**: El sistema DEBE ofrecer los filtros en una barra colapsable con chips `aria-pressed` sincronizados con los selectores de tipo, responsable y origen, un contador de filtros activos y una acción de limpieza que no borre el criterio.
+- **FR-UX-009**: La vista de búsqueda DEBE ofrecer los filtros en una barra colapsable con chips `aria-pressed` sincronizados con los selectores de tipo, responsable y origen, un contador de filtros activos y una acción de limpieza que no borre el criterio. Los listados “Listado” de Clientes y Oportunidades NO DEBEN mostrar esa barra: ofrecen tabla y orden, y reutilizan el criterio y los filtros de la búsqueda al volver a ella.
 - **FR-UX-010**: Dado un almacenamiento sin clientes ni oportunidades, el panel DEBE mostrar un estado vacío con ilustración, explicación y CTA primaria “Registra tu primer cliente”, y ocultar la banda de indicadores y el embudo comercial.
 - **FR-UX-011**: Dados datos existentes, el panel DEBE mostrar los seis indicadores de `FR-024` en una banda compacta y la “Distribución por etapa” sobre el embudo comercial ya existente, derivada de `status` y `totalAmount`, con un bloque por estado del ciclo de vida —incluidos los que no tienen registros—, recalculada en cada render y nunca persistida.
 - **FR-UX-012**: El sistema DEBE aplicar un sistema visual consistente: tokens de radio, sombra y color; tarjetas con cabecera e icono; etiquetas de formulario en peso medio; asterisco de obligatorio en tono de acento; texto secundario `#64748B`; una sola CTA sólida por bloque y acciones secundarias con borde fino.
+- **FR-UX-013**: El sistema DEBE conservar los selectores y botones de eliminación de `001` (`#edit-entity`, `#delete-entity`, `#edit-document`, `#delete-document`) con sus ids, textos y comportamiento, reubicados en una barra compacta sobre la tabla de registros. La eliminación NO DEBE ofrecerse como acción de fila; la acción “Editar” de la fila no sustituye a `#edit-entity` ni a `#edit-document`, que conservan su selección y su comportamiento.
 
 ## Requisitos no funcionales
 
@@ -194,7 +207,7 @@ Son metas verificables, no resultados obtenidos.
 | ID | Meta | Verificación |
 |---|---|---|
 | SC-UX-001 | La búsqueda está a un clic o foco desde cualquier vista | Recorrido manual en las cuatro vistas y prueba de integración |
-| SC-UX-002 | Crear un cliente no abandona la lista y tarda menos que el flujo anterior | Cronometraje con datos sintéticos contra SC-001 de `001` |
+| SC-UX-002 | Crear un cliente desde el drawer no abandona la lista y se completa en menos de 2 minutos desde formulario vacío con los datos sintéticos de `quickstart.md` (umbral de `SC-001` de `001`), sin regresión frente al flujo anterior | Cronometraje de cinco altas: mediana y rango registrados en `README.md` |
 | SC-UX-003 | Cero regresiones: las 280 pruebas actuales (278 de `001` más 2 del embudo) siguen pasando | `npm test -- --run` |
 | SC-UX-004 | Cero violaciones de foco: el foco siempre entra, cicla y vuelve | Pruebas de `ui-overlay` y recorrido con teclado |
 | SC-UX-005 | Ordenar y filtrar 500/1000 registros bajo 500 ms en 19 de 20 mediciones | Prueba de rendimiento extendida |
@@ -202,13 +215,14 @@ Son metas verificables, no resultados obtenidos.
 
 ## Casos límite
 
-- **Drawer con cambios y navegación por hash**: se pide confirmación una sola vez y se restaura la vista anterior si se cancela.
-- **Dos overlays**: el alta al vuelo se abre sobre el drawer de oportunidad; solo el superior recibe foco y al cerrarse devuelve el foco al botón que lo abrió.
+- **Drawer con cambios y navegación por hash**: se pide confirmación una sola vez con el modal; “Seguir editando” restaura la vista anterior y “Descartar” no persiste cambios.
+- **Dos overlays**: el alta al vuelo se abre sobre el drawer de oportunidad y el modal de confirmación se apila sobre el drawer o el modal que lo origina; solo el superior recibe foco y al cerrarse devuelve el foco al control que lo abrió.
 - **Sin clientes**: el selector queda vacío, el mensaje deja de ser un bloqueo y ofrece la CTA de alta al vuelo.
 - **Cliente eliminado en otra pestaña**: al guardar la oportunidad se mantiene el rechazo de referencia huérfana de `FR-019`.
-- **Tabla vacía**: no se renderiza `<tbody>`; se muestra el estado vacío con CTA y no una tabla con encabezados sin filas.
+- **Tabla vacía**: no se renderiza `<tbody>`; se distingue el vacío por filtro (CTA “Limpiar filtros”, que conserva el texto) del vacío por ausencia de registros (CTA “Nuevo cliente” o “Nueva oportunidad”), y nunca se muestra una tabla con encabezados sin filas.
 - **Valores ausentes al ordenar**: van al final en ambos sentidos y se muestran como “sin información”.
 - **Filtros y criterio**: limpiar filtros no borra el texto; limpiar el texto no borra los filtros.
+- **Búsqueda sin criterio**: con el campo vacío, la vista de búsqueda permanece, muestra la pista “Escribe para buscar”, no lista resultados y no navega a otra vista.
 - **Panel sin oportunidades cerradas**: “Sin datos” en la tasa de cierre; el embudo mantiene los estados con conteo y monto en cero.
 - **Panel vacío**: el estado vacío ilustrado oculta la banda y el embudo; no se muestran seis columnas de “Sin oportunidades”.
 - **Pantalla estrecha**: el drawer ocupa todo el viewport y la tabla permite desplazamiento horizontal sin romper el layout.
