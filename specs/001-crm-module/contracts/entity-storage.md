@@ -13,7 +13,13 @@ La aplicación almacena los registros de entidad, documento y ticket localmente 
 | `erp_base_module:entities` | Lista de clientes (`Entity`) | Base, documentada en el README |
 | `erp_base_module:documents` | Lista de oportunidades (`Document`) | Base, documentada en el README |
 | `erp_base_module:tickets` | Lista de tickets | Propuesta, P2 |
+| `erp_base_module:crmContacts` | Lista de contactos por cliente | Propuesta, iteración 4 |
+| `erp_base_module:crmActivities` | Lista de actividades y tareas | Propuesta, iteración 4 |
+| `erp_base_module:crmTrash` | Elementos de papelera (máximo 50, FIFO) | Propuesta, iteración 4 |
+| `erp_base_module:crmRecovery` | Marcador y versión recuperable previa a escrituras | Propuesta, iteración 4 |
 | `erp_base_module:schemaVersion` | Versión del esquema | Propuesta |
+
+`SCHEMA_VERSION = 2` cubre la instantánea de cinco colecciones (clientes, oportunidades, tickets, contactos y actividades) con papelera y recuperación; `SCHEMA_VERSION = 3` se aplica al incorporar los campos de resolución de tickets de US-11. Ninguna migración puede ejecutarse sin explicación, confirmación del usuario y versión recuperable.
 
 ## Forma de los datos base
 
@@ -102,10 +108,39 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 | `description` | Sí | No vacío |
 | `priority` | Sí | Alta, Media o Baja |
 | `status` | Automático | `En proceso` al crear |
+| `equipmentReference` | No | Recortado; no es clave única global ni sustituye a `productId` |
+| `resolutionSummary` | Sí al resolver | No vacío ni solo espacios; obligatorio en la transición a `Resuelto` |
+| `resolvedAt` | Automático | ISO 8601 generado al resolver; se conserva en ediciones posteriores |
+| `legacyResolutionIncomplete` | Automático | Solo lo asigna la migración; no editable por el usuario |
+
+### Contacto
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `entity_id` | Sí | Cliente existente |
+| `name` | Sí | No vacío, recortado |
+| `role` | No | Recortado |
+| `email` | No | Formato válido si existe; no es clave única |
+| `phone` | No | Recortado |
+| `isPrimary` | Automático con regla | Como máximo uno por `entity_id`; exactamente uno cuando el cliente tenga al menos un contacto |
+
+### Actividad
+
+| Campo | Obligatorio | Regla |
+|---|---|---|
+| `entity_id` | Sí | Cliente existente |
+| `type` | Sí | llamada, correo, reunion, nota o tarea |
+| `subject` | Sí | No vacío |
+| `notes` | No | Texto seguro |
+| `dueDate` | Condicional | Obligatorio solo en `tarea`; fecha real `YYYY-MM-DD` |
+| `owner` | Sí | Catálogo de `ModuleConfig` |
+| `contactId` | No | Contacto existente del mismo cliente o nulo |
+| `documentId` | No | Oportunidad existente del mismo cliente o nulo |
+| `status` | Automático | `pendiente` al crear; `completada` es final con `completedAt` |
 
 ## Operaciones
 
-- `saveSnapshot(snapshot)`: helper interno que valida y persiste entidades y documentos (y tickets en P2) como una sola instantánea; no forma parte de la API pública.
+- `saveSnapshot(snapshot)`: helper interno que valida y persiste entidades, documentos, tickets, contactos, actividades y papelera como una sola instantánea; no forma parte de la API pública.
 
 ### Entidades
 
@@ -132,6 +167,47 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 - `addTicket(ticket)`: añade un ticket.
 - `updateTicket(id, updates)`: actualiza un ticket existente.
 
+### Contactos
+
+- `loadContacts()`: devuelve todos los contactos.
+- `saveContacts(contacts)`: persiste la lista completa.
+- `addContact(contact)`: añade un contacto validando `entity_id` y la unicidad del principal.
+- `updateContact(id, updates)`: actualiza un contacto y reajusta el principal en la misma operación.
+- `deleteContact(id)`: elimina un contacto; con actividades u oportunidades asociadas exige reasignación o confirmación explícita.
+- `deleteContactsForEntity(entityId)`: elimina los contactos de un cliente dentro de la instantánea de cascada.
+
+### Actividades
+
+- `loadActivities()`: devuelve todas las actividades.
+- `saveActivities(activities)`: persiste la lista completa.
+- `addActivity(activity)`: añade una actividad validando tipo, vencimiento y vínculos.
+- `updateActivity(id, updates)`: actualiza una actividad; completar registra `completedAt` y la vuelve final.
+- `deleteActivity(id)`: elimina una actividad sin afectar al cliente.
+- `deleteActivitiesForEntity(entityId)`: elimina las actividades dentro de la instantánea de cascada.
+
+### Papelera
+
+- `loadTrash()`: devuelve los elementos recuperables ordenados por `deletedAt`.
+- `moveEntityToTrash(entityId)`: mueve el agregado completo (cliente, oportunidades, tickets, contactos y actividades) en una sola escritura y aplica el límite FIFO de 50.
+- `restoreFromTrash(trashId)`: restaura el agregado detectando conflictos de identificadores antes de escribir.
+- `purgeTrashEntry(trashId)`: elimina definitivamente un elemento con confirmación explícita.
+
+### Recuperación y escritura atómica
+
+- `prepareSnapshot(snapshot)`: serializa y guarda una versión completa recuperable en `erp_base_module:crmRecovery` antes de sustituir datos; si no hay espacio, la operación se rechaza sin reemplazar la versión vigente.
+- `commitSnapshot()`: confirma la escritura y limpia el marcador solo después de verificar que la versión completa quedó persistida.
+- `restorePreviousSnapshot()`: restaura la versión recuperable cuando la escritura no se confirma.
+- `detectPendingRecovery()`: comprobación al iniciar que detecta una operación interrumpida antes de habilitar escrituras.
+- `canWrite()` / `isWriteBlocked()`: impide nuevas escrituras mientras no se verifique una versión íntegra.
+
+## Invariantes de cascada y papelera
+
+- Eliminar un cliente mueve el agregado completo a la papelera en una sola instantánea; nunca deja oportunidades, tickets, contactos ni actividades huérfanos.
+- Restaurar devuelve el agregado completo o, si hay conflicto de identificadores, se detiene e informa sin escribir.
+- Purgar es definitivo y exige confirmación; la papelera conserva como máximo 50 elementos y descarta el más antiguo por `deletedAt`.
+- La papelera no sustituye un respaldo externo: borrar el almacenamiento del navegador elimina también su contenido.
+- Ninguna migración puede ejecutarse sin explicación, confirmación del usuario y versión recuperable.
+
 ## Expectativas de validación
 
 - Un `name` o `code` faltante debe rechazarse antes de la persistencia.
@@ -144,7 +220,11 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 - Una oportunidad con `status` distinto de `Nueva` al crear debe rechazarse.
 - Una transición no declarada debe rechazarse en la capa de dominio y en el almacenamiento.
 - Entrar en `Perdida` sin `lossReason` debe rechazarse.
-- Eliminar una entidad debe eliminar todos los documentos vinculados a su `entity_id` como una sola operación atómica. En P2, cuando exista la colección de tickets, la misma operación debe incluir los tickets.
+- Eliminar una entidad debe mover a la papelera el agregado completo del cliente (entidad, documentos, tickets, contactos y actividades) como una sola operación atómica; restaurar o purgar exige confirmación.
+- Un contacto repetido como principal en el mismo cliente debe rechazarse; al marcar un nuevo principal, el anterior deja de serlo en la misma operación.
+- Una tarea sin `dueDate` debe rechazarse; una actividad con `contactId` o `documentId` inexistente debe rechazarse.
+- Resolver un ticket sin `resolutionSummary` no vacío debe rechazarse; `resolvedAt` lo genera el sistema y no se acepta como entrada manual.
+- Un elemento de papelera que supere el límite de 50 debe descartar el más antiguo por `deletedAt` y advertir que la papelera es local.
 - Las operaciones de almacenamiento deben preservar el orden actual de la lista y actualizar las marcas de tiempo.
 - Ante cuota agotada o JSON corrupto, conservar los datos previos y devolver un error; no reiniciar el almacenamiento.
 - El esquema debe versionarse y no migrar en silencio.

@@ -72,7 +72,7 @@ Como ejecutivo comercial, quiero registrar empresas clientes y prospectos con su
 9. **CA-01-09** — Dado un cliente o prospecto guardado correctamente, cuando el ejecutivo cambia de pantalla y recarga la aplicación en el mismo navegador, entonces el registro conserva sus datos y continúa disponible en la lista de clientes.
 10. **CA-01-10** — Dado que el almacenamiento del navegador no permite guardar el registro, cuando el ejecutivo intenta confirmar la creación, entonces el sistema informa que la operación no se completó, conserva los datos del formulario y no muestra una confirmación de éxito.
 11. **CA-01-11** — Dado un cliente existente, cuando el ejecutivo modifica nombre, contacto, tipo, responsable u origen y guarda, entonces se conservan `id` y `entity_id`, se validan los mismos campos obligatorios y no se permite duplicar el código de otro cliente.
-12. **CA-01-12** — Dado un cliente con oportunidades asociadas y, en P2, con tickets, cuando el ejecutivo solicita eliminarlo, entonces se informa cuántas oportunidades se eliminarán y, cuando la colección de tickets exista, cuántos tickets; se exige confirmación explícita y, si confirma, la eliminación del cliente y sus oportunidades es atómica en P1, y se extiende a los tickets en P2; si cancela, nada se modifica.
+12. **CA-01-12** — Dado un cliente con oportunidades asociadas y, en P2, con tickets, cuando el ejecutivo solicita eliminarlo, entonces se informa cuántas oportunidades, tickets (P2), contactos y actividades se moverán con él; se exige confirmación explícita y, si confirma, el cliente y sus relaciones pasan a la papelera en una sola operación atómica, desde donde pueden restaurarse (US-16); la purga definitiva exige una segunda confirmación; si cancela, nada se modifica.
 13. **CA-01-13** — Dado un cliente con `targetDate` vacía, anterior a hoy, igual a hoy o posterior, cuando se guarda, entonces la lista de clientes lo muestra respectivamente como “Sin programar”, “Vencido”, “Para hoy” o “Programado”, calculado con el día local del dispositivo y sin convertir la fecha a UTC.
 14. **CA-01-14** — Dado que la configuración del módulo define los catálogos de tipo, responsable y origen, cuando el ejecutivo abre el formulario, entonces las opciones visibles provienen de `ModuleConfig` y cualquier valor ajeno se rechaza.
 
@@ -138,7 +138,7 @@ Como técnico de soporte, quiero anotar un ticket asociado a un cliente y a un p
 **Escenarios de aceptación**:
 
 1. **CA-03-01** — Dado que el técnico está en la lista de tickets, cuando registra uno con cliente, producto, motivo (soporte, reclamo o consulta) y descripción, entonces el ticket se guarda y aparece con estado “En proceso”.
-2. **CA-03-02** — Dado que el ticket está en proceso, cuando el técnico lo pasa a “Resuelto”, entonces se muestra como resuelto y la falla queda registrada.
+2. **CA-03-02** — Dado que el ticket está en proceso, cuando el técnico lo pasa a “Resuelto” indicando un resumen de solución, entonces se guardan la solución, el estado Resuelto y `resolvedAt` como una sola operación y la falla queda registrada; sin resumen no se permite el cambio.
 3. **CA-03-03** — Dado que el técnico está registrando un ticket, cuando no elige un cliente, entonces el sistema no deja guardarlo.
 4. **CA-03-04** — Dado que falta el producto, cuando el técnico intenta guardar, entonces el sistema no deja guardarlo y pide indicar a qué máquina se le hizo la mantención o cuál falló.
 5. **CA-03-05** — Dado un ticket nuevo, cuando el técnico elige la prioridad, entonces solo puede seleccionar Alta, Media o Baja; cualquier otro valor se rechaza.
@@ -468,7 +468,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **Campos vacíos y espacios**: recortar texto; comparar códigos con trim y mayúsculas; no confundir monto cero con campo vacío.
 - **Fechas imposibles**: rechazar, incluso si el navegador deja introducirlas; comparar fechas de calendario sin convertirlas a medianoche UTC.
 - **Contacto opcional**: permitir email y teléfono vacíos y señalar información incompleta en el detalle.
-- **Eliminar un cliente**: confirmar número de oportunidades y, cuando existan, tickets; aclarar la irreversibilidad en la aplicación; cancelar no muta datos.
+- **Eliminar un cliente**: confirmar cuántas oportunidades, tickets, contactos y actividades irán a la papelera; aclarar que la restauración es posible mientras el elemento siga en la papelera y que la purga es irreversible; cancelar no muta datos.
 - **Estado final**: mantenerlo al editar otros campos; no ofrecer reapertura en el MVP.
 - **JSON corrupto o cuota agotada**: mostrar error recuperable; no reiniciar automáticamente ni afirmar que se guardó.
 - **Varias pestañas**: detectar cambios con el evento `storage` y solicitar recarga antes de guardar un formulario obsoleto; no prometer concurrencia transaccional.
@@ -487,7 +487,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **FR-004**: El sistema DEBE validar el correo cuando esté presente, exigiendo al menos “@” y dominio; si está vacío, el cliente se guarda y el detalle muestra “Contacto incompleto” cuando correo y teléfono están ambos vacíos.
 - **FR-005**: El sistema DEBE validar `category`, `accountOwner` y `acquisitionSource` contra los catálogos de `ModuleConfig` y rechazar valores ajenos.
 - **FR-006**: El sistema DEBE permitir editar un cliente conservando `id` y `entity_id`, aplicando las mismas validaciones y la unicidad de código.
-- **FR-007**: El sistema DEBE eliminar un cliente solo con confirmación explícita, informando cuántas oportunidades se eliminarán y, cuando la colección de tickets exista (P2), cuántos tickets. En P1 la operación atómica cubre cliente y oportunidades; en P2 se extiende a tickets. Cancelar no modifica nada.
+- **FR-007**: El sistema DEBE mover a la papelera un cliente solo con confirmación explícita, informando cuántas oportunidades se moverán y, cuando la colección de tickets exista (P2), cuántos tickets, contactos y actividades. En P1 la operación atómica cubre cliente y oportunidades; en P2 se extiende a tickets, contactos y actividades. El conjunto queda recuperable mientras permanezca en la papelera (US-16); la purga definitiva exige una segunda confirmación. Cancelar no modifica nada.
 - **FR-008**: El sistema DEBE buscar clientes con un único criterio comparado con nombre o código, sin distinguir mayúsculas, tildes ni espacios al inicio o al final.
 - **FR-009**: El sistema DEBE mostrar todos los clientes coincidentes, permitir seleccionar uno y consultar su ficha con los campos registrados y los estados “sin información” y “sin programar”.
 - **FR-010**: El sistema DEBE mostrar un mensaje cuando no se haya ingresado criterio y otro cuando no existan coincidencias.
@@ -506,7 +506,7 @@ Como **jefe comercial**, quiero ver la cartera y los seguimientos pendientes par
 - **FR-023**: El sistema DEBE impedir reabrir oportunidades cerradas en el MVP y permitir editar otros campos conservando el estado.
 - **FR-024**: El sistema DEBE mostrar los seis indicadores del panel con las fórmulas de `data-model.md`, recalcularlos al volver al panel y después de cada mutación, y no persistir totales derivados. “Seguimientos vencidos” y “Contactos para hoy” excluyen clientes `Inactivo`.
 - **FR-025**: El sistema DEBE registrar tickets con cliente, producto, motivo (soporte, reclamo o consulta), descripción, prioridad y estado; `productId` es opcional y se acepta como cadena no vacía (el módulo Producto está fuera del alcance); `productName` es un respaldo de demo.
-- **FR-026**: El sistema DEBE mostrar los tickets por cliente, permitir `En proceso → Resuelto` y permitir editar motivo, descripción y prioridad conservando el estado; no se permite reapertura en el MVP y la prioridad se limita a Alta, Media o Baja.
+- **FR-026**: El sistema DEBE mostrar los tickets por cliente, permitir `En proceso → Resuelto` únicamente con un resumen de solución no vacío, generando `resolvedAt` en la misma operación (US-11), y permitir editar motivo, descripción, prioridad y referencia del equipo conservando el estado; no se permite reapertura en el MVP y la prioridad se limita a Alta, Media o Baja.
 - **FR-027**: El sistema DEBE guardar solo los datos de contacto necesarios del cliente. En el MVP no se ofrece exportación del listado completo.
 - **FR-028**: El sistema NO DEBE usar la ubicación geográfica del cliente para ordenar ni para priorizar oportunidades o tickets.
 - **FR-029**: El sistema DEBE aplicar `moduleName`, etiquetas, campos personalizados, catálogos, ciclo de vida y color desde `ModuleConfig`; DEBE informar conflictos y conservar el respaldo genérico del template.
@@ -923,7 +923,7 @@ Los tickets nuevos se crean en “En proceso”, sin `resolvedAt`. La ausencia d
 - **Aditiva**: no se reemplazan las colecciones actuales de clientes, oportunidades y tickets ni su estructura. Los contactos, las actividades y la papelera se guardan en una capa CRM separada.
 - **Una sola organización y un solo workspace**. No hay multi-tenant ni aislamiento por organización.
 - **Moneda única CLP**. No se incorporan tipos de cambio ni multimoneda.
-- **Sin administración de datos**: no hay importación, exportación, respaldo, restauración, detección de duplicados ni fusión de registros.
+- **Sin administración de datos**: no hay importación, exportación, respaldo ni restauración de respaldos, detección de duplicados ni fusión de registros. La restauración desde la papelera de US-16 no es restauración de respaldos y sí está en alcance.
 - **Sin bitácora ni historial de etapas**: el timeline se arma con actividades y tickets, no con eventos de sistema.
 - **Sin perfil local**: los responsables siguen saliendo del catálogo estático de `ModuleConfig`.
 - **Papelera de mejor esfuerzo**: conserva los últimos 50 clientes eliminados junto con sus relaciones y no sustituye un respaldo.
@@ -931,9 +931,9 @@ Los tickets nuevos se crean en “En proceso”, sin `resolvedAt`. La ausencia d
 ### Fuera de alcance de la actualización
 
 - Autenticación, autorización por roles, permisos reales y multi-tenant.
-- Importación CSV, exportación CSV/JSON, respaldo, restauración y reportes descargables.
+- Importación CSV, exportación CSV/JSON, respaldo, restauración de respaldos y reportes descargables.
 - Detección de duplicados, fusión de registros y revisión de huérfanos.
-- Bitácora de cambios, historial de etapas y aviso de pestaña obsoleta.
+- Bitácora de cambios e historial de etapas. El aviso de pestaña obsoleta **sí** aplica: es requisito de US-10 (FR-10-05, CA-10-07) y de FR-032, y se implementa en T093/T097.
 - Perfil local simulado y cualquier forma de identidad de usuario.
 - Nuevos tipos de campo personalizado y editor de campos.
 - Paginación visible: el rendimiento se mantiene como requisito no funcional (NFR-002).
@@ -1072,7 +1072,7 @@ Los tickets nuevos se crean en “En proceso”, sin `resolvedAt`. La ausencia d
 
 ### Entidades clave de la actualización
 
-- **Contacto**: persona asociada a un cliente, con nombre, cargo, correo, teléfono y condición de principal. Un cliente puede tener varios contactos y exactamente uno principal.
+- **Contacto**: persona asociada a un cliente, con nombre, cargo, correo, teléfono y condición de principal. Un cliente puede tener varios contactos y exactamente uno principal cuando tenga al menos un contacto.
 - **Actividad**: llamada, correo, reunión, nota o tarea vinculada a un cliente y, opcionalmente, a un contacto y una oportunidad. Incluye asunto, notas, vencimiento, responsable y estado.
 - **Elemento de papelera**: conjunto recuperable formado por un cliente eliminado y sus oportunidades, tickets, contactos y actividades.
 
@@ -1083,7 +1083,7 @@ La oportunidad conserva sus campos actuales; `lossReason` sigue siendo texto lib
 | ID | Requisito | Historia |
 |---|---|---|
 | FR-037 | El sistema DEBE permitir varios contactos por cliente y asociarlos a oportunidades y actividades. | US-12 |
-| FR-038 | El sistema DEBE garantizar exactamente un contacto principal por cliente y migrar `contactName` al primer contacto sin duplicarlo. | US-12 |
+| FR-038 | El sistema DEBE garantizar como máximo un contacto principal por cliente y exactamente uno cuando el cliente tenga al menos un contacto; al marcar uno como principal, el anterior deja de serlo. DEBE migrar `contactName` al primer contacto sin duplicarlo. | US-12 |
 | FR-039 | El sistema DEBE permitir crear, editar, completar y eliminar actividades de tipo llamada, correo, reunión, nota y tarea, con responsable y vínculos opcionales. | US-13 |
 | FR-040 | El sistema DEBE exigir vencimiento en las tareas y calcular actividades vencidas con la fecha local. | US-13 |
 | FR-041 | El sistema DEBE mostrar en el panel las actividades para hoy y las vencidas. | US-13 |
@@ -1096,7 +1096,7 @@ La oportunidad conserva sus campos actuales; `lossReason` sigue siendo texto lib
 
 | ID | Meta | Verificación |
 |---|---|---|
-| SC-011 | 100% de los contactos creados quedan vinculados a un cliente existente y cada cliente tiene como máximo un contacto principal | Pruebas de dominio e integración |
+| SC-011 | 100% de los contactos creados quedan vinculados a un cliente existente; ningún cliente tiene más de un contacto principal y todo cliente con al menos un contacto tiene exactamente uno | Pruebas de dominio e integración |
 | SC-012 | 100% de las tareas sin vencimiento son rechazadas y 100% de las vencidas se muestran como tales | Pruebas de validación y panel |
 | SC-013 | 0 transiciones inválidas aceptadas desde el Kanban y 100% de los motivos solicitados al pasar a Perdida | Pruebas de dominio e interfaz |
 | SC-014 | Un ciclo eliminar-restaurar de un cliente preserva 100% de sus registros y relaciones | Prueba de integración |

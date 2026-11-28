@@ -1,6 +1,6 @@
 # Plan de implementación: módulo CRM
 
-**Feature**: `001-crm-module` | **Rama**: `main` (sin ramas secundarias) | **Fecha**: 2026-11-03 | **Especificación**: [spec.md](spec.md) | **Modelo**: [data-model.md](data-model.md) | **Investigación**: [research.md](research.md) | **Validación**: [quickstart.md](quickstart.md)
+**Feature**: `001-crm-module` | **Rama**: `main` (sin ramas secundarias) | **Fecha**: 2026-11-03 | **Actualizado**: 2026-11-28 | **Especificación**: [spec.md](spec.md) | **Modelo**: [data-model.md](data-model.md) | **Investigación**: [research.md](research.md) | **Validación**: [quickstart.md](quickstart.md)
 
 ## Resumen
 
@@ -102,6 +102,19 @@ src/
     search-results.js
     ticket-form.js      # P2
     ticket-list.js      # P2
+    quick-create-client.js      # 002-crm-ui-refresh
+    ui-overlay.js               # 002-crm-ui-refresh
+    ui.js
+    commercial-board.js         # 002-crm-ui-refresh (tablero accionable)
+    contact-form.js             # US-12
+    contact-list.js             # US-12
+    activity-form.js            # US-13
+    activity-list.js            # US-13
+    timeline.js                 # US-14
+    trash-list.js               # US-16
+  storage-recovery.js           # US-08
+  crm-timeline.js               # US-14
+  crm-trash.js                  # US-16
 tests/
   unit/
   integration/
@@ -116,6 +129,8 @@ README.md
 - `module-config.js` declara etiquetas, campos personalizados, catálogos, ciclo de vida y color.
 - Los listados y el detalle se alojan en búsqueda; la gestión mantiene formularios y selectores según el patrón base.
 - El MER se entrega como diagrama Mermaid en texto dentro de `data-model.md`; no se usan imágenes binarias.
+- Los componentes de `002-crm-ui-refresh` (drawers, `ui-overlay.js`, `quick-create-client.js`, `commercial-board.js`) son prerrequisito de T095, T096 y T122; se declaran aquí como dependencia externa al 001.
+- La capa CRM de la iteración 4 agrega `contact-form.js`, `contact-list.js`, `activity-form.js`, `activity-list.js`, `timeline.js` y `trash-list.js` como componentes, y `storage-recovery.js`, `crm-timeline.js` y `crm-trash.js` como módulos de dominio y persistencia. Ninguno reemplaza las colecciones existentes.
 
 ## Estrategia de implementación
 
@@ -160,7 +175,7 @@ Los resultados deben anotarse en la sección “Evidencias y registro de cambios
 
 ## Escalabilidad e interconexión
 
-Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. En una etapa posterior, sustituir la persistencia por una API y una base de datos con claves únicas/foráneas, autenticación, permisos, auditoría, respaldo y transacciones. Acordar con otros módulos el contrato de Cliente antes de intercambiar datos. Incorporar Contacto y Actividad cuando se necesiten múltiples interlocutores e historial. En una etapa posterior, los tickets podrán referenciar `productId` de Logística y `assigned_employee_id` de RR.HH. como claves externas; el MVP solo usa `productId` cuando existe y `productName` como respaldo, sin crear esos módulos aquí.
+Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. En una etapa posterior, sustituir la persistencia por una API y una base de datos con claves únicas/foráneas, autenticación, permisos, auditoría, respaldo y transacciones. Acordar con otros módulos el contrato de Cliente antes de intercambiar datos. Contacto y Actividad ya forman parte del alcance vigente (US-12 y US-13, Fases 15–16 de `tasks.md`); su incorporación a la persistencia se realiza en la capa CRM adicional de la Fase 11, sin reemplazar las colecciones actuales. En una etapa posterior, los tickets podrán referenciar `productId` de Logística y `assigned_employee_id` de RR.HH. como claves externas; el MVP solo usa `productId` cuando existe y `productName` como respaldo, sin crear esos módulos aquí.
 
 ## Seguimiento de complejidad
 

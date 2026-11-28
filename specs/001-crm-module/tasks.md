@@ -191,7 +191,7 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 
 ### Implementación de la Historia 3
 
-- [X] T050 [US3] Implementar en `src/crm-rules.js` `validateTicket(ticket)` y `canTransitionTicket(from, to)`, exigiendo `productName` cuando no exista `productId` y fijando `status = En proceso` al crear
+- [X] T050 [US3] Implementar en `src/crm-rules.js` `validateTicket(ticket)` y `canTransitionTicket(from, to)`, exigiendo `productName` cuando no exista `productId` y fijando `status = En proceso` al crear; la resolución con resumen obligatorio y `resolvedAt` se completa en T127
 - [X] T051 [US3] Implementar en `src/storage.js` la colección de tickets en `erp_base_module:tickets`: `loadTickets`, `saveTickets`, `addTicket`, `updateTicket`, `deleteTicketsForEntity`, con validación previa y escritura atómica; extender `deleteEntity` para incluir los tickets en la misma instantánea
 - [X] T052 [US3] Implementar `src/components/ticket-form.js` con cliente, producto (`productId` o `productName`), motivo, descripción, prioridad y errores accesibles
 - [X] T053 [US3] Implementar `src/components/ticket-list.js` con motivo, prioridad, estado y fecha, y estado vacío de tickets
@@ -235,7 +235,7 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 - [X] T065 Actualizar `README.md` con integrantes responsables por historia, instrucciones de ejecución, comandos de prueba, tabla de evidencias y registro del uso de IA
 - [ ] T066 Ejecutar manualmente los escenarios 1 a 4 y 6 de `specs/001-crm-module/quickstart.md` para el MVP P1; validar los escenarios 5 y 7 al cerrar la segunda iteración. Ejecutar la tabla de validaciones transversales, probar Chrome y Firefox actuales (y Edge/Safari si están disponibles), crear los datos semilla sintéticos de la demo y anotar resultados reales (incluidos los pendientes) en `README.md`
 - [X] T067 Ejecutar `npm test -- --run`, `npm run build`, `npm run lint` y `npm run format:check`, corregir fallos y registrar fecha, comando y resultado real en `README.md`
-- [X] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores
+- [ ] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores (reabierta el 2026-11-28: se cierra después de T071–T074)
 - [ ] T069 Ejecutar el protocolo de usabilidad de `plan.md`: 5 participantes, 4 tareas (crear, editar, eliminar, buscar) y medición de SC-001 a SC-004 (tiempos de SC-001 a SC-003 y tasa de éxito de SC-004); registrar participantes anonimizados, tiempos, tasa de éxito y resultados reales o declarar la medición como pendiente en `README.md` (meta SC-004: al menos 18 de 20 tareas completadas)
 - [X] T070 [P] Escribir `tests/integration/critical-journey.test.js`: recorrido completo del MVP P1 (cliente → oportunidad → avance de etapa → búsqueda → recarga), arrancando la app real en jsdom y verificando persistencia; el panel se verifica en T056 (P2)
 

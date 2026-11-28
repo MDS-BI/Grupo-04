@@ -1,12 +1,12 @@
 # Modelo de datos: módulo CRM
 
-**Fecha**: 2026-11-03 · **Especificación**: [spec.md](spec.md) · **Plan**: [plan.md](plan.md)
+**Fecha**: 2026-11-03 · **Actualizado**: 2026-11-28 · **Especificación**: [spec.md](spec.md) · **Plan**: [plan.md](plan.md)
 
 ## Decisión de adaptación
 
 Se mantienen dos colecciones base: `Entity` representa **Cliente** y `Document` representa **Oportunidad**. Los nombres internos existentes permanecen estables. `ModuleConfig` es configuración estática; responsables, tipos, orígenes y prioridades son catálogos en esa configuración, sin una tercera tabla.
 
-No se usa una tabla separada de contactos: cada cliente tiene **un contacto principal** (`contactName`, `email`, `phone`). Múltiples contactos y actividades son extensiones futuras. Los tickets de soporte son P2 y agregan una colección propia, `Ticket`, que referencia al cliente por `entity_id` y al producto por una clave externa.
+Los contactos se modelan en una colección propia (`erp_base_module:crmContacts`) desde la iteración 4 de `spec.md` (US-12): un cliente puede tener varios contactos y como máximo uno marcado `isPrimary`. El campo `contactName` del cliente queda como dato heredado y se migra una sola vez al primer contacto. Las actividades (US-13) se guardan en `erp_base_module:crmActivities`, la papelera (US-16) en `erp_base_module:crmTrash` y el marcador de recuperación (US-08) en `erp_base_module:crmRecovery`. Los tickets de soporte son P2 y agregan una colección propia, `Ticket`, que referencia al cliente por `entity_id` y al producto por una clave externa; desde US-11 incluyen `equipmentReference`, `resolutionSummary`, `resolvedAt` y `legacyResolutionIncomplete`.
 
 ## Entidad: Cliente (`Entity`)
 
@@ -72,10 +72,64 @@ El monto estimado no es ingreso contable ni venta facturada. Los campos económi
 | `description` | string | Descripción de la falla o solicitud | Obligatorio, no vacío, texto seguro |
 | `priority` | string | Prioridad | Obligatorio: `Alta`, `Media` o `Baja` |
 | `status` | string | Estado | `En proceso` al crear; `Resuelto` final |
+| `equipmentReference` | string | Referencia del equipo atendido | Opcional, recortado; no es clave única global ni sustituye a `productId` |
+| `resolutionSummary` | string | Resumen de la solución aplicada | Obligatorio al resolver un ticket nuevo; no puede contener solo espacios |
+| `resolvedAt` | string | Fecha y hora de resolución | ISO 8601, generado por el sistema al resolver; se conserva en ediciones posteriores |
+| `legacyResolutionIncomplete` | boolean | Marca de ticket histórico sin datos verificables de resolución | Solo lo asigna la migración explícita; no editable por el usuario |
 | `createdAt` | string | Creación | ISO 8601, generado |
 | `updatedAt` | string | Última modificación | ISO 8601, actualizado al guardar |
 
-El ticket no elimina ni modifica al cliente. La referencia a producto es externa: en la demo se guarda `productName` y, cuando exista, `productId`. No se crea el módulo Producto aquí.
+El ticket no elimina ni modifica al cliente. La referencia a producto es externa: en la demo se guarda `productName` y, cuando exista, `productId`. No se crea el módulo Producto aquí. Los tickets nuevos se crean en `En proceso` sin `resolvedAt`; la ausencia de datos de resolución solo se admite en tickets históricos identificados por la migración mediante `legacyResolutionIncomplete`. Al resolver se guardan `resolutionSummary`, `status = Resuelto` y `resolvedAt` como una sola operación; si no se conoce la referencia del equipo se muestra “Equipo no individualizado”.
+
+## Entidad: Contacto (`crmContacts`)
+
+| Campo | Tipo | Significado | Restricción |
+|---|---|---|---|
+| `id` | string | Identificador interno | Generado, único, inmutable |
+| `entity_id` | string | Cliente al que pertenece | Obligatorio; referencia `Entity.entity_id` existente |
+| `name` | string | Nombre del contacto | Obligatorio, recortado, no vacío |
+| `role` | string | Cargo o función | Opcional, recortado |
+| `email` | string | Correo del contacto | Opcional; formato válido si existe; no es clave única |
+| `phone` | string | Teléfono | Opcional, recortado |
+| `isPrimary` | boolean | Contacto principal | Como máximo un `true` por `entity_id` y exactamente uno cuando el cliente tenga al menos un contacto |
+| `createdAt` | string | Creación | ISO 8601, generado |
+| `updatedAt` | string | Última modificación | ISO 8601, actualizado al guardar |
+
+Marcar un contacto como principal quita la marca al anterior en la misma operación. Un cliente puede no tener contactos. El campo heredado `contactName` del cliente se migra al primer contacto una sola vez y de forma idempotente, sin duplicarlo ni borrar información. Un contacto con actividades u oportunidades asociadas no se elimina sin advertencia y reasignación o confirmación explícita. La búsqueda de clientes incluye nombre, correo y teléfono de sus contactos.
+
+## Entidad: Actividad (`crmActivities`)
+
+| Campo | Tipo | Significado | Restricción |
+|---|---|---|---|
+| `id` | string | Identificador interno | Generado, único, inmutable |
+| `entity_id` | string | Cliente asociado | Obligatorio; referencia `Entity.entity_id` existente |
+| `type` | string | Tipo de actividad | `llamada`, `correo`, `reunion`, `nota` o `tarea` |
+| `subject` | string | Asunto | Obligatorio, recortado, no vacío |
+| `notes` | string | Detalle o resultado | Opcional; texto seguro, sin historial auditable |
+| `dueDate` | string | Vencimiento | Fecha real `YYYY-MM-DD`; obligatoria solo en `tarea` |
+| `owner` | string | Responsable | Obligatorio; valor del catálogo `accountOwner`/`opportunityOwner` |
+| `contactId` | string \| null | Contacto vinculado | Opcional; si existe, referencia `crmContacts.id` del mismo cliente |
+| `documentId` | string \| null | Oportunidad vinculada | Opcional; si existe, referencia `Document.id` del mismo cliente |
+| `status` | string | Estado | `pendiente` al crear; `completada` es final |
+| `completedAt` | string \| null | Fecha de cierre | ISO 8601, generado al completar; nulo mientras esté pendiente |
+| `createdAt` | string | Creación | ISO 8601, generado |
+| `updatedAt` | string | Última modificación | ISO 8601, actualizado al guardar |
+
+Una actividad de tipo `correo` solo deja registro de que la comunicación ocurrió: no envía correos ni mensajes. Completar una actividad registra `completedAt`, la saca de pendientes y la mantiene visible en el timeline. Las fechas y vencimientos se comparan con el día local, sin convertir a UTC. Una actividad vinculada a una oportunidad eliminada conserva el registro con `documentId = null` y un aviso, sin crear referencias huérfanas.
+
+## Entidad: Elemento de papelera (`crmTrash`)
+
+| Campo | Tipo | Significado | Restricción |
+|---|---|---|---|
+| `id` | string | Identificador del elemento | Generado, único |
+| `deletedAt` | string | Fecha y hora de eliminación | ISO 8601, generado; ordena la papelera FIFO |
+| `entity` | object | Copia completa del cliente eliminado | Obligatorio |
+| `documents` | array | Oportunidades del cliente | Copia completa |
+| `tickets` | array | Tickets del cliente (P2) | Copia completa |
+| `contacts` | array | Contactos del cliente | Copia completa |
+| `activities` | array | Actividades del cliente | Copia completa |
+
+La papelera conserva como máximo 50 elementos; al superar el límite se descarta el más antiguo por `deletedAt` y se advierte que es local y limitada. Restaurar devuelve el agregado completo y detecta conflictos de identificadores antes de escribir. Purgar exige confirmación explícita y es definitivo. La papelera no sustituye un respaldo externo.
 
 ## Catálogos y campos personalizados
 
@@ -120,9 +174,12 @@ Se permite guardar otros cambios conservando el estado actual. Se rechazan salto
 
 - Un Cliente tiene cero o muchas Oportunidades; cada Oportunidad pertenece a exactamente un Cliente.
 - Un Cliente tiene cero o muchos Tickets; cada Ticket pertenece a exactamente un Cliente.
-- La clave de relación es `Document.entity_id → Entity.entity_id` y `Ticket.entity_id → Entity.entity_id`. La aplicación impone la integridad porque `localStorage` no tiene claves foráneas.
-- Eliminar un cliente, después de confirmar el alcance, elimina en cascada sus oportunidades y tickets.
-- Eliminar una oportunidad o un ticket no elimina al cliente.
+- Un Cliente tiene cero o muchos Contactos y cero o muchas Actividades; cada Contacto y cada Actividad pertenece a exactamente un Cliente.
+- Un Cliente con al menos un Contacto tiene exactamente un contacto principal; sin Contactos, ninguno.
+- Una Actividad puede vincularse opcionalmente a un Contacto y a una Oportunidad del mismo Cliente.
+- La clave de relación es `Document.entity_id → Entity.entity_id`, `Ticket.entity_id → Entity.entity_id`, `Contacto.entity_id → Entity.entity_id` y `Actividad.entity_id → Entity.entity_id`. La aplicación impone la integridad porque `localStorage` no tiene claves foráneas.
+- Eliminar un cliente, después de confirmar el alcance, mueve el agregado completo (cliente, oportunidades, tickets, contactos y actividades) a la papelera en una sola operación atómica; desde allí puede restaurarse o purgarse con confirmación (US-16).
+- Eliminar una oportunidad, un ticket, un contacto o una actividad no elimina al cliente.
 - Editar nombre o código de un cliente no modifica `entity_id`.
 - `folio` se introduce manualmente en el MVP; validar unicidad de `series/folio` al crear y editar, excluyendo el registro actual.
 - Los códigos se comparan con `trim` y mayúsculas; conservar una representación normalizada para evitar duplicados.
@@ -130,13 +187,15 @@ Se permite guardar otros cambios conservando el estado actual. Se rechazan salto
 
 ## Persistencia, claves y esquema
 
-El template base documenta las claves `erp_base_module:entities` y `erp_base_module:documents`. Se conservan. Para tickets P2 se propone `erp_base_module:tickets` y para la versión de esquema `erp_base_module:schemaVersion`.
+El template base documenta las claves `erp_base_module:entities` y `erp_base_module:documents`. Se conservan. Para tickets P2 se propone `erp_base_module:tickets` y para la versión de esquema `erp_base_module:schemaVersion`. La iteración 4 agrega `erp_base_module:crmContacts`, `erp_base_module:crmActivities`, `erp_base_module:crmTrash` y `erp_base_module:crmRecovery`, sin reemplazar las colecciones existentes.
+
+`SCHEMA_VERSION = 2` cubre la instantánea de cinco colecciones (clientes, oportunidades, tickets, contactos y actividades) con papelera y recuperación; `SCHEMA_VERSION = 3` se aplica al incorporar los campos de resolución de tickets de US-11. Toda migración es explícita, informada y conserva una versión recuperable.
 
 Forma JSON propuesta:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "entities": [
     {
       "id": "ent_001",
@@ -177,6 +236,7 @@ Forma JSON propuesta:
 
 Reglas de persistencia:
 
+- Una instantánea válida con `schemaVersion: 2` incluye las cinco colecciones base de la iteración 4 (`entities`, `documents`, `tickets`, `crmContacts`, `crmActivities`) y el marcador de papelera y recuperación. El ejemplo anterior omite contactos, actividades y papelera por brevedad.
 - Validar una instantánea completa en memoria antes de escribir.
 - Guardar la eliminación en cascada como una sola escritura de un agregado; si la base usa claves separadas, esta es una extensión necesaria para evitar escrituras parciales.
 - Versionar el esquema explícitamente y no migrar datos en silencio.
@@ -209,6 +269,15 @@ Las fechas son de calendario local `YYYY-MM-DD`; las marcas de tiempo usan ISO 8
 
 Los indicadores abarcan todos los registros actuales, sin ventana temporal. No son cifras de ventas de un período. El método es conteo, suma y proporción, sin estimación predictiva. Guardar la próxima fecha por cliente evita contar dos veces un seguimiento por múltiples oportunidades; no sustituye una agenda de actividades.
 
+### Indicadores de actividades (iteración 4)
+
+| Indicador | Regla exacta |
+|---|---|
+| Actividades para hoy | Actividades con `dueDate` igual a hoy local y `status = pendiente`; cada actividad cuenta una vez |
+| Actividades vencidas | Actividades con `dueDate` anterior a hoy local y `status = pendiente`; cada actividad cuenta una vez |
+
+Los seis indicadores de FR-024 se mantienen sin cambios; la tarjeta de actividades es adicional y no los reemplaza. Ambas cifras se recalculan en cada render y no se persisten.
+
 ### Fixture de control para SC-007
 
 Se usa el mismo conjunto en `tests/integration/dashboard.test.js` (T056) y en la comprobación manual del panel. Las fechas se calculan respecto de `todayLocal` para que la prueba no dependa del día en que se ejecute.
@@ -231,6 +300,11 @@ Resultado esperado: clientes registrados = 3; oportunidades abiertas = 2; monto 
 erDiagram
     CLIENTE ||--o{ OPORTUNIDAD : tiene
     CLIENTE ||--o{ TICKET : reporta
+    CLIENTE ||--o{ CONTACTO : tiene
+    CLIENTE ||--o{ ACTIVIDAD : registra
+    OPORTUNIDAD ||--o{ ACTIVIDAD : contexto
+    CONTACTO ||--o{ ACTIVIDAD : participa
+    CLIENTE ||--o| PAPELERA : eliminado
     CLIENTE {
         string id PK
         string entity_id UK
@@ -260,6 +334,34 @@ erDiagram
         string reason
         string priority
         string status
+        string equipmentReference
+        string resolutionSummary
+        date resolvedAt
+    }
+    CONTACTO {
+        string id PK
+        string entity_id FK
+        string name
+        string role
+        string email
+        string phone
+        boolean isPrimary
+    }
+    ACTIVIDAD {
+        string id PK
+        string entity_id FK
+        string type
+        string subject
+        date dueDate
+        string owner
+        string contactId FK
+        string documentId FK
+        string status
+    }
+    PAPELERA {
+        string id PK
+        string deletedAt
+        string entity_id
     }
 ```
 
@@ -267,7 +369,7 @@ El diagrama resume las claves y variables centrales; las tablas anteriores conti
 
 ## Evolución futura
 
-Agregar tablas `Usuario`, `Contacto` y `Actividad` cuando exista backend, con autenticación, autorización y auditoría; migrar las referencias con identificadores estables. Incorporar API para compartir clientes con Ventas, evitando duplicar maestros. La interconexión actual es un contrato de datos propuesto, no una integración implementada. Incorporar históricos y métricas por período antes de comparar rendimiento; evaluar sesgos por calidad de registros y origen de captación.
+Agregar la tabla `Usuario` cuando exista backend, con autenticación, autorización y auditoría; migrar las referencias con identificadores estables. Contacto y Actividad ya existen en la capa local de la iteración 4 y se migrarán a tablas propias al sustituir `localStorage` por una API. Incorporar API para compartir clientes con Ventas, evitando duplicar maestros. La interconexión actual es un contrato de datos propuesto, no una integración implementada. Incorporar históricos y métricas por período antes de comparar rendimiento; evaluar sesgos por calidad de registros y origen de captación.
 
 ## Trazabilidad con otros documentos
 
