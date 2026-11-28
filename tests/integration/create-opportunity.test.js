@@ -207,4 +207,61 @@ describe('US4 — registrar una oportunidad comercial', () => {
     expect(documents[0].entity_id).toBe(created.entity_id);
     expect(qs('opportunity-list-items').textContent).toContain('OPP-3001');
   });
+
+  it('asocia un contacto opcional del mismo cliente y lo muestra en la ficha', () => {
+    const client = seedClient();
+    const contact = storage.addContact({ entityId: client.entity_id, name: 'Contacto Uno', role: 'Compras' });
+
+    qs('nav-documents').click();
+    fillOpportunity({ entityId: client.entity_id });
+    qs('document-contact').value = contact.id;
+    submitForm('document-form');
+
+    const saved = storage.loadDocuments()[0];
+    expect(saved.contactId).toBe(contact.id);
+
+    const input = qs('global-search-input');
+    input.value = '3001';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    qs('search-opportunities-list').querySelector('[data-open-document]').click();
+    expect(qs('opportunity-detail-body').textContent).toContain('Contacto Uno');
+  });
+
+  it('permite crear la oportunidad sin contacto', () => {
+    const client = seedClient();
+    storage.addContact({ entityId: client.entity_id, name: 'Contacto Uno' });
+
+    qs('nav-documents').click();
+    fillOpportunity({ entityId: client.entity_id });
+    expect(qs('document-contact').value).toBe('');
+    submitForm('document-form');
+
+    expect(storage.loadDocuments()[0].contactId).toBeUndefined();
+  });
+
+  it('rechaza en persistencia un contacto de otro cliente', () => {
+    const client = seedClient();
+    const other = storage.addEntity({
+      name: 'Empresa Ajena',
+      code: 'CLI-AJENA',
+      category: 'Prospecto',
+      accountOwner: 'Ejecutivo B',
+      acquisitionSource: 'Referido'
+    });
+    const foreign = storage.addContact({ entityId: other.entity_id, name: 'Contacto Ajeno' });
+
+    expect(() =>
+      storage.addDocument({
+        entityId: client.entity_id,
+        contactId: foreign.id,
+        folio: 3100,
+        opportunityTitle: 'Oportunidad con contacto ajeno',
+        opportunityOwner: 'Ejecutivo A',
+        totalAmount: 1000,
+        startDate: '2026-11-02',
+        endDate: '2026-11-30'
+      })
+    ).toThrow(/contacto/i);
+    expect(storage.loadDocuments()).toHaveLength(0);
+  });
 });

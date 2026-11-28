@@ -169,4 +169,29 @@ describe('validateOpportunity', () => {
     );
     expect(lostWithReason.valid).toBe(true);
   });
+
+  it('valida que el contacto opcional pertenezca al cliente de la oportunidad', () => {
+    const contacts = [
+      { id: 'con_1', entity_id: 'cli_1', name: 'Contacto Uno' },
+      { id: 'con_2', entity_id: 'cli_2', name: 'Contacto Ajeno' }
+    ];
+
+    expect(validateOpportunity(validOpportunity, { entities, documents: [], contacts }).valid).toBe(true);
+
+    const own = validateOpportunity({ ...validOpportunity, contactId: 'con_1' }, { entities, documents: [], contacts });
+    expect(own.valid).toBe(true);
+
+    const foreign = validateOpportunity(
+      { ...validOpportunity, contactId: 'con_2' },
+      { entities, documents: [], contacts }
+    );
+    expect(foreign.valid).toBe(false);
+    expect(foreign.errors.contactId).toMatch(/contacto/i);
+
+    const missing = validateOpportunity(
+      { ...validOpportunity, contactId: 'con_inexistente' },
+      { entities, documents: [], contacts }
+    );
+    expect(missing.valid).toBe(false);
+  });
 });

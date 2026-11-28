@@ -1,5 +1,5 @@
 // Reglas puras del módulo CRM. No acceden a localStorage ni al DOM.
-import { getConfig } from './module-config.js';
+import { getConfig, isCrmProfile } from './module-config.js';
 
 /** Código de cliente comparable: recorta espacios y pasa a mayúsculas. */
 export function normalizeCode(value) {
@@ -276,11 +276,19 @@ export function validateOpportunity(opportunity, context = {}) {
   const config = context.config || getConfig();
   const entities = Array.isArray(context.entities) ? context.entities : [];
   const documents = Array.isArray(context.documents) ? context.documents : [];
+  const contacts = Array.isArray(context.contacts) ? context.contacts : null;
   const mode = context.mode || 'create';
   const errors = {};
   const entityId = opportunity.entityId || opportunity.entity_id;
   if (!entityId || !entities.some((entity) => entity.entity_id === entityId)) {
     errors.entityId = 'Selecciona un cliente existente para la oportunidad';
+  }
+
+  if (contacts && !isBlank(opportunity.contactId)) {
+    const contact = contacts.find((item) => item && item.id === opportunity.contactId);
+    if (!contact || contact.entity_id !== entityId) {
+      errors.contactId = 'El contacto debe pertenecer al cliente de la oportunidad';
+    }
   }
 
   if (isBlank(opportunity.opportunityTitle)) {
@@ -597,10 +605,13 @@ function uniqueValues(items, key, normalize) {
 /**
  * Verifica la integridad estructural de una instantánea completa sin corregir
  * datos: estructura, versión, obligatorios base, tipos, unicidad de
- * identificadores, códigos y `series+folio`, y referencias huérfanas.
+ * identificadores, códigos y `series+folio`, referencias huérfanas y, cuando
+ * el perfil CRM está activo, las mismas reglas de los formularios (catálogos,
+ * fechas y montos).
  */
-export function validateIntegrity(snapshot = {}) {
+export function validateIntegrity(snapshot = {}, config = getConfig()) {
   const issues = [];
+  const crm = isCrmProfile(config);
   const collections = ['entities', 'documents', 'tickets', 'contacts', 'activities'];
   for (const name of collections) {
     if (snapshot[name] !== undefined && !Array.isArray(snapshot[name])) {
@@ -630,6 +641,13 @@ export function validateIntegrity(snapshot = {}) {
       reportIssue(issues, 'entities', entity, 'entity_id', 'El cliente no tiene identificador público');
     if (isBlank(entity.name)) reportIssue(issues, 'entities', entity, 'name', 'El cliente no tiene nombre');
     if (isBlank(entity.code)) reportIssue(issues, 'entities', entity, 'code', 'El cliente no tiene código');
+    if (crm) {
+      const clientErrors = validateClient(entity, { config, entities: [] }).errors;
+      for (const [field, message] of Object.entries(clientErrors)) {
+        if (field === 'name' || field === 'code') continue;
+        reportIssue(issues, 'entities', entity, field, message);
+      }
+    }
   }
   for (const duplicated of uniqueValues(entities, 'id', (value) => String(value ?? '').trim())) {
     reportIssue(issues, 'entities', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
@@ -674,6 +692,32 @@ export function validateIntegrity(snapshot = {}) {
     if (!isBlank(document.endDate) && !isValidCalendarDate(String(document.endDate))) {
       reportIssue(issues, 'documents', document, 'endDate', 'La fecha de cierre no es válida');
     }
+    if (!isBlank(document.contactId)) {
+      const contact = contacts.find((item) => item && item.id === document.contactId);
+      if (!contact || contact.entity_id !== document.entity_id) {
+        reportIssue(
+          issues,
+          'documents',
+          document,
+          'contactId',
+          'La oportunidad referencia un contacto inexistente o de otro cliente'
+        );
+      }
+    }
+    if (crm) {
+      const opportunityErrors = validateOpportunity(
+        { ...document, entityId: document.entity_id, series: document.series || 'OPP' },
+        { config, entities, documents: [], contacts, mode: 'update' }
+      ).errors;
+      for (const [field, message] of Object.entries(opportunityErrors)) {
+        if (field === 'entityId' || field === 'folio' || field === 'lossReason') continue;
+        reportIssue(issues, 'documents', document, field, message);
+      }
+      const lifecycle = config.statusLifecycle;
+      if (lifecycle && !isBlank(document.status) && !lifecycle.statuses.includes(String(document.status).trim())) {
+        reportIssue(issues, 'documents', document, 'status', 'La etapa de la oportunidad no es válida');
+      }
+    }
   }
   for (const duplicated of uniqueValues(documents, 'id', (value) => String(value ?? '').trim())) {
     reportIssue(issues, 'documents', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
@@ -710,6 +754,20 @@ export function validateIntegrity(snapshot = {}) {
     if (isBlank(ticket.description))
       reportIssue(issues, 'tickets', ticket, 'description', 'El ticket no tiene descripción');
     if (isBlank(ticket.priority)) reportIssue(issues, 'tickets', ticket, 'priority', 'El ticket no tiene prioridad');
+    const ticketReasons = ticketCatalog('reason', TICKET_REASONS, config);
+    if (!isBlank(ticket.reason) && !isValidCatalogValue(ticket.reason, ticketReasons)) {
+      reportIssue(issues, 'tickets', ticket, 'reason', `El motivo debe ser uno de: ${ticketReasons.join(', ')}`);
+    }
+    const ticketPriorities = ticketCatalog('priority', TICKET_PRIORITIES, config);
+    if (!isBlank(ticket.priority) && !isValidCatalogValue(ticket.priority, ticketPriorities)) {
+      reportIssue(
+        issues,
+        'tickets',
+        ticket,
+        'priority',
+        `La prioridad debe ser uno de: ${ticketPriorities.join(', ')}`
+      );
+    }
     if (!TICKET_STATUSES.includes(String(ticket.status ?? '').trim())) {
       reportIssue(issues, 'tickets', ticket, 'status', 'El estado del ticket no es válido');
     }
@@ -740,6 +798,9 @@ export function validateIntegrity(snapshot = {}) {
     }
     if (isBlank(contact.id)) reportIssue(issues, 'contacts', contact, 'id', 'El contacto no tiene identificador');
     if (isBlank(contact.name)) reportIssue(issues, 'contacts', contact, 'name', 'El contacto no tiene nombre');
+    if (!isValidEmail(contact.email)) {
+      reportIssue(issues, 'contacts', contact, 'email', 'El correo del contacto no es válido');
+    }
     if (isBlank(contact.entity_id)) {
       reportIssue(issues, 'contacts', contact, 'entity_id', 'El contacto no indica su cliente');
     } else if (!entityIds.has(contact.entity_id)) {

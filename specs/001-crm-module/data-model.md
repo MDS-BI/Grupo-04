@@ -39,6 +39,7 @@ Se omiten del formulario CRM los campos comerciales base no necesarios, pero no 
 |---|---|---|---|
 | `id` | string | Identificador interno | Generado, único, inmutable |
 | `entity_id` | string | Cliente propietario | Obligatorio; referencia `Entity.entity_id` existente |
+| `contactId` | string \| null | Contacto del cliente que participa en la negociación | Opcional; si existe, referencia `crmContacts.id` del mismo cliente |
 | `series` | string | Serie interna | CRM fija `OPP` al crear; no tiene validez tributaria |
 | `folio` | number | Número interno de oportunidad | Obligatorio, entero > 0; pareja `series/folio` única global |
 | `startDate` | string | Fecha de apertura | Obligatoria, fecha real `YYYY-MM-DD` |
@@ -177,6 +178,7 @@ Se permite guardar otros cambios conservando el estado actual. Se rechazan salto
 - Un Cliente tiene cero o muchos Contactos y cero o muchas Actividades; cada Contacto y cada Actividad pertenece a exactamente un Cliente.
 - Un Cliente con al menos un Contacto tiene exactamente un contacto principal; sin Contactos, ninguno.
 - Una Actividad puede vincularse opcionalmente a un Contacto y a una Oportunidad del mismo Cliente.
+- Una Oportunidad puede vincularse opcionalmente a un Contacto del mismo Cliente (`Document.contactId`); si el contacto se elimina, debe reasignarse a otro contacto del mismo cliente o quedar sin vínculo.
 - La clave de relación es `Document.entity_id → Entity.entity_id`, `Ticket.entity_id → Entity.entity_id`, `Contacto.entity_id → Entity.entity_id` y `Actividad.entity_id → Entity.entity_id`. La aplicación impone la integridad porque `localStorage` no tiene claves foráneas.
 - Eliminar un cliente, después de confirmar el alcance, mueve el agregado completo (cliente, oportunidades, tickets, contactos y actividades) a la papelera en una sola operación atómica; desde allí puede restaurarse o purgarse con confirmación (US-16).
 - Eliminar una oportunidad, un ticket, un contacto o una actividad no elimina al cliente.
@@ -318,6 +320,7 @@ erDiagram
     OPORTUNIDAD {
         string id PK
         string entity_id FK
+        string contactId FK
         string series
         int folio
         string opportunityTitle

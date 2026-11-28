@@ -42,6 +42,26 @@ function folioLabel(document) {
   return `${document.series ? `${document.series}-` : ''}${document.folio}`;
 }
 
+/**
+ * El contacto principal se deriva del contacto marcado `isPrimary`. Solo se
+ * usa `contactName` heredado cuando el cliente aún no tiene contactos.
+ */
+function primaryContactValue(client, contacts = []) {
+  const primary = (contacts || []).find((contact) => contact && contact.isPrimary === true);
+  if (!primary) return client.contactName;
+  return [primary.name, primary.role, primary.email, primary.phone]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function contactLabel(contactId, contacts = []) {
+  if (!String(contactId ?? '').trim()) return '';
+  const contact = (contacts || []).find((item) => item && item.id === contactId);
+  if (!contact) return 'Contacto no disponible';
+  return contact.role ? `${contact.name} (${contact.role})` : contact.name;
+}
+
 function appendListSection(container, { heading, id, items, emptyText, renderItem, emptyCta }) {
   container.appendChild(sectionHeading(heading));
   if (!items || items.length === 0) {
@@ -80,7 +100,7 @@ export function renderEntityDetail(container, client, opportunities = [], today 
   row(dl, 'Origen de captación', client.acquisitionSource);
   row(dl, 'Correo', client.email);
   row(dl, 'Teléfono', client.phone);
-  row(dl, 'Contacto principal', client.contactName);
+  row(dl, 'Contacto principal', primaryContactValue(client, options.contacts));
   row(dl, 'Descripción', client.description);
   row(
     dl,
@@ -162,7 +182,12 @@ export function renderEntityDetail(container, client, opportunities = [], today 
       events: options.timeline.events || [],
       filters: options.timeline.filters || {},
       onChange: options.timeline.onChange,
-      onSelect: options.timeline.onSelect
+      onSelect: options.timeline.onSelect,
+      emptyCta: {
+        action: 'new-activity',
+        entityId: client.entity_id,
+        label: 'Registrar la primera actividad'
+      }
     });
   }
 
@@ -213,6 +238,7 @@ export function renderOpportunityDetail(container, opportunity, client, options 
   row(dl, 'Fecha de apertura', opportunity.startDate);
   row(dl, 'Fecha de cierre', opportunity.endDate);
   row(dl, 'Cliente', client ? `${client.name} (${client.code})` : SIN_INFORMACION);
+  row(dl, 'Contacto', contactLabel(opportunity.contactId, options.contacts));
   row(dl, 'Notas', opportunity.notes);
   container.appendChild(dl);
 
@@ -225,7 +251,13 @@ export function renderOpportunityDetail(container, opportunity, client, options 
       events: options.timeline.events || [],
       filters: options.timeline.filters || {},
       onChange: options.timeline.onChange,
-      onSelect: options.timeline.onSelect
+      onSelect: options.timeline.onSelect,
+      emptyCta: {
+        action: 'new-activity',
+        entityId: opportunity.entity_id,
+        documentId: opportunity.id,
+        label: 'Registrar la primera actividad'
+      }
     });
   }
 }

@@ -45,6 +45,7 @@ Cada registro de documento debe incluir:
 
 - `id`: cadena única
 - `entity_id`: el `entity_id` autogenerado de la entidad vinculada
+- `contactId`: contacto opcional del mismo cliente; si se informa, debe existir en `erp_base_module:crmContacts` y pertenecer a esa entidad
 - `series`: cadena opcional que agrupa folios consecutivos
 - `folio`: entero positivo obligatorio; junto con la serie forma el número oficial del documento
 - `startDate`: cadena de fecha de calendario válida
@@ -173,7 +174,7 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 - `saveContacts(contacts)`: persiste la lista completa.
 - `addContact(contact)`: añade un contacto validando `entity_id` y la unicidad del principal.
 - `updateContact(id, updates)`: actualiza un contacto y reajusta el principal en la misma operación.
-- `deleteContact(id)`: elimina un contacto; con actividades u oportunidades asociadas exige reasignación o confirmación explícita.
+- `deleteContact(id)`: elimina un contacto; si tiene actividades u oportunidades asociadas exige elegir un contacto de destino del mismo cliente y reasigna esas referencias en la misma escritura; sin destino disponible bloquea la eliminación.
 - `deleteContactsForEntity(entityId)`: elimina los contactos de un cliente dentro de la instantánea de cascada.
 
 ### Actividades

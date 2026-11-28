@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
+import { renderEntityDetail } from '../../src/components/entity-detail.js';
 
 const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
@@ -165,5 +166,133 @@ describe('US12 — contactos múltiples por cliente', () => {
     openClientDetail(entity);
     expect(qs('entity-detail-body').textContent).toContain('Contacto Persistente');
     expect(storage.loadContacts()).toHaveLength(2);
+  });
+
+  it('muestra como contacto principal al marcado isPrimary y no al heredado', () => {
+    const client = seedClient({ contactName: 'Contacto Heredado' });
+    openClientDetail(client);
+    addContactFromForm({ name: 'Contacto Dos', role: 'Compras', email: 'dos@example.com' });
+
+    const item = contactItems().find((node) => node.textContent.includes('Contacto Dos'));
+    item.querySelector('[data-edit-contact]').click();
+    qs('contact-primary').checked = true;
+    submitForm('contact-form');
+
+    const dl = qs('entity-detail-body').querySelector('.detail-grid');
+    const dt = [...dl.querySelectorAll('dt')].find((node) => node.textContent === 'Contacto principal');
+    const value = dt.nextElementSibling.textContent;
+    expect(value).toContain('Contacto Dos');
+    expect(value).toContain('Compras');
+    expect(value).toContain('dos@example.com');
+    expect(value).not.toContain('Contacto Heredado');
+  });
+
+  it('usa contactName como respaldo cuando el cliente no tiene contactos', () => {
+    const container = document.createElement('div');
+    renderEntityDetail(
+      container,
+      { id: 'ent_1', entity_id: 'cli_1', name: 'Sin contactos', code: 'CLI-001', contactName: 'Heredado' },
+      [],
+      '2026-11-28',
+      { contacts: [] }
+    );
+    const dl = container.querySelector('.detail-grid');
+    const dt = [...dl.querySelectorAll('dt')].find((node) => node.textContent === 'Contacto principal');
+    expect(dt.nextElementSibling.textContent).toBe('Heredado');
+  });
+
+  it('exige reasignar los registros vinculados antes de eliminar un contacto', () => {
+    const client = seedClient();
+    openClientDetail(client);
+    addContactFromForm({ name: 'Contacto Uno' });
+    addContactFromForm({ name: 'Contacto Dos' });
+
+    const contacts = storage.loadContacts();
+    const source = contacts.find((contact) => contact.name === 'Contacto Uno');
+    const target = contacts.find((contact) => contact.name === 'Contacto Dos');
+    const activity = storage.addActivity({
+      entityId: client.entity_id,
+      contactId: source.id,
+      type: 'nota',
+      subject: 'Nota vinculada',
+      owner: 'Ejecutivo A',
+      dueDate: '2026-11-20'
+    });
+    const opportunity = storage.addDocument({
+      entityId: client.entity_id,
+      contactId: source.id,
+      folio: 3200,
+      opportunityTitle: 'Oportunidad vinculada',
+      opportunityOwner: 'Ejecutivo A',
+      totalAmount: 1000,
+      startDate: '2026-11-02',
+      endDate: '2026-11-30'
+    });
+    openClientDetail(client);
+
+    const item = contactItems().find((node) => node.textContent.includes('Contacto Uno'));
+    item.querySelector('[data-delete-contact]').click();
+
+    const dialog = qs('contact-reassign-dialog');
+    expect(dialog).not.toBeNull();
+    expect(dialog.textContent).toContain('Contacto Uno');
+    expect(dialog.textContent).toContain('2 registros');
+
+    const select = qs('contact-reassign-dialog-select');
+    select.value = target.id;
+    dialog.querySelector('[data-dialog-confirm]').click();
+
+    expect(storage.loadContacts().some((contact) => contact.id === source.id)).toBe(false);
+    expect(storage.loadActivities().find((row) => row.id === activity.id).contactId).toBe(target.id);
+    expect(storage.loadDocuments().find((row) => row.id === opportunity.id).contactId).toBe(target.id);
+  });
+
+  it('cancelar la reasignación conserva el contacto y sus vínculos', () => {
+    const client = seedClient();
+    openClientDetail(client);
+    addContactFromForm({ name: 'Contacto Uno' });
+    addContactFromForm({ name: 'Contacto Dos' });
+
+    const source = storage.loadContacts().find((contact) => contact.name === 'Contacto Uno');
+    storage.addActivity({
+      entityId: client.entity_id,
+      contactId: source.id,
+      type: 'nota',
+      subject: 'Nota vinculada',
+      owner: 'Ejecutivo A',
+      dueDate: '2026-11-20'
+    });
+    openClientDetail(client);
+
+    const item = contactItems().find((node) => node.textContent.includes('Contacto Uno'));
+    item.querySelector('[data-delete-contact]').click();
+    qs('contact-reassign-dialog').querySelector('[data-dialog-cancel]').click();
+
+    expect(storage.loadContacts().some((contact) => contact.id === source.id)).toBe(true);
+    expect(qs('contact-reassign-dialog')).toBeNull();
+  });
+
+  it('no elimina un contacto vinculado si no hay otro contacto de destino', () => {
+    const client = seedClient();
+    openClientDetail(client);
+    addContactFromForm({ name: 'Contacto Único' });
+
+    const source = storage.loadContacts()[0];
+    storage.addActivity({
+      entityId: client.entity_id,
+      contactId: source.id,
+      type: 'nota',
+      subject: 'Nota vinculada',
+      owner: 'Ejecutivo A',
+      dueDate: '2026-11-20'
+    });
+    openClientDetail(client);
+
+    const item = contactItems().find((node) => node.textContent.includes('Contacto Único'));
+    item.querySelector('[data-delete-contact]').click();
+
+    expect(qs('contact-reassign-dialog')).toBeNull();
+    expect(storage.loadContacts().some((contact) => contact.id === source.id)).toBe(true);
+    expect(qs('contact-message').textContent).toMatch(/otro contacto/i);
   });
 });

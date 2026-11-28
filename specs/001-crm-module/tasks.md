@@ -691,3 +691,18 @@ Task: "Crear src/components/contact-list.js"
 10. Polish → accesibilidad, seguridad, rendimiento, evidencia y coherencia documental.
 
 Cada incremento termina con `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build` en verde, con el resultado registrado en `README.md`. No se declara una historia terminada sin pruebas ejecutadas.
+
+---
+
+## Fase 22: Convergence
+
+**Propósito**: cerrar las brechas detectadas entre `spec.md`, `plan.md`, `tasks.md` y el código actual. Cada tarea traza su origen; no reescribe ni renumera tareas existentes.
+
+- [X] T146 Ampliar en `src/app.js` la confirmación de eliminación de cliente para informar cuántos contactos y actividades se moverán a la papelera, reutilizando `countContactsForEntity` y `countActivitiesForEntity`, y cubrirlo en `tests/integration/create-edit-delete-client.test.js` per FR-007/CA-01-12 (partial)
+- [X] T147 Corregir el mensaje de eliminación de cliente en `src/app.js` para no afirmar que la acción es irreversible: explicar que el agregado queda recuperable en la Papelera y que la purga definitiva exige una segunda confirmación, actualizando las pruebas afectadas per FR-007/CA-01-12 (contradicts)
+- [X] T148 Asociar contactos a oportunidades: agregar `contactId` al modelo `Document`, selector de contacto en `src/components/document-form.js`, validación en `src/crm-rules.js` y `src/storage.js`, visualización en la ficha de la oportunidad y actualización de `data-model.md` y `contracts/entity-storage.md`, con pruebas unitarias e integración per FR-037/CA-12-01 (missing)
+- [X] T149 Implementar el detalle de solo lectura de cada evento del timeline (tipo, fecha, responsable y resumen) al seleccionarlo, cableando `onSelect` en `src/app.js` y renderizando `event.summary` con anuncio accesible en `src/components/timeline.js`, con pruebas de cliente y oportunidad per CA-14-04 (missing)
+- [X] T150 Completar `validateIntegrity` en `src/crm-rules.js` para aplicar a la instantánea completa las mismas reglas de los formularios: obligatorios y catálogos de cliente, `opportunityTitle`/`opportunityOwner`/estado, `endDate >= startDate`, monto entero, motivo y prioridad de ticket y correo de contacto; rechazar la carga sin escritura parcial y ampliar `tests/unit/integrity.test.js` e `tests/integration/integrity.test.js` per FR-09-01/FR-09-04/CA-09-01/CA-09-04 (partial)
+- [X] T151 Permitir reasignar el contacto vinculado antes de eliminarlo: selector de destino en la ficha, paso de `reassignTo` a `deleteContact` y actualización de referencias en actividades y oportunidades, con advertencia de registros afectados y pruebas per CA-12-04 (partial)
+- [X] T152 Derivar la fila “Contacto principal” de la ficha desde el contacto marcado `isPrimary` en `crmContacts` (usar `contactName` solo como respaldo cuando no haya contactos) para no mostrar como principal a un contacto heredado que dejó de serlo, con pruebas de ficha per FR-038/CA-12-02 (contradicts)
+- [X] T153 Agregar al estado vacío del timeline una acción para registrar la primera actividad, conectada al formulario de actividades con el cliente u oportunidad preseleccionado, y cubrirla en `tests/integration/timeline.test.js` per CA-14-05 (missing)

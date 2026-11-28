@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateIntegrity, assertImmutableIdentity, assertStatusTransition } from '../../src/crm-rules.js';
-import { setActiveConfig, userConfig } from '../../src/module-config.js';
+import { normalizeConfig, setActiveConfig, userConfig } from '../../src/module-config.js';
 
 setActiveConfig(userConfig);
 
@@ -111,5 +111,74 @@ describe('US9 — integridad del conjunto', () => {
     expect(assertStatusTransition({ status: 'Nueva' }, { status: 'Contactada' }).valid).toBe(true);
     expect(assertStatusTransition({ status: 'Nueva' }, { status: 'Ganada' }).valid).toBe(false);
     expect(assertStatusTransition({ status: 'Ganada' }, { status: 'Perdida' }).valid).toBe(false);
+  });
+
+  it('aplica a los clientes las mismas reglas de los formularios', () => {
+    const result = validateIntegrity({
+      ...empty,
+      entities: [entity({ category: 'Inexistente', accountOwner: '', acquisitionSource: undefined })],
+      documents: [document_()]
+    });
+    expect(result.valid).toBe(false);
+    expect(result.issues.some((issue) => issue.field === 'category')).toBe(true);
+    expect(result.issues.some((issue) => issue.field === 'accountOwner')).toBe(true);
+    expect(result.issues.some((issue) => issue.field === 'acquisitionSource')).toBe(true);
+
+    const badEmail = validateIntegrity({ ...empty, entities: [entity({ email: 'no-es-correo' })] });
+    expect(badEmail.issues.some((issue) => issue.field === 'email')).toBe(true);
+  });
+
+  it('aplica a las oportunidades título, responsable, fechas y monto entero', () => {
+    const result = validateIntegrity({
+      ...empty,
+      entities: [entity()],
+      documents: [
+        document_({
+          opportunityTitle: '',
+          opportunityOwner: '',
+          endDate: '2026-11-01',
+          totalAmount: 10.5,
+          status: 'Inventada'
+        })
+      ]
+    });
+    expect(result.valid).toBe(false);
+    for (const field of ['opportunityTitle', 'opportunityOwner', 'endDate', 'totalAmount', 'status']) {
+      expect(result.issues.some((issue) => issue.field === field)).toBe(true);
+    }
+  });
+
+  it('valida motivo y prioridad de ticket y correo de contacto', () => {
+    const result = validateIntegrity({
+      ...empty,
+      entities: [entity()],
+      tickets: [
+        {
+          id: 'tkt_1',
+          entity_id: 'cli_1',
+          reason: 'otro',
+          description: 'Falla',
+          priority: 'Urgente',
+          status: 'En proceso'
+        }
+      ],
+      contacts: [{ id: 'con_1', entity_id: 'cli_1', name: 'Contacto A', isPrimary: true, email: 'malo' }]
+    });
+    expect(result.valid).toBe(false);
+    expect(result.issues.some((issue) => issue.field === 'reason')).toBe(true);
+    expect(result.issues.some((issue) => issue.field === 'priority')).toBe(true);
+    expect(result.issues.some((issue) => issue.field === 'email')).toBe(true);
+  });
+
+  it('no aplica las reglas CRM cuando el perfil es genérico', () => {
+    const generic = normalizeConfig(undefined).config;
+    const result = validateIntegrity(
+      {
+        ...empty,
+        entities: [{ id: 'ent_1', entity_id: 'cli_1', name: 'Entidad base', code: 'E-1' }]
+      },
+      generic
+    );
+    expect(result.valid).toBe(true);
   });
 });

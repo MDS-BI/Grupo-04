@@ -29,11 +29,13 @@ import {
   addContact,
   updateContact,
   deleteContact,
+  countContactsForEntity,
   loadActivities,
   addActivity,
   updateActivity,
   deleteActivity,
   completeActivityById,
+  countActivitiesForEntity,
   loadTrash,
   loadSnapshot,
   restoreFromTrash,
@@ -63,7 +65,8 @@ import {
   clearDocumentForm,
   startDocumentEdit,
   collectDocumentPayload,
-  showDocumentErrors
+  showDocumentErrors,
+  setDocumentContactValue
 } from './components/document-form.js';
 import { createDocumentItem, folioLabel, renderOpportunityTable } from './components/document-list.js';
 import { renderLogo, applyShellLabels, setActiveNav, toggleNavSection } from './components/shell.js';
@@ -76,7 +79,8 @@ import {
   closeOverlay,
   getTopOverlay,
   openTextDialog,
-  openLossReasonDialog
+  openLossReasonDialog,
+  openContactReassignDialog
 } from './components/ui-overlay.js';
 import { renderEmptyState } from './components/ui.js';
 import { renderFilterChips, syncFilterChips } from './components/filter-chips.js';
@@ -120,6 +124,35 @@ const articulo = (word) => (esFemenina(word) ? 'la' : 'el');
 const deArticulo = (word) => (esFemenina(word) ? 'de la' : 'del');
 const demostrativo = (word) => (esFemenina(word) ? 'esta' : 'este');
 const seleccionada = (word) => (esFemenina(word) ? 'seleccionada' : 'seleccionado');
+
+/**
+ * Construye "N etiqueta" respetando singular/plural del perfil. `kind` usa las
+ * claves de `ModuleConfig`; los tickets no son una etiqueta configurable.
+ */
+const PLURAL_KIND = {
+  entity: 'entities',
+  document: 'documents',
+  contact: 'contacts',
+  activity: 'activities'
+};
+
+function countLabel(count, kind) {
+  if (!count) return '';
+  const label =
+    kind === 'ticket'
+      ? count === 1
+        ? 'ticket'
+        : 'tickets'
+      : labelFor(count === 1 ? kind : PLURAL_KIND[kind]).toLowerCase();
+  return `${count} ${label}`;
+}
+
+/** Une una lista en español con coma y "y" antes del último elemento. */
+function joinWithY(parts) {
+  const list = parts.filter(Boolean);
+  if (list.length <= 1) return list[0] || '';
+  return `${list.slice(0, -1).join(', ')} y ${list[list.length - 1]}`;
+}
 
 const VIEW_IDS = {
   dashboard: 'view-dashboard',
@@ -506,8 +539,37 @@ function populateDocumentEntitySelect() {
     select.appendChild(opt);
   });
   if (prev && [...select.options].some((o) => o.value === prev)) select.value = prev;
+  populateDocumentContactSelect(select.value);
   const notice = qs('document-no-clients');
   if (notice) notice.hidden = !(isCrmProfile(getConfig()) && entities.length === 0);
+}
+
+/**
+ * Rellena el selector de contacto de la oportunidad con los contactos del
+ * cliente elegido. El contacto es opcional y debe pertenecer a ese cliente.
+ */
+function populateDocumentContactSelect(entityId, selectedId) {
+  const select = qs('document-contact');
+  if (!select) return;
+  const previous = selectedId !== undefined ? selectedId : select.value;
+  select.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'Sin contacto';
+  select.appendChild(none);
+  let contacts = [];
+  try {
+    contacts = loadContacts().filter((contact) => contact.entity_id === entityId);
+  } catch (error) {
+    reportDataError(error);
+  }
+  contacts.forEach((contact) => {
+    const option = document.createElement('option');
+    option.value = contact.id;
+    option.textContent = contact.role ? `${contact.name} — ${contact.role}` : contact.name;
+    select.appendChild(option);
+  });
+  setDocumentContactValue(previous);
 }
 
 function populateEditEntitySelect() {
@@ -878,7 +940,9 @@ function showClientDetail(entityId, timelineFilters = clientTimelineState.filter
       events: timelineEvents,
       filters: timelineFilters,
       onChange: (filters) => showClientDetail(entityId, filters),
-      onSelect: null
+      onSelect: (event, detail) => {
+        if (detail && typeof detail.focus === 'function') detail.focus();
+      }
     }
   });
   qs('entity-detail').hidden = false;
@@ -901,12 +965,14 @@ function showClientDetail(entityId, timelineFilters = clientTimelineState.filter
 function showOpportunityDetail(documentId, timelineFilters = opportunityTimelineState.filters) {
   let document_;
   let client;
+  let contacts = [];
   let activities = [];
   let timelineEvents = [];
   try {
     document_ = loadDocuments().find((d) => d.id === documentId);
     if (!document_) return;
     client = loadEntities().find((e) => e.entity_id === document_.entity_id);
+    contacts = loadContacts().filter((contact) => contact.entity_id === document_.entity_id);
     activities = loadActivities().filter((a) => a.documentId === documentId);
     timelineEvents = buildTimeline({ activities, documentId }, timelineFilters);
   } catch (error) {
@@ -915,11 +981,14 @@ function showOpportunityDetail(documentId, timelineFilters = opportunityTimeline
   }
   opportunityTimelineState = { filters: timelineFilters };
   renderOpportunityDetail(qs('opportunity-detail-body'), document_, client, {
+    contacts,
     timeline: {
       events: timelineEvents,
       filters: timelineFilters,
       onChange: (filters) => showOpportunityDetail(documentId, filters),
-      onSelect: null
+      onSelect: (event, detail) => {
+        if (detail && typeof detail.focus === 'function') detail.focus();
+      }
     }
   });
   qs('opportunity-detail').hidden = false;
@@ -1009,7 +1078,18 @@ function renderActivityView(opts = {}) {
     qs('activity-contact').value = opts.editActivity.contactId || '';
     qs('activity-document').value = opts.editActivity.documentId || '';
   }
+  if (!opts.editActivity && opts.documentId && qs('activity-document')) {
+    qs('activity-document').value = opts.documentId;
+  }
   if (opts.focusForm && qs('activity-subject')) qs('activity-subject').focus();
+}
+
+/** Abre el formulario de actividades desde un estado vacío del timeline. */
+function openActivityFromEmptyState(button) {
+  const entityId = button.dataset.entityId;
+  const documentId = button.dataset.documentId;
+  if (!showModule('activities', { entityId })) return;
+  renderActivityView({ entityId, documentId, focusForm: true });
 }
 
 function renderTrashView() {
@@ -1109,26 +1189,59 @@ function editContactById(contactId) {
 
 function deleteContactById(contactId) {
   let contact;
+  let alternatives = [];
   let related = 0;
   try {
     contact = loadContacts().find((item) => item.id === contactId);
-    related = contact ? loadActivities().filter((activity) => activity.contactId === contact.id).length : 0;
+    if (!contact) return;
+    alternatives = loadContacts().filter((item) => item.entity_id === contact.entity_id && item.id !== contact.id);
+    const relatedActivities = loadActivities().filter((activity) => activity.contactId === contact.id).length;
+    const relatedDocuments = loadDocuments().filter((document) => document.contactId === contact.id).length;
+    related = relatedActivities + relatedDocuments;
   } catch (error) {
     showFormMessage('contact-message', error.message, 'error');
     return;
   }
-  if (!contact) return;
-  const extra = related > 0 ? ` Se quitará el vínculo de ${related} actividades.` : '';
-  if (!confirm(`¿Eliminar el contacto ${contact.name}?${extra}`)) return;
-  if (!writesAllowed('contact-message')) return;
-  try {
-    deleteContact(contact.id);
-    showFormMessage('contact-message', 'Contacto eliminado correctamente.');
-    if (currentClientEntityId) showClientDetail(currentClientEntityId);
-    refreshAll();
-  } catch (error) {
-    showFormMessage('contact-message', error.message, 'error');
+
+  const remove = (reassignTo = null) => {
+    if (!writesAllowed('contact-message')) return;
+    try {
+      deleteContact(contact.id, { reassignTo });
+      showFormMessage('contact-message', 'Contacto eliminado correctamente.');
+      if (currentClientEntityId) showClientDetail(currentClientEntityId);
+      refreshAll();
+    } catch (error) {
+      showFormMessage('contact-message', error.message, 'error');
+    }
+  };
+
+  if (related > 0) {
+    if (alternatives.length === 0) {
+      showFormMessage(
+        'contact-message',
+        'Agrega otro contacto del mismo cliente antes de eliminar este: sus registros vinculados necesitan un destino.',
+        'error'
+      );
+      return;
+    }
+    openContactReassignDialog({
+      contacts: alternatives,
+      contactName: contact.name,
+      count: related,
+      returnFocus: document.activeElement,
+      onConfirm: (targetId) => {
+        if (integrityBlocked || isWriteBlocked() || staleStorage) {
+          return 'No se puede guardar ahora. Recarga la aplicación e inténtalo de nuevo.';
+        }
+        remove(targetId);
+        return true;
+      }
+    });
+    return;
   }
+
+  if (!confirm(`¿Eliminar el contacto ${contact.name}?`)) return;
+  remove();
 }
 
 function handleActivitySubmit(event) {
@@ -1317,6 +1430,7 @@ function editOpportunityById(documentId) {
   const select = qs('edit-document');
   if (select) select.value = documentId;
   startDocumentEdit(document_);
+  populateDocumentContactSelect(document_.entity_id, document_.contactId);
   openFormDrawer('documents', 'edit');
   if (qs('folio')) qs('folio').focus();
 }
@@ -1445,6 +1559,8 @@ function applyProfileVisibility() {
     fixed.hidden = !crm;
     fixed.textContent = crm ? 'Serie OPP · Moneda CLP · Etapa inicial Nueva' : '';
   }
+  const documentContact = qs('document-contact-field');
+  if (documentContact) documentContact.hidden = !crm;
 }
 
 function applyLabels(config) {
@@ -1553,26 +1669,31 @@ function handleDeleteSelectedEntity() {
   let entity;
   let related = 0;
   let relatedTickets = 0;
+  let relatedContacts = 0;
+  let relatedActivities = 0;
   try {
     entity = loadEntities().find((e) => e.id === id);
     related = entity ? countDocumentsForEntity(entity.entity_id) : 0;
     relatedTickets = entity ? countTicketsForEntity(entity.entity_id) : 0;
+    relatedContacts = entity ? countContactsForEntity(entity.entity_id) : 0;
+    relatedActivities = entity ? countActivitiesForEntity(entity.entity_id) : 0;
   } catch (error) {
     showFormMessage('entity-message', error.message, 'error');
     return;
   }
-  const noun = labelFor('documents').toLowerCase();
-  const feminineDocuments = esFemenina(labelFor('documents'));
-  const documentsExtra =
-    related > 0 ? ` Se eliminarán ${related} ${noun} ${feminineDocuments ? 'asociadas' : 'asociados'}.` : '';
-  const ticketsExtra =
-    relatedTickets > 0
-      ? ` Se eliminarán ${relatedTickets} ${relatedTickets === 1 ? 'ticket asociado' : 'tickets asociados'}.`
-      : '';
-  const extra = `${documentsExtra}${ticketsExtra}`;
+  const relatedParts = [
+    countLabel(related, 'document'),
+    countLabel(relatedTickets, 'ticket'),
+    countLabel(relatedContacts, 'contact'),
+    countLabel(relatedActivities, 'activity')
+  ].filter(Boolean);
+  const contents =
+    relatedParts.length > 0
+      ? ` Se moverá a la Papelera junto con ${joinWithY(relatedParts)}.`
+      : ' Se moverá a la Papelera.';
   if (
     !confirm(
-      `¿Eliminar ${demostrativo(labelFor('entity'))} ${labelFor('entity').toLowerCase()}?${extra} Esta acción no se puede deshacer.`
+      `¿Eliminar ${demostrativo(labelFor('entity'))} ${labelFor('entity').toLowerCase()}?${contents} Podrás restaurarlo desde la Papelera; la eliminación definitiva exige una segunda confirmación.`
     )
   )
     return;
@@ -1604,7 +1725,10 @@ function onEditDocumentChange() {
     return;
   }
   const doc = loadDocuments().find((d) => d.id === id);
-  if (doc) startDocumentEdit(doc);
+  if (doc) {
+    startDocumentEdit(doc);
+    populateDocumentContactSelect(doc.entity_id, doc.contactId);
+  }
 }
 
 function handleDeleteSelectedDocument() {
@@ -1715,10 +1839,12 @@ function handleDocumentSubmit(ev) {
   let existing;
   let entities = [];
   let documents = [];
+  let contacts = [];
   try {
     existing = id ? loadDocuments().find((d) => d.id === id) : undefined;
     entities = loadEntities();
     documents = loadDocuments();
+    contacts = loadContacts();
   } catch (error) {
     showFormMessage('opportunity-message', error.message, 'error');
     return;
@@ -1738,6 +1864,7 @@ function handleDocumentSubmit(ev) {
         {
           entities,
           documents,
+          contacts,
           currentId: id || null,
           mode: id ? 'update' : 'create'
         }
@@ -1953,6 +2080,7 @@ function wireEvents() {
         populateDocumentEntitySelect();
         const select = qs('document-entity');
         if (select && created) select.value = created.entity_id;
+        if (created) populateDocumentContactSelect(created.entity_id);
         if (select) select.focus();
         showFormMessage(
           'opportunity-message',
@@ -2036,15 +2164,17 @@ function wireEvents() {
     const newActivity = event.target.closest ? event.target.closest('[data-new-activity]') : null;
     if (newActivity) {
       if (showModule('activities', { entityId: newActivity.dataset.newActivity })) {
-        renderActivityView({ entityId: newActivity.dataset.newActivity, focusForm: true });
+        renderActivityView({
+          entityId: newActivity.dataset.newActivity,
+          documentId: newActivity.dataset.documentId,
+          focusForm: true
+        });
       }
       return;
     }
     const emptyActivity = event.target.closest ? event.target.closest('[data-empty-cta="new-activity"]') : null;
     if (emptyActivity) {
-      if (showModule('activities', { entityId: emptyActivity.dataset.entityId })) {
-        renderActivityView({ entityId: emptyActivity.dataset.entityId, focusForm: true });
-      }
+      openActivityFromEmptyState(emptyActivity);
       return;
     }
     const create = event.target.closest ? event.target.closest('[data-new-opportunity]') : null;
@@ -2052,8 +2182,16 @@ function wireEvents() {
     showModule('documents', { newRecord: true });
     const select = qs('document-entity');
     if (select) select.value = create.dataset.newOpportunity;
+    populateDocumentContactSelect(create.dataset.newOpportunity);
     if (qs('cf-opportunityTitle')) qs('cf-opportunityTitle').focus();
   });
+  const opportunityDetailBody = qs('opportunity-detail-body');
+  if (opportunityDetailBody) {
+    opportunityDetailBody.addEventListener('click', (event) => {
+      const emptyActivity = event.target.closest ? event.target.closest('[data-empty-cta="new-activity"]') : null;
+      if (emptyActivity) openActivityFromEmptyState(emptyActivity);
+    });
+  }
   ['entity-form', 'document-form', 'ticket-form'].forEach((id) => {
     qs(id).addEventListener('input', () => {
       dirty = true;
@@ -2071,6 +2209,9 @@ function wireEvents() {
   });
   qs('edit-entity').addEventListener('change', onEditEntityChange);
   qs('edit-document').addEventListener('change', onEditDocumentChange);
+  qs('document-entity').addEventListener('change', () => {
+    populateDocumentContactSelect(qs('document-entity').value);
+  });
   qs('delete-entity').addEventListener('click', handleDeleteSelectedEntity);
   qs('view-trash-action').addEventListener('click', () => showModule('trash'));
   qs('delete-document').addEventListener('click', handleDeleteSelectedDocument);

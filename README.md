@@ -10,14 +10,14 @@ Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite r
 
 | Integrante | Rol | Historias asignadas |
 |---|---|---|
-| `[completar]` | Documentación / ajustes | `[completar]` |
-| `[completar]` | Implementación | `[completar]` |
-| `[completar]` | Implementación | `[completar]` |
-| `[completar]` | Pruebas / demo | `[completar]` |
-| `[completar]` | Pruebas / demo | `[completar]` |
-| `[completar]` | Coordinación | `[completar]` |
+| Hernández Fuentealba Luis Bastian | Documentación / ajustes | `[asignar]` |
+| Silva Morales Franco Alexander | Implementación | `[asignar]` |
+| Herrera López Matías Esteban | Implementación | `[asignar]` |
+| Reyes Olivares Anaís Camila | Pruebas / demo | `[asignar]` |
+| Astudillo Rosas Martin Adolfo | Pruebas / demo | `[asignar]` |
+| Villa Yáñez Valentina Belén | Coordinación | `[asignar]` |
 
-Agregar o quitar filas según la cantidad real de integrantes. La asignación por historia está en `specs/001-crm-module/spec.md`, sección “Organización por integrante”.
+Los nombres están completos. La asignación de historias por integrante queda pendiente de acuerdo del equipo y se registrará en `specs/001-crm-module/spec.md`, sección “Organización por integrante”.
 
 ## Problema y alcance
 
@@ -39,9 +39,9 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 
 | Línea | Alcance | Responsable | Iteración |
 |---|---|---|---|
-| A — Ajustes previos | Coherencia de `spec.md`, `plan.md`, `data-model.md`, contrato, checklist y README; regeneración de tareas | `[integrante]` | 1 |
-| B — Incremental | Restauración del código, `ModuleConfig`, reglas, formularios, búsqueda, ciclo de vida, panel y terminología | `[integrante]` | 1–2 |
-| C — P2 | Tickets de soporte y panel con indicadores: entidad, formulario, estados, métricas y pruebas | `[integrante]` | 2–3 |
+| A — Ajustes previos | Coherencia de `spec.md`, `plan.md`, `data-model.md`, contrato, checklist y README; regeneración de tareas | `[asignar]` | 1 |
+| B — Incremental | Restauración del código, `ModuleConfig`, reglas, formularios, búsqueda, ciclo de vida, panel y terminología | `[asignar]` | 1–2 |
+| C — P2 | Tickets de soporte y panel con indicadores: entidad, formulario, estados, métricas y pruebas | `[asignar]` | 2–3 |
 
 ## Estructura prevista del repositorio
 
@@ -184,6 +184,7 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 | 2026-11-15 | Rendimiento (T063): 500 clientes y 1000 oportunidades, 20 búsquedas y 20 recálculos del panel | `npx vitest run tests/performance/search-performance.test.js --reporter=verbose` | jsdom sobre Node.js 24.20.0, Windows 11, equipo de desarrollo del grupo. Búsquedas: 20/20 bajo 500 ms (más lenta 4,3 ms). Panel: 20/20 recálculos bajo 500 ms (más lento 35,7 ms). Cada medición validó el resultado renderizado (coincidencia única de cliente/folio y los seis indicadores correctos). |
 | Pendiente | Validación manual en navegadores (T066) | Escenarios 1–4 y 6 de `quickstart.md` en Chrome y Firefox actuales; Edge/Safari y pantalla estrecha | **Pendiente declarada**: no se ejecutó en navegadores reales. Las comprobaciones DOM se hicieron en jsdom. |
 | Pendiente | Protocolo de usabilidad (T069) | 5 participantes, 4 tareas, SC-001 a SC-004 | **Pendiente declarada**: no se ejecutó. No se reportan tiempos ni tasas de éxito sin medición. |
+| 2026-11-28 | Convergencia T146–T153: confirmación de borrado con conteo de contactos y actividades y mensaje recuperable de Papelera; contacto opcional en la oportunidad; detalle de solo lectura del timeline; `validateIntegrity` con las reglas de los formularios; reasignación obligatoria de contactos vinculados; contacto principal derivado de `isPrimary`; acción en el timeline vacío; nombres de integrantes completados | `npx vitest run`; `npm run lint`; `npm run format:check`; `npm run build` | `npx vitest run`: 57 archivos y 461 pruebas aprobadas (nuevas/ampliadas: `integrity`, `contacts`, `timeline`, `create-opportunity`, `create-edit-delete-client`, `opportunity-rules`; los casos nuevos fallaron antes de implementar). `npm run lint`: sin errores. `npm run format:check`: sin diferencias. `npm run build`: Vite correcto (HTML 38,69 kB; CSS 17,77 kB; JS 159,78 kB). |
 
 ### Evidencias de la feature 002 — fases 1–3 (2026-11-16)
 
@@ -214,19 +215,19 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 
 ### Evidencias de la iteración 4 — US-08 a US-16 (2026-11-28)
 
-**Responsables por historia** (se completan con la convención de la tabla de integrantes; los nombres siguen pendientes en AMB-01):
+**Responsables por historia** (nombres completos en la tabla de integrantes; la asignación por historia queda como `[asignar]` hasta el acuerdo del equipo):
 
 | Historia | Alcance implementado | Archivos principales | Responsable |
 |---|---|---|---|
-| US-08 | Versión recuperable, recuperación al iniciar y migración explícita | `src/storage-recovery.js`, `src/storage.js`, `src/components/ui.js` | `[integrante]` |
-| US-09 | Integridad estructural, unicidad y referencias huérfanas | `src/crm-rules.js` (`validateIntegrity`), `src/storage.js` | `[integrante]` |
-| US-10 | Alta rápida protegida, descarte y pestaña obsoleta filtrada | `src/components/quick-create-client.js`, `src/app.js` | `[integrante]` |
-| US-11 | Resolución de tickets con equipo, solución y fecha | `src/crm-rules.js`, `src/storage.js`, `src/components/ticket-form.js`, `ticket-list.js` | `[integrante]` |
-| US-12 | Contactos múltiples y migración de `contactName` | `src/components/contact-form.js`, `contact-list.js`, `src/crm-rules.js`, `src/storage.js` | `[integrante]` |
-| US-13 | Actividades y tareas con vencimiento y panel | `src/components/activity-form.js`, `activity-list.js`, `src/crm-metrics.js` | `[integrante]` |
-| US-14 | Timeline por cliente y oportunidad | `src/crm-timeline.js`, `src/components/timeline.js` | `[integrante]` |
-| US-15 | Kanban editable con transiciones y motivo de pérdida | `src/components/commercial-board.js`, `src/app.js`, `src/components/ui-overlay.js` | `[integrante]` |
-| US-16 | Papelera FIFO de 50 con restauración y purga | `src/crm-trash.js`, `src/components/trash-list.js`, `src/storage.js` | `[integrante]` |
+| US-08 | Versión recuperable, recuperación al iniciar y migración explícita | `src/storage-recovery.js`, `src/storage.js`, `src/components/ui.js` | `[asignar]` |
+| US-09 | Integridad estructural, unicidad y referencias huérfanas | `src/crm-rules.js` (`validateIntegrity`), `src/storage.js` | `[asignar]` |
+| US-10 | Alta rápida protegida, descarte y pestaña obsoleta filtrada | `src/components/quick-create-client.js`, `src/app.js` | `[asignar]` |
+| US-11 | Resolución de tickets con equipo, solución y fecha | `src/crm-rules.js`, `src/storage.js`, `src/components/ticket-form.js`, `ticket-list.js` | `[asignar]` |
+| US-12 | Contactos múltiples y migración de `contactName` | `src/components/contact-form.js`, `contact-list.js`, `src/crm-rules.js`, `src/storage.js` | `[asignar]` |
+| US-13 | Actividades y tareas con vencimiento y panel | `src/components/activity-form.js`, `activity-list.js`, `src/crm-metrics.js` | `[asignar]` |
+| US-14 | Timeline por cliente y oportunidad | `src/crm-timeline.js`, `src/components/timeline.js` | `[asignar]` |
+| US-15 | Kanban editable con transiciones y motivo de pérdida | `src/components/commercial-board.js`, `src/app.js`, `src/components/ui-overlay.js` | `[asignar]` |
+| US-16 | Papelera FIFO de 50 con restauración y purga | `src/crm-trash.js`, `src/components/trash-list.js`, `src/storage.js` | `[asignar]` |
 
 **Pruebas agregadas**: recuperación (`storage-recovery`), migración (`storage-migration`), integridad, contactos, actividades, timeline, Kanban, resolución de tickets, papelera y estado del alta rápida; además se ampliaron accesibilidad, seguridad de renderizado, rendimiento y alta rápida. Nombres de archivo en `tests/unit/` y `tests/integration/` según `tasks.md`.
 
@@ -246,7 +247,7 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 - **T066 (manual, navegadores)**: pendiente. Requiere Chrome y Firefox actuales (y Edge/Safari si están disponibles), además de la tabla de validaciones transversales de `quickstart.md`. No se marca como completada.
 - **T142 (manual, escenarios 8–16)**: pendiente. Requiere recorrer los escenarios de la ampliación en navegadores reales, incluidos reinicio, dos pestañas, cuota agotada y navegación solo por teclado. No se declara ejecutado.
 - **T069 (usabilidad)**: pendiente. Requiere 5 participantes y la medición de SC-001 a SC-004. No se inventan participantes ni resultados.
-- **Nombres de integrantes (AMB-01)**: la tabla de integrantes sigue con `[completar]`; el equipo debe completarla. No se inventan nombres.
+- **Nombres de integrantes (AMB-01)**: completados en la tabla de integrantes y en `spec.md`. La asignación de historias por integrante queda como `[asignar]` hasta el acuerdo del equipo; no se inventan asignaciones.
 - **Entorno de las pruebas**: Node.js con jsdom (Vitest). La accesibilidad, el rendimiento, los tickets y el panel se verificaron a nivel de DOM y de funciones; el contraste se calculó sobre los tokens CSS. La comprobación con navegador real sigue pendiente en T066, y los escenarios 5 y 7 de `quickstart.md` deben recorrerse manualmente en esa misma validación.
 
 ### Adaptaciones de pruebas heredadas del template

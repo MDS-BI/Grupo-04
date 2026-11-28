@@ -46,4 +46,47 @@ describe('US9 — integración de integridad', () => {
     expect(store.get(storage.ENTITIES_KEY)).toBe(before.entities);
     expect(store.get(storage.DOCUMENTS_KEY)).toBe(before.documents);
   });
+
+  it('con el perfil CRM rechaza conjuntos que incumplen las reglas de los formularios', async () => {
+    const { normalizeConfig, setActiveConfig, userConfig } = await import('../../src/module-config.js');
+    setActiveConfig(normalizeConfig(userConfig).config);
+
+    const validEntity = {
+      id: 'ent_1',
+      entity_id: 'cli_1',
+      name: 'Empresa Uno',
+      code: 'CLI-001',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    };
+    const validDocument = {
+      id: 'doc_1',
+      entity_id: 'cli_1',
+      series: 'OPP',
+      folio: 3001,
+      opportunityTitle: 'Compra de compresor',
+      opportunityOwner: 'Ejecutivo A',
+      status: 'Nueva',
+      startDate: '2026-11-02',
+      endDate: '2026-11-30',
+      totalAmount: 1000,
+      currency: 'CLP'
+    };
+
+    store.set(storage.ENTITIES_KEY, JSON.stringify([validEntity]));
+    store.set(storage.DOCUMENTS_KEY, JSON.stringify([validDocument]));
+    expect(() => storage.loadSnapshot()).not.toThrow();
+
+    const beforeDocument = store.get(storage.DOCUMENTS_KEY);
+    expect(() => storage.saveDocuments([{ ...validDocument, endDate: '2026-11-01' }])).toThrow(/posterior/i);
+    expect(store.get(storage.DOCUMENTS_KEY)).toBe(beforeDocument);
+
+    expect(() => storage.saveDocuments([{ ...validDocument, totalAmount: 10.5 }])).toThrow(/monto|entero/i);
+    expect(store.get(storage.DOCUMENTS_KEY)).toBe(beforeDocument);
+
+    const beforeEntity = store.get(storage.ENTITIES_KEY);
+    expect(() => storage.saveEntities([{ ...validEntity, category: '' }])).toThrow(/tipo de cliente/i);
+    expect(store.get(storage.ENTITIES_KEY)).toBe(beforeEntity);
+  });
 });

@@ -38,12 +38,12 @@ Cada historia tiene un responsable de documentación y de implementación. Compl
 
 | Historia | Tema | Prioridad | Iteración | Responsable | Requisitos | Criterios |
 |---|---|---|---|---|---|---|
-| US-01 | Registrar clientes y prospectos | P1 | 1 | `[integrante]` | FR-001…FR-007, FR-013, FR-031, FR-032 | CA-01-01…CA-01-14 |
-| US-02 | Buscar clientes y consultar su ficha | P1 | 1 | `[integrante]` | FR-008…FR-012, FR-035 | CA-02-01…CA-02-17 |
-| US-03 | Registrar tickets de soporte | P2 | 2 | `[integrante]` | FR-025, FR-026 | CA-03-01…CA-03-08 |
-| US-04 | Registrar una oportunidad comercial | P1 | 1 | `[integrante]` | FR-014…FR-019 | CA-04-01…CA-04-14 |
-| US-05 | Gestionar oportunidades y ciclo de vida | P1 | 1 | `[integrante]` | FR-020…FR-023 | CA-05-01…CA-05-11 |
-| US-06 | Usar terminología comercial consistente | P1 | 1 | `[integrante]` | FR-029, FR-030, FR-036 | CA-06-01…CA-06-12 |
+| US-01 | Registrar clientes y prospectos | P1 | 1 | `[asignar]` | FR-001…FR-007, FR-013, FR-031, FR-032 | CA-01-01…CA-01-14 |
+| US-02 | Buscar clientes y consultar su ficha | P1 | 1 | `[asignar]` | FR-008…FR-012, FR-035 | CA-02-01…CA-02-17 |
+| US-03 | Registrar tickets de soporte | P2 | 2 | `[asignar]` | FR-025, FR-026 | CA-03-01…CA-03-08 |
+| US-04 | Registrar una oportunidad comercial | P1 | 1 | `[asignar]` | FR-014…FR-019 | CA-04-01…CA-04-14 |
+| US-05 | Gestionar oportunidades y ciclo de vida | P1 | 1 | `[asignar]` | FR-020…FR-023 | CA-05-01…CA-05-11 |
+| US-06 | Usar terminología comercial consistente | P1 | 1 | `[asignar]` | FR-029, FR-030, FR-036 | CA-06-01…CA-06-12 |
 | US-07 | Consultar el panel CRM | P2 | 2 | `[transversal]` | FR-024 | CA-07-01…CA-07-08 |
 | Transversal | Privacidad, persistencia, seguridad, rendimiento y accesibilidad | P1 | 1–2 | `[transversal]` | FR-027, FR-028, FR-031…FR-036 | NFR-001…NFR-009 |
 
@@ -953,7 +953,7 @@ Los tickets nuevos se crean en “En proceso”, sin `resolvedAt`. La ausencia d
 
 > La numeración se compactó para no dejar huecos. Equivalencia con la propuesta anterior: US-12 → US-12, US-13 → US-15, US-14 → US-16, US-15 → US-17 y US-16 → US-25. Las demás historias propuestas se descartaron.
 
-> Los responsables de US-12 a US-16 se completan con la misma convención de la tabla “Organización por integrante”: `[integrante]` o `[transversal]` según corresponda.
+> Los responsables de US-12 a US-16 se completan con la misma convención de la tabla “Organización por integrante”: `[asignar]` o `[transversal]` según corresponda.
 
 ### Historia de Usuario 12 — Contactos múltiples por cliente (Prioridad: P1)
 

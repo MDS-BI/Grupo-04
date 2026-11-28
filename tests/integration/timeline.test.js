@@ -158,4 +158,74 @@ describe('US14 — timeline por cliente y oportunidad', () => {
     expect(timeline.textContent).not.toContain('Nota del cliente');
     expect(timeline.querySelectorAll('.timeline-item')).toHaveLength(1);
   });
+
+  it('muestra el detalle de solo lectura al seleccionar un evento', () => {
+    const client = seedClient();
+    storage.addActivity({
+      entityId: client.entity_id,
+      type: 'llamada',
+      subject: 'Llamada clave',
+      notes: 'Resumen breve de la llamada',
+      owner: 'Ejecutivo B',
+      dueDate: '2026-11-20'
+    });
+    openClientDetail(client);
+
+    const item = timelineItems()[0];
+    const entry = item.querySelector('.timeline-entry');
+    entry.click();
+
+    const detail = item.querySelector('.timeline-detail');
+    expect(detail).not.toBeNull();
+    expect(detail.getAttribute('aria-live')).toBe('polite');
+    expect(detail.textContent).toContain('llamada');
+    expect(detail.textContent).toContain('2026-11-20');
+    expect(detail.textContent).toContain('Ejecutivo B');
+    expect(detail.textContent).toContain('Resumen breve de la llamada');
+    expect(detail.querySelector('input, textarea, select, button')).toBeNull();
+    expect(document.activeElement).toBe(detail);
+    expect(item.querySelector('.timeline-entry').getAttribute('aria-expanded')).toBe('true');
+
+    entry.click();
+    expect(item.querySelector('.timeline-detail')).toBeNull();
+  });
+
+  it('ofrece registrar la primera actividad desde el timeline vacío del cliente', () => {
+    const client = seedClient();
+    openClientDetail(client);
+
+    const action = document.querySelector('#detail-timeline [data-empty-cta="new-activity"]');
+    expect(action).not.toBeNull();
+    expect(action.textContent).toMatch(/registrar/i);
+    action.click();
+
+    expect(qs('view-activities').hidden).toBe(false);
+    expect(qs('activity-entity').value).toBe(client.entity_id);
+  });
+
+  it('desde el timeline vacío de la oportunidad preselecciona la oportunidad', () => {
+    const client = seedClient();
+    const opportunity = storage.addDocument({
+      entityId: client.entity_id,
+      folio: 3010,
+      opportunityTitle: 'Compra sin actividades',
+      opportunityOwner: 'Ejecutivo A',
+      totalAmount: 500000,
+      startDate: '2026-11-02',
+      endDate: '2026-11-30'
+    });
+
+    const input = qs('global-search-input');
+    input.value = '3010';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    qs('search-opportunities-list').querySelector('[data-open-document]').click();
+
+    const action = document.querySelector('#opportunity-timeline [data-empty-cta="new-activity"]');
+    expect(action).not.toBeNull();
+    action.click();
+
+    expect(qs('view-activities').hidden).toBe(false);
+    expect(qs('activity-entity').value).toBe(client.entity_id);
+    expect(qs('activity-document').value).toBe(opportunity.id);
+  });
 });

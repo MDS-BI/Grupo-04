@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
-import { addDocument, loadDocuments, loadEntities } from '../../src/storage.js';
+import { loadDocuments, loadEntities, addContact, addActivity } from '../../src/storage.js';
 
 const html = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf8');
 
 let dom;
+let storage;
 
 function qs(id) {
   return document.getElementById(id);
@@ -33,7 +34,7 @@ function snapshotStorage() {
   return data;
 }
 
-async function startDom(storage = null) {
+async function startDom(previous = null) {
   dom = new JSDOM(html, { url: 'http://localhost/' });
   const w = dom.window;
   globalThis.window = w;
@@ -43,18 +44,19 @@ async function startDom(storage = null) {
   globalThis.confirm = vi.fn(() => true);
   w.scrollTo = vi.fn();
   w.localStorage.clear();
-  if (storage) {
-    Object.entries(storage).forEach(([key, value]) => w.localStorage.setItem(key, value));
+  if (previous) {
+    Object.entries(previous).forEach(([key, value]) => w.localStorage.setItem(key, value));
   }
   vi.resetModules();
   const { boot } = await import('../../src/app.js');
   await boot();
+  storage = await import('../../src/storage.js');
 }
 
 async function reloadApp() {
-  const storage = snapshotStorage();
+  const previous = snapshotStorage();
   dom.window.close();
-  await startDom(storage);
+  await startDom(previous);
 }
 
 beforeEach(async () => {
@@ -178,7 +180,15 @@ describe('US1 — registrar clientes y prospectos', () => {
     fillClient();
     submitForm('entity-form');
     const entity = loadEntities()[0];
-    addDocument({ entityId: entity.entity_id, folio: 3001, startDate: '2026-11-02', endDate: '2026-11-30' });
+    storage.addDocument({
+      entityId: entity.entity_id,
+      folio: 3001,
+      opportunityTitle: 'Oportunidad de prueba',
+      opportunityOwner: 'Ejecutivo A',
+      totalAmount: 1000,
+      startDate: '2026-11-02',
+      endDate: '2026-11-30'
+    });
 
     const select = qs('edit-entity');
     select.value = entity.id;
@@ -197,7 +207,15 @@ describe('US1 — registrar clientes y prospectos', () => {
     fillClient();
     submitForm('entity-form');
     const entity = loadEntities()[0];
-    addDocument({ entityId: entity.entity_id, folio: 3001, startDate: '2026-11-02', endDate: '2026-11-30' });
+    storage.addDocument({
+      entityId: entity.entity_id,
+      folio: 3001,
+      opportunityTitle: 'Oportunidad de prueba',
+      opportunityOwner: 'Ejecutivo A',
+      totalAmount: 1000,
+      startDate: '2026-11-02',
+      endDate: '2026-11-30'
+    });
 
     globalThis.confirm = vi.fn(() => false);
     const select = qs('edit-entity');
@@ -207,6 +225,43 @@ describe('US1 — registrar clientes y prospectos', () => {
 
     expect(loadEntities().length).toBe(1);
     expect(loadDocuments().length).toBe(1);
+  });
+
+  it('informa la Papelera y los registros asociados sin afirmar que es irreversible', () => {
+    qs('nav-entities').click();
+    fillClient();
+    submitForm('entity-form');
+    const entity = loadEntities()[0];
+    storage.addDocument({
+      entityId: entity.entity_id,
+      folio: 3001,
+      opportunityTitle: 'Oportunidad de prueba',
+      opportunityOwner: 'Ejecutivo A',
+      totalAmount: 1000,
+      startDate: '2026-11-02',
+      endDate: '2026-11-30'
+    });
+    addContact({ entityId: entity.entity_id, name: 'Contacto Uno' });
+    addActivity({
+      entityId: entity.entity_id,
+      type: 'nota',
+      subject: 'Nota de seguimiento',
+      owner: 'Ejecutivo A',
+      dueDate: '2026-11-20'
+    });
+
+    const select = qs('edit-entity');
+    select.value = entity.id;
+    select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    qs('delete-entity').click();
+
+    const message = globalThis.confirm.mock.calls[0][0];
+    expect(message).toContain('Papelera');
+    expect(message).toContain('1 oportunidad');
+    expect(message).toContain('1 contacto');
+    expect(message).toContain('1 actividad');
+    expect(message).toMatch(/segunda confirmación/i);
+    expect(message).not.toMatch(/no se puede deshacer/i);
   });
 
   it('keeps the client list and identifiers after a reload', async () => {

@@ -439,3 +439,122 @@ export function openLossReasonDialog({ onConfirm = null, onCancel = null, return
     onCancel
   });
 }
+
+/**
+ * Diálogo de selección de una opción. Devuelve el valor elegido en
+ * `onConfirm(value)`; devolver `true` cierra el diálogo o una cadena muestra el
+ * error y lo mantiene abierto.
+ */
+export function openSelectDialog({
+  id = 'select-dialog',
+  title = '',
+  label = '',
+  options = [],
+  confirmLabel = 'Confirmar',
+  cancelLabel = 'Cancelar',
+  requiredMessage = 'Selecciona una opción',
+  returnFocus = null,
+  onConfirm = null,
+  onCancel = null
+} = {}) {
+  const content = document.createElement('div');
+  content.className = 'overlay__confirm';
+
+  const fieldWrap = document.createElement('div');
+  const fieldLabel = document.createElement('label');
+  fieldLabel.setAttribute('for', `${id}-select`);
+  fieldLabel.textContent = label;
+  const select = document.createElement('select');
+  select.id = `${id}-select`;
+  select.setAttribute('aria-describedby', `${id}-error`);
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '-- Selecciona --';
+  select.appendChild(placeholder);
+  for (const option of options) {
+    const item = document.createElement('option');
+    item.value = String(option.value);
+    item.textContent = option.label;
+    select.appendChild(item);
+  }
+  const error = document.createElement('div');
+  error.className = 'error';
+  error.id = `${id}-error`;
+  error.setAttribute('aria-live', 'polite');
+  fieldWrap.append(fieldLabel, select, error);
+  content.appendChild(fieldWrap);
+
+  const actions = document.createElement('div');
+  actions.className = 'overlay__actions';
+  const cancel = button(cancelLabel, 'btn btn-secondary', { 'data-dialog-cancel': '' });
+  const confirm = button(confirmLabel, 'btn btn-primary', { 'data-dialog-confirm': '' });
+  actions.append(cancel, confirm);
+  content.appendChild(actions);
+
+  openOverlay({
+    id,
+    variant: 'modal',
+    title,
+    content,
+    returnFocus: returnFocus || document.activeElement,
+    isDirty: false,
+    onClose: (reason) => {
+      if (reason !== 'confirm' && typeof onCancel === 'function') onCancel();
+    }
+  });
+
+  cancel.addEventListener('click', () => closeOverlay(id, { force: true, reason: 'cancel' }));
+
+  confirm.addEventListener('click', () => {
+    const value = String(select.value || '').trim();
+    if (!value) {
+      error.textContent = requiredMessage;
+      select.setAttribute('aria-invalid', 'true');
+      select.focus();
+      return;
+    }
+    let outcome = true;
+    if (typeof onConfirm === 'function') outcome = onConfirm(value);
+    if (outcome === true) {
+      closeOverlay(id, { force: true, reason: 'confirm' });
+      return;
+    }
+    if (typeof outcome === 'string') {
+      error.textContent = outcome;
+      select.setAttribute('aria-invalid', 'true');
+      select.focus();
+    }
+  });
+
+  select.focus();
+}
+
+/**
+ * Pide el contacto de destino antes de eliminar un contacto con registros
+ * vinculados, para no dejar referencias huérfanas.
+ */
+export function openContactReassignDialog({
+  contacts = [],
+  contactName = '',
+  count = 0,
+  onConfirm = null,
+  onCancel = null,
+  returnFocus = null
+} = {}) {
+  return openSelectDialog({
+    id: 'contact-reassign-dialog',
+    title: 'Reasignar registros del contacto',
+    label:
+      `El contacto ${contactName} tiene ${count} ${count === 1 ? 'registro vinculado' : 'registros vinculados'}. ` +
+      'Elige el contacto que los recibirá antes de eliminarlo:',
+    options: contacts.map((contact) => ({
+      value: contact.id,
+      label: contact.role ? `${contact.name} — ${contact.role}` : contact.name
+    })),
+    confirmLabel: 'Reasignar y eliminar',
+    requiredMessage: 'Selecciona el contacto de destino',
+    returnFocus,
+    onConfirm,
+    onCancel
+  });
+}

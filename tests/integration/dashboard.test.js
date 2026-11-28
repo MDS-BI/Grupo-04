@@ -147,15 +147,28 @@ function seedPanelFixture() {
       name: 'Cliente Uno',
       code: 'CLI-001',
       category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido',
       targetDate: yesterday
     },
-    { id: 'ent_2', entity_id: 'cli_002', name: 'Cliente Dos', code: 'CLI-002', category: 'Activo', targetDate: today },
+    {
+      id: 'ent_2',
+      entity_id: 'cli_002',
+      name: 'Cliente Dos',
+      code: 'CLI-002',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido',
+      targetDate: today
+    },
     {
       id: 'ent_3',
       entity_id: 'cli_003',
       name: 'Cliente Tres',
       code: 'CLI-003',
       category: 'Inactivo',
+      accountOwner: 'Ejecutivo B',
+      acquisitionSource: 'Referido',
       targetDate: yesterday
     }
   ];

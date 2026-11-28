@@ -108,6 +108,7 @@ export function clearDocumentForm() {
   if (fixed && isCrmProfile(getConfig())) {
     fixed.textContent = 'Serie OPP · Moneda CLP · Etapa inicial Nueva';
   }
+  resetDocumentContact();
   if (qs('series')) qs('series').value = '';
   qs('folio').value = '';
   qs('startDate').value = '';
@@ -135,6 +136,7 @@ export function clearDocumentForm() {
 
 const DOCUMENT_ERROR_FIELDS = [
   'entityId',
+  'contactId',
   'folio',
   'startDate',
   'endDate',
@@ -146,12 +148,40 @@ const DOCUMENT_ERROR_FIELDS = [
   'status'
 ];
 
+const FIELD_INPUT_IDS = {
+  entityId: 'document-entity',
+  contactId: 'document-contact'
+};
+
+const FIELD_ERROR_IDS = {
+  entityId: 'error-document-entity',
+  contactId: 'error-document-contact'
+};
+
+/** Reinicia el selector de contacto a su opción vacía. */
+export function resetDocumentContact() {
+  const select = qs('document-contact');
+  if (!select) return;
+  select.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'Sin contacto';
+  select.appendChild(none);
+}
+
+export function setDocumentContactValue(contactId) {
+  const select = qs('document-contact');
+  if (!select) return;
+  select.value = contactId || '';
+  if (select.value !== (contactId || '')) select.value = '';
+}
+
 export function clearDocumentErrors() {
   DOCUMENT_ERROR_FIELDS.forEach((f) => {
-    const elId = f === 'entityId' ? 'error-document-entity' : `error-${f}`;
+    const elId = FIELD_ERROR_IDS[f] || `error-${f}`;
     const el = qs(elId);
     if (el) el.textContent = '';
-    const input = f === 'entityId' ? qs('document-entity') : qs(f);
+    const input = qs(FIELD_INPUT_IDS[f] || f);
     if (input) input.removeAttribute('aria-invalid');
   });
   clearCustomFieldErrors(qs('document-custom-fields'));
@@ -198,6 +228,7 @@ export function collectDocumentPayload() {
   if (crm && !qs('document-id').value) status = 'Nueva';
   return {
     entityId: qs('document-entity-id').value || qs('document-entity').value,
+    contactId: qs('document-contact') ? qs('document-contact').value : '',
     series: qs('series') ? qs('series').value : '',
     folio: qs('folio').value,
     startDate: qs('startDate').value,
@@ -217,10 +248,10 @@ export function collectDocumentPayload() {
 
 export function showDocumentErrors(errors = {}) {
   for (const f of DOCUMENT_ERROR_FIELDS) {
-    const elId = f === 'entityId' ? 'error-document-entity' : `error-${f}`;
+    const elId = FIELD_ERROR_IDS[f] || `error-${f}`;
     const el = qs(elId);
     if (el) el.textContent = errors[f] || '';
-    const input = f === 'entityId' ? qs('document-entity') : qs(f);
+    const input = qs(FIELD_INPUT_IDS[f] || f);
     if (input) {
       if (errors[f]) input.setAttribute('aria-invalid', 'true');
       else input.removeAttribute('aria-invalid');

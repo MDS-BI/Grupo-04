@@ -367,6 +367,7 @@ const BASE_ENTITY_KEYS = new Set([
 const BASE_DOCUMENT_KEYS = new Set([
   'id',
   'entity_id',
+  'contactId',
   'series',
   'folio',
   'startDate',
@@ -615,6 +616,7 @@ function buildDocument(payload, existing) {
     ...preservedUnknownKeys('document', existing),
     id: existing ? existing.id : generateId('doc'),
     entity_id: payload.entityId || payload.entity_id,
+    contactId: textOrUndefined(payload.contactId),
     series: textOrUndefined(payload.series),
     folio: Number(payload.folio),
     startDate: payload.startDate,
@@ -648,7 +650,11 @@ export function addDocument(payload) {
     };
     Object.assign(
       errors,
-      validateOpportunity(candidate, { entities: snapshot.entities, documents: snapshot.documents }).errors
+      validateOpportunity(candidate, {
+        entities: snapshot.entities,
+        documents: snapshot.documents,
+        contacts: snapshot.contacts
+      }).errors
     );
   }
   if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
@@ -700,6 +706,7 @@ export function updateDocument(id, updates) {
       validateOpportunity(candidate, {
         entities: snapshot.entities,
         documents: snapshot.documents,
+        contacts: snapshot.contacts,
         currentId: previous.id,
         mode: 'update'
       }).errors
@@ -915,6 +922,9 @@ export function deleteContact(id, { reassignTo = null } = {}) {
   if (reassignTo && !snapshot.contacts.some((c) => c.id === reassignTo && c.entity_id === target.entity_id)) {
     throw new Error('El contacto de reasignación debe pertenecer al mismo cliente');
   }
+  if (reassignTo === id) {
+    throw new Error('El contacto de reasignación no puede ser el mismo que se elimina');
+  }
   const contacts = snapshot.contacts.filter((c) => c.id !== id);
   const normalized = ensureSinglePrimary(contacts, target.entity_id);
   const activities = snapshot.activities.map((activity) =>
@@ -922,7 +932,12 @@ export function deleteContact(id, { reassignTo = null } = {}) {
       ? { ...activity, contactId: reassignTo || null, updatedAt: new Date().toISOString() }
       : activity
   );
-  saveSnapshot({ ...snapshot, contacts: normalized, activities });
+  const documents = snapshot.documents.map((document) =>
+    document.contactId === id
+      ? { ...document, contactId: reassignTo || undefined, updatedAt: new Date().toISOString() }
+      : document
+  );
+  saveSnapshot({ ...snapshot, contacts: normalized, activities, documents });
   return normalized;
 }
 
