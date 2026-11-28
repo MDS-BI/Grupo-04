@@ -706,3 +706,21 @@ Cada incremento termina con `npm run lint`, `npm run format:check`, `npm test --
 - [X] T151 Permitir reasignar el contacto vinculado antes de eliminarlo: selector de destino en la ficha, paso de `reassignTo` a `deleteContact` y actualización de referencias en actividades y oportunidades, con advertencia de registros afectados y pruebas per CA-12-04 (partial)
 - [X] T152 Derivar la fila “Contacto principal” de la ficha desde el contacto marcado `isPrimary` en `crmContacts` (usar `contactName` solo como respaldo cuando no haya contactos) para no mostrar como principal a un contacto heredado que dejó de serlo, con pruebas de ficha per FR-038/CA-12-02 (contradicts)
 - [X] T153 Agregar al estado vacío del timeline una acción para registrar la primera actividad, conectada al formulario de actividades con el cliente u oportunidad preseleccionado, y cubrirla en `tests/integration/timeline.test.js` per CA-14-05 (missing)
+
+---
+
+---
+
+## Fase 23: Ticket de post-venta completo (iteración 004)
+
+**Propósito**: reflejar el alcance implementado en `specs/004-ticket-postventa/` sin reescribir las tareas anteriores. El plan detallado, contratos y pruebas viven en esa carpeta.
+
+- [X] T154 Ampliar `ModuleConfig` con los catálogos `channel`, `assignee` y `team`, conservando `priority` y `reason`, y registrarlos en `catalogs` (US-27).
+- [X] T155 Implementar en `src/crm-rules.js` los cinco estados, `TICKET_TRANSITIONS`, `canTransitionTicket`, `nextTicketStatuses`, folio `TKT-AAAA-####`, SLA 24/72/168 h, historial append-only, validación de satisfacción y garantía, y ampliar `validateTicket` (US-26 a US-32).
+- [X] T156 Subir `SCHEMA_VERSION` a 4, ampliar `buildTicket`, `addTicket` y `updateTicket`, agregar `assignTicket`, `changeTicketStatus`, `resolveTicket`, `closeTicket`, `deleteTicket` y `registerSatisfaction`, con historial y ticket en una sola instantánea atómica (US-25 a US-32).
+- [X] T157 Implementar la migración explícita `v3 → v4` con respaldo `erp_base_module:crmBackup:v3`, folio determinista por año, asunto copiado de la descripción, entrada `migracion`, cancelación sin escritura y restauración verificada (FR-071).
+- [X] T158 Agregar la vista `#/tickets`, la navegación, la bandeja con filtros AND, orden estable, estados vacíos y filas operables con teclado; reutilizar `data-table`, `ticket-form`, `ui-overlay` y los badges existentes (US-25, US-26).
+- [X] T159 Crear `src/components/ticket-detail.js` con detalle de solo lectura, acciones por estado, satisfacción e historial; conectar asignación, cambio de estado, resolución, cierre y eliminación confirmada en `src/app.js` (US-28 a US-30, US-32).
+- [X] T160 Agregar los seis indicadores de soporte al panel y el promedio CSAT en la ficha del cliente, recalculados en cada render y sin agregados persistidos (US-31, US-32).
+- [X] T161 Ampliar las pruebas unitarias, de integración, de accesibilidad, de seguridad de renderizado y de rendimiento (1000 tickets) y registrar los resultados reales en `README.md`.
+- [ ] T162 Validación manual en navegadores de `specs/004-ticket-postventa/quickstart.md` (secciones 2–15) con navegador, equipo y mediciones reales; pendiente porque el agente no dispone de navegador interactivo. No se declara ejecutada.

@@ -186,4 +186,40 @@ describe('ui-overlay — diálogo accesible con pila', () => {
     expect(overlay.getTopOverlay()).toBeNull();
     expect(overlay.hasDirtyOverlay()).toBe(false);
   });
+
+  it('openConfirmDialog confirma, cancela con Escape y conserva el error sin cerrar', () => {
+    const trigger = document.getElementById('trigger');
+    trigger.focus();
+    let outcome = 'No se pudo guardar';
+    overlay.openConfirmDialog({
+      id: 'test-confirm',
+      title: 'Eliminar ticket',
+      message: ['¿Eliminar TKT-2026-0001?', 'El cliente permanece.'],
+      confirmLabel: 'Eliminar ticket',
+      danger: true,
+      returnFocus: trigger,
+      onConfirm: () => outcome
+    });
+
+    const dialog = document.getElementById('test-confirm');
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.textContent).toContain('TKT-2026-0001');
+    expect(dialog.textContent).toContain('El cliente permanece');
+    expect(document.activeElement).toBe(dialog.querySelector('[data-dialog-confirm]'));
+
+    dialog.querySelector('[data-dialog-confirm]').click();
+    expect(document.getElementById('test-confirm')).not.toBeNull();
+    expect(document.getElementById('test-confirm-error').textContent).toBe('No se pudo guardar');
+
+    outcome = true;
+    dialog.querySelector('[data-dialog-confirm]').click();
+    expect(document.getElementById('test-confirm')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(globalThis.confirm).not.toHaveBeenCalled();
+
+    overlay.openConfirmDialog({ id: 'test-cancel', title: 'Cerrar', message: '¿Cerrar?' });
+    press('Escape');
+    expect(document.getElementById('test-cancel')).toBeNull();
+  });
 });

@@ -306,7 +306,7 @@ Cualquier otra combinación se rechaza, incluidos los saltos `Nuevo → Resuelto
 **Escenarios de aceptación**:
 
 1. **CA-32-01** — Dado un ticket que se va a resolver, cuando se confirma la resolución, entonces el formulario ofrece registrar una nota de satisfacción de 1 a 5 y un comentario opcional; la nota puede omitirse si el cliente aún no respondió.
-2. **CA-32-02** — Dado un ticket en `Resuelto` sin nota, cuando se registra la satisfacción desde el detalle, entonces se guarda la nota y el comentario y se agrega una entrada `satisfaccion` al historial; no se modifica el estado ni las fechas de resolución.
+2. **CA-32-02** — Dado un ticket en `Resuelto` sin nota, cuando se registra la satisfacción desde el detalle, entonces se guarda la nota y el comentario y se agrega una entrada `satisfaccion` al historial; no se modifica el estado ni las fechas de resolución. Si ya existe una nota, la acción no se ofrece y el almacenamiento rechaza un segundo registro.
 3. **CA-32-03** — Dado un valor de nota vacío, cero, negativo, mayor que 5, decimal o no numérico, cuando se intenta guardar, entonces se rechaza con un mensaje que indica “nota entera de 1 a 5” y se conserva lo escrito.
 4. **CA-32-04** — Dado un comentario de satisfacción, cuando supera 500 caracteres, entonces se rechaza con un mensaje que indica el máximo; los espacios al inicio y al final se recortan.
 5. **CA-32-05** — Dado un ticket en `Cerrado`, cuando se consulta su satisfacción, entonces se muestra en modo de solo lectura y no se permite modificarla.
@@ -371,7 +371,7 @@ Cualquier otra combinación se rechaza, incluidos los saltos `Nuevo → Resuelto
 ### Satisfacción
 
 - Nota entera de 1 a 5; comentario opcional de hasta 500 caracteres.
-- Se registra al resolver o mientras el ticket está `Resuelto`; una vez `Cerrado`, es de solo lectura.
+- Se registra al resolver o mientras el ticket está `Resuelto`; una sola vez por ticket: una nota ya registrada no se reemplaza ni se elimina. Una vez `Cerrado`, es de solo lectura.
 - El promedio usa solo notas válidas y muestra “Sin datos” cuando no hay ninguna.
 
 ## Modelo de datos de la iteración
@@ -405,7 +405,7 @@ La ampliación es **aditiva**: conserva todos los campos actuales del ticket y a
 | `resolutionSummary` | string \| null | Condicional | Obligatorio para resolver un ticket nuevo; no puede contener solo espacios. |
 | `resolvedAt` | string ISO 8601 \| null | Generado | Lo asigna el sistema al resolver; inmutable después. |
 | `closedAt` | string ISO 8601 \| null | Generado | Lo asigna el sistema al cerrar; inmutable. |
-| `satisfactionScore` | integer 1–5 \| null | Opcional | Solo se registra al resolver o en estado `Resuelto`. |
+| `satisfactionScore` | integer 1–5 \| null | Opcional | Solo se registra al resolver o en estado `Resuelto`, una sola vez; no se reemplaza ni se elimina. |
 | `satisfactionComment` | string \| null | Opcional | Hasta 500 caracteres; texto seguro. |
 | `history` | array de eventos | Obligatorio | Append-only; todo ticket del esquema 4 tiene al menos una entrada. Se detalla abajo. |
 | `legacyResolutionIncomplete` | boolean | Solo migración | Ya existe; marca tickets resueltos históricos sin resumen o fecha verificable. No editable. |
@@ -515,7 +515,7 @@ La migración es **explícita, aditiva y reversible mediante respaldo**. No se e
 - **FR-064**: El sistema DEBE mantener un historial embebido, append-only y atómico de cambios de estado, prioridad, técnico, equipo, resolución, cierre y satisfacción, con fecha, actor y valores anterior y nuevo cuando corresponda.
 - **FR-065**: El sistema DEBE mostrar el historial en el detalle del ticket en orden cronológico descendente y conservarlo tras recargar.
 - **FR-066**: El sistema DEBE mostrar en el panel los indicadores de tickets abiertos, vencidos de SLA, distribución por prioridad, tiempo medio de resolución, cumplimiento de SLA y satisfacción promedio, recalculados en cada render.
-- **FR-067**: El sistema DEBE permitir registrar una satisfacción entera de 1 a 5 y un comentario opcional de hasta 500 caracteres al resolver o mientras el ticket está `Resuelto`, y mostrar el promedio de las notas válidas.
+- **FR-067**: El sistema DEBE permitir registrar una satisfacción entera de 1 a 5 y un comentario opcional de hasta 500 caracteres al resolver o mientras el ticket está `Resuelto`; la nota se registra una sola vez por ticket y un segundo registro se rechaza sin reescribir la medición. El sistema DEBE mostrar el promedio de las notas válidas.
 - **FR-068**: El sistema DEBE eliminar un ticket individual solo con confirmación explícita, sin eliminar al cliente ni sus otras relaciones, y sin dejar historial huérfano.
 - **FR-069**: El sistema DEBE aceptar `warrantyEndsAt` como fecha de calendario opcional y mostrar si el equipo está en garantía, fuera de garantía o sin garantía registrada.
 - **FR-070**: El sistema DEBE aceptar `documentId` opcional, validar que el documento exista y pertenezca al cliente, y conservar la referencia si el documento se elimina después.

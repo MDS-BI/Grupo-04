@@ -119,6 +119,7 @@ export function applyShellLabels() {
     'nav-dashboard-label': 'Panel',
     'nav-entities-label': config.labels.entities,
     'nav-documents-label': config.labels.documents,
+    'nav-tickets-label': 'Tickets',
     'nav-activities-label': config.labels.activities || 'Actividades',
     'nav-trash-label': config.labels.trash || 'Papelera'
   };
@@ -139,6 +140,11 @@ export function applyShellLabels() {
     activities.setAttribute('aria-label', text);
     activities.setAttribute('title', text);
   }
+  const tickets = document.getElementById('nav-tickets');
+  if (tickets) {
+    tickets.setAttribute('aria-label', 'Tickets');
+    tickets.setAttribute('title', 'Tickets');
+  }
   const trash = document.getElementById('nav-trash');
   if (trash) {
     const text = config.labels.trash || 'Papelera';
@@ -152,6 +158,7 @@ export function applyShellLabels() {
 function clearActiveNavigation() {
   const controls = [
     document.getElementById('nav-dashboard'),
+    document.getElementById('nav-tickets'),
     document.getElementById('nav-activities'),
     document.getElementById('nav-trash'),
     document.getElementById('global-search-input'),
@@ -195,6 +202,11 @@ export function setActiveNav({ view, mode = 'list' } = {}) {
 
   if (view === 'activities' || view === 'trash') {
     markCurrent(document.getElementById(`nav-${view}`));
+    return;
+  }
+
+  if (view === 'tickets') {
+    markCurrent(document.getElementById('nav-tickets'));
     return;
   }
 

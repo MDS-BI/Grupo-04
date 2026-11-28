@@ -193,7 +193,7 @@ function seedPanelFixture() {
   ];
   localStorage.setItem('erp_base_module:entities', JSON.stringify(entities));
   localStorage.setItem('erp_base_module:documents', JSON.stringify(documents));
-  localStorage.setItem('erp_base_module:schemaVersion', JSON.stringify({ schemaVersion: 1 }));
+  localStorage.setItem('erp_base_module:schemaVersion', JSON.stringify({ schemaVersion: 4 }));
   qs('nav-entities').click();
   qs('nav-dashboard').click();
 }

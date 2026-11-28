@@ -254,4 +254,21 @@ describe('module-config', () => {
       expect(isCrmProfile(DEFAULT_CONFIG)).toBe(false);
     });
   });
+
+  describe('catálogos de post-venta', () => {
+    it('declares channel, assignee and team without duplicates or blanks and keeps priority and reason', async () => {
+      const { config } = await loadModuleConfig();
+      expect(config.catalogs.channel).toEqual(['Teléfono', 'Correo', 'WhatsApp', 'Presencial', 'Portal']);
+      expect(config.catalogs.assignee).toEqual(['Técnico A', 'Técnico B', 'Técnico C']);
+      expect(config.catalogs.team).toEqual(['Soporte técnico', 'Terreno', 'Repuestos']);
+      expect(config.catalogs.priority).toEqual(['Alta', 'Media', 'Baja']);
+      expect(config.catalogs.reason).toEqual(['soporte', 'reclamo', 'consulta']);
+      for (const name of ['channel', 'assignee', 'team', 'priority', 'reason']) {
+        const options = config.catalogs[name];
+        expect(options.length).toBeGreaterThan(0);
+        expect(options.every((option) => String(option).trim() !== '')).toBe(true);
+        expect(new Set(options).size).toBe(options.length);
+      }
+    });
+  });
 });

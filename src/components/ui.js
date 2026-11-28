@@ -17,7 +17,10 @@ const ICONS = {
   ],
   target: ['M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M10 10h.01'],
   search: ['M9 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10z', 'm12.8 12.8 4.2 4.2'],
-  inbox: ['M3 4.5h14v11H3z', 'M3 11h4l1.5 2h3L13 11h4']
+  inbox: ['M3 4.5h14v11H3z', 'M3 11h4l1.5 2h3L13 11h4'],
+  clock: ['M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M10 6v4.5l3 1.5'],
+  alert: ['M10 3 2.5 16.5h15z', 'M10 8v3.5', 'M10 14h.01'],
+  check: ['M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'm7 10 2 2 4-4']
 };
 
 function initialsFor(name) {
@@ -182,4 +185,50 @@ export function renderMonogram(name = '') {
   avatar.setAttribute('aria-hidden', 'true');
   avatar.textContent = initialsFor(name);
   return avatar;
+}
+
+const TICKET_STATUS_CLASSES = {
+  Nuevo: 'status-new',
+  'En proceso': 'status-in-progress',
+  'En espera': 'status-waiting',
+  Resuelto: 'status-resolved',
+  Cerrado: 'status-closed'
+};
+
+/** Clase de presentación por estado del ticket. */
+export function ticketStatusClass(status) {
+  return TICKET_STATUS_CLASSES[String(status ?? '').trim()] || 'status-new';
+}
+
+/** Insignia de estado con texto y clase específica por estado. */
+export function renderTicketStatus(status) {
+  const badge = document.createElement('span');
+  badge.className = `status-badge ${ticketStatusClass(status)}`;
+  badge.textContent = status || 'Sin estado';
+  return badge;
+}
+
+const SLA_CLASSES = {
+  'En plazo': 'sla-on-time',
+  'Por vencer': 'sla-due-soon',
+  Vencido: 'sla-overdue'
+};
+
+/**
+ * Semáforo de SLA con texto e icono accesible. El color nunca es la única
+ * señal: el texto “En plazo”, “Por vencer”, “Vencido” o “Sin datos” acompaña
+ * siempre al icono.
+ */
+export function renderSlaIndicator(status) {
+  const label = status || 'Sin datos';
+  const modifier = SLA_CLASSES[label] || 'sla-no-data';
+  const wrap = document.createElement('span');
+  wrap.className = `sla-indicator ${modifier}`;
+  const iconName = modifier === 'sla-overdue' ? 'alert' : modifier === 'sla-due-soon' ? 'clock' : 'check';
+  wrap.appendChild(createIcon(iconName, 14));
+  const text = document.createElement('span');
+  text.className = 'sla-indicator__text';
+  text.textContent = label;
+  wrap.appendChild(text);
+  return wrap;
 }

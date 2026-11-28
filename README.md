@@ -2,7 +2,9 @@
 
 Módulo CRM construido sobre el template ERP base (Vite + Vanilla JS). Permite registrar clientes y prospectos, vincular oportunidades comerciales, buscar y consultar fichas, seguir el ciclo de vida de las oportunidades, registrar tickets de soporte y consultar un panel con seis indicadores descriptivos.
 
-> **Estado**: MVP P1 y segunda iteración P2 (tickets y panel) implementados y verificados con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores (T066) y el protocolo de usabilidad (T069) quedan declarados como pendientes.
+> **Estado**: MVP P1, segunda iteración P2 (tickets y panel), iteración 3 (rediseño de interfaz) y la ampliación de post-venta de la iteración 4 están implementados y verificados con pruebas automatizadas (Vitest + jsdom). La validación manual en navegadores y el protocolo de usabilidad siguen declarados como pendientes.
+>
+> **Iteración 4 — ticket de post-venta completo (esquema v4)**: especificada en `specs/004-ticket-postventa/`. Agrega bandeja global `#/tickets`, folio `TKT-AAAA-####`, asunto, solicitante, canal, técnico, equipo, garantía, vínculo de origen, SLA por prioridad, historial append-only, cierre terminal, CSAT, seis indicadores de soporte y migración explícita v3 → v4 con respaldo `erp_base_module:crmBackup:v3`. Mantiene clientes, oportunidades, contactos, actividades, búsqueda y papelera. **Estado**: implementado; la validación manual del recorrido y de las 20 mediciones en navegador queda pendiente y registrada como desviación.
 >
 > **Iteración 3 — rediseño de interfaz**: especificada en `specs/002-crm-ui-refresh/` (navegación, drawers, tablas densas, filtros, panel accionable, identidad neutra y alcance responsive). Parte de la integración visual del equipo (`5aa9799`) y la formaliza: conserva el embudo comercial como tablero accionable, añade una banda compacta de distribución por etapa alimentada por el mismo cálculo, aplica una escala tipográfica cerrada y cubre el estado vacío con icono, atendiendo el hallazgo del Avance 03. El sistema visual se completa con base neutra, escala de espacio de 8 px, superficies jerarquizadas, componentes unificados, movimiento con `prefers-reduced-motion` y navegación desplegable bajo 900 px con tabla como tarjetas bajo 640 px; el tema oscuro es opcional y solo por tokens. No modifica entidades, reglas ni persistencia. **Estado de la iteración**: fases 1–3 (T001–T017: base visual, overlays, búsqueda global y navegación) implementadas; fases 4–11 pendientes.
 
@@ -25,6 +27,7 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 
 - **P1**: clientes, oportunidades, búsqueda, ciclo de vida, terminología y persistencia.
 - **P2**: tickets de soporte y panel con indicadores.
+- **Iteración 4 (post-venta, esquema v4)**: bandeja global, folio y asunto, solicitante/canal/responsable, ciclo de vida y cierre, SLA, historial, satisfacción e indicadores de soporte; migración explícita v3 → v4.
 - **Fuera del MVP original**: correo real, campañas, facturación, cotizaciones con partidas, predicción y sincronización multiusuario.
 - **Ampliación especificada, pendiente de implementación**: [campañas y condiciones comerciales (US-17 a US-22)](specs/003-crm-campanas/spec.md). Incluye campañas locales, partidas de oportunidad, descuentos y control de usos.
 
@@ -138,10 +141,25 @@ Catálogos: tipo de cliente (Prospecto, Activo, Inactivo), responsables (Ejecuti
 
 - `erp_base_module:entities`: clientes.
 - `erp_base_module:documents`: oportunidades.
-- `erp_base_module:tickets`: tickets de soporte (P2).
-- `erp_base_module:schemaVersion`: versión de esquema.
+- `erp_base_module:tickets`: tickets de soporte en forma v4 (folio, asunto, solicitante, canal, técnico, equipo, garantía, SLA, historial y CSAT).
+- `erp_base_module:crmContacts`: contactos.
+- `erp_base_module:crmActivities`: actividades.
+- `erp_base_module:crmTrash`: papelera de clientes.
+- `erp_base_module:crmRecovery`: versión recuperable de la última escritura.
+- `erp_base_module:schemaVersion`: versión de esquema; la vigente es **4**.
+- `erp_base_module:crmBackup:v3`: respaldo previo a la migración v3 → v4 (metadato con la versión real de origen).
 
-Los datos viven en el `localStorage` del navegador. Borrar el perfil del navegador elimina la persistencia. No hay respaldo central ni acceso simultáneo. El panel no guarda totales derivados: se recalculan en cada render a partir de clientes y oportunidades.
+Los datos viven en el `localStorage` del navegador. Borrar el perfil del navegador elimina la persistencia. No hay respaldo central ni acceso simultáneo. El panel no guarda totales derivados: se recalculan en cada render a partir de clientes, oportunidades, actividades y tickets. Las escrituras se bloquean mientras haya una migración pendiente; los datos v3 se pueden leer para mostrar el aviso, pero no escribir hasta confirmar la migración.
+
+**Límites conocidos**: el folio admite hasta 9999 tickets por año y no recicla correlativos; no se promete concurrencia transaccional entre pestañas (una escritura obsoleta se rechaza pidiendo recarga); los tickets migrados pueden aparecer `Vencido` porque su `createdAt` es real; no hay pausas de SLA ni calendario laboral; no se envían correos ni notificaciones.
+
+**Recuperación de la migración**: la restauración es explícita y no borra el respaldo. Desde la consola del navegador:
+
+```js
+const storage = await import('/src/storage.js');
+storage.restoreMigrationBackup();
+location.reload();
+```
 
 ## Demo
 
@@ -158,10 +176,10 @@ Datos sintéticos sugeridos:
 | Folio | 3001 |
 | Fechas | 2026-11-02 → 2026-11-30 |
 | Monto | 8.500.000 CLP |
-| Ticket | Compresor industrial · soporte · prioridad Alta |
-| Panel | Seis indicadores recalculados en cada visita |
+| Ticket | Compresor industrial · soporte · prioridad Alta · canal Teléfono · TKT-2026-0001 |
+| Panel | Seis indicadores comerciales, dos de actividades y seis de soporte, recalculados en cada visita |
 
-Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → registrar ticket → marcar el ticket como resuelto → recargar → abrir Panel. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente, ticket sin producto, reapertura de un ticket resuelto y cancelación.
+Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → avanzar etapa → registrar ticket desde la bandeja (`Tickets → Nuevo ticket`) → pasar a En proceso → resolver con solución y CSAT → cerrar → revisar historial y panel → recargar. Repetir el folio debe fallar. Probar también monto cero, campos vacíos, fechas invertidas, cliente inexistente, ticket sin asunto o canal, transición `Nuevo → Resuelto`, reapertura de un resuelto, cambio de prioridad en Resuelto y eliminación individual con confirmación.
 
 ## Evidencias y registro de cambios
 
@@ -213,100 +231,18 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 - **Recorrido del Escenario 1 de `quickstart.md`**: ejecutado a nivel DOM con jsdom sobre `index.html` y el perfil CRM (buscar `CLI-DEMO-003`, llegar a resultados, expandir Clientes y Oportunidades, abrir “Nuevo” con foco en el primer campo, navegar con cambios y ver el modal, “Seguir editando” y “Descartar”, enlace directo `#/search`, ruta inválida con respaldo, vaciar el criterio conservando filtros y comprobar la lupa decorativa). **La validación en navegador real sigue pendiente (T051)**; no se declara ejecutada.
 - **Desviación declarada**: `tests/integration/dashboard.test.js` conserva su migración completa para T041, pero se ajustó **una sola línea** (`qs('search-input')` → `qs('global-search-input')`) en el caso del foco de `#action-find`, porque T012/T017 eliminan el input de la vista y, sin ese ajuste, la suite heredada no podía quedar en verde. No se añadieron los asertos de `hidden` de T041.
 
-### Evidencias de la iteración 4 — US-08 a US-16 (2026-11-28)
+### Evidencias de la iteración 4 — ticket de post-venta (2026-11-28)
 
-**Responsables por historia** (nombres completos en la tabla de integrantes; la asignación por historia queda como `[asignar]` hasta el acuerdo del equipo):
+**Alcance implementado**: bandeja global `#/tickets` con filtros AND, orden estable y estados vacíos; folio `TKT-AAAA-####` inmutable; asunto obligatorio; solicitante, canal, técnico, equipo, garantía y vínculo de origen; ciclo `Nuevo → En proceso → En espera → En proceso → Resuelto → Cerrado`; SLA 24/72/168 h con semáforo textual e icono; historial append-only; CSAT 1–5 con comentario; seis indicadores de soporte; migración v3 → v4 con respaldo y restauración explícita. No se agregaron dependencias, backend, router, store ni colección nueva.
 
-| Historia | Alcance implementado | Archivos principales | Responsable |
-|---|---|---|---|
-| US-08 | Versión recuperable, recuperación al iniciar y migración explícita | `src/storage-recovery.js`, `src/storage.js`, `src/components/ui.js` | `[asignar]` |
-| US-09 | Integridad estructural, unicidad y referencias huérfanas | `src/crm-rules.js` (`validateIntegrity`), `src/storage.js` | `[asignar]` |
-| US-10 | Alta rápida protegida, descarte y pestaña obsoleta filtrada | `src/components/quick-create-client.js`, `src/app.js` | `[asignar]` |
-| US-11 | Resolución de tickets con equipo, solución y fecha | `src/crm-rules.js`, `src/storage.js`, `src/components/ticket-form.js`, `ticket-list.js` | `[asignar]` |
-| US-12 | Contactos múltiples y migración de `contactName` | `src/components/contact-form.js`, `contact-list.js`, `src/crm-rules.js`, `src/storage.js` | `[asignar]` |
-| US-13 | Actividades y tareas con vencimiento y panel | `src/components/activity-form.js`, `activity-list.js`, `src/crm-metrics.js` | `[asignar]` |
-| US-14 | Timeline por cliente y oportunidad | `src/crm-timeline.js`, `src/components/timeline.js` | `[asignar]` |
-| US-15 | Kanban editable con transiciones y motivo de pérdida | `src/components/commercial-board.js`, `src/app.js`, `src/components/ui-overlay.js` | `[asignar]` |
-| US-16 | Papelera FIFO de 50 con restauración y purga | `src/crm-trash.js`, `src/components/trash-list.js`, `src/storage.js` | `[asignar]` |
-
-**Pruebas agregadas**: recuperación (`storage-recovery`), migración (`storage-migration`), integridad, contactos, actividades, timeline, Kanban, resolución de tickets, papelera y estado del alta rápida; además se ampliaron accesibilidad, seguridad de renderizado, rendimiento y alta rápida. Nombres de archivo en `tests/unit/` y `tests/integration/` según `tasks.md`.
-
-**Verificación ejecutada**:
-
-| Comando | Resultado |
+| Comando | Salida real |
 |---|---|
-| `npm run lint` | Sin hallazgos de ESLint. |
+| `npm test -- --run` | **68 archivos y 554 pruebas aprobadas**; 99,06 s (transform 713 ms, setup 820 ms, import 1,86 s, tests 28,76 s, environment 57,05 s). Sin fallos. |
+| `npm run lint` | ESLint sin hallazgos. |
 | `npm run format:check` | `All matched files use Prettier code style!` |
-| `npm test -- --run` | 57 archivos y 443 pruebas aprobadas (86,85 s; transform 660 ms, setup 733 ms, import 1,73 s). |
-| `npm run build` | Vite correcto: HTML 38,37 kB (gzip 5,74 kB), CSS 17,77 kB (gzip 4,30 kB), JS 151,78 kB (gzip 39,58 kB); 598 ms. |
+| `npm run build` | Vite correcto: `dist/index.html` 47,27 kB (gzip 6,74 kB), CSS 19,39 kB (gzip 4,65 kB), JS 206,46 kB (gzip 53,57 kB); 102 ms. |
+| `npx vitest --run tests/performance/search-performance.test.js --reporter=verbose` | Bandeja con 1000 tickets: **20/20 mediciones bajo 500 ms**; más lenta 274,7 ms (jsdom, Node v24.19.0, Windows 10.0.19045). Búsqueda, ordenamiento, panel y timeline conservaron 20/20. |
 
-**Decisiones de alcance declaradas**: `SCHEMA_VERSION = 3` (1→2 agrega contactos, actividades, papelera y recuperación; 2→3 agrega resolución de tickets). Las ampliaciones son aditivas y no reemplazan `entities`, `documents` ni `tickets`. La migración de tickets históricos exige confirmación, conserva respaldo recuperable y no inventa solución ni fecha. La ejecución manual de los escenarios 8 a 16 de `quickstart.md` en navegadores reales queda pendiente (T142), igual que T066 y T069.
+**Desviación declarada — validación manual en navegador (T070)**: no ejecutada. El agente no dispone de un navegador interactivo, por lo que no se registran navegador, versión, equipo ni las 20 mediciones reales de `quickstart.md`. Las pruebas automatizadas cubren estructura, DOM, accesibilidad y presupuesto en jsdom, pero no reemplazan contraste, media queries ni rendimiento real. Queda pendiente ejecutar `specs/004-ticket-postventa/quickstart.md` (secciones 2–15) en Chrome o Firefox actuales y registrar los resultados reales.
 
-### Pendientes declarados
-
-- **T066 (manual, navegadores)**: pendiente. Requiere Chrome y Firefox actuales (y Edge/Safari si están disponibles), además de la tabla de validaciones transversales de `quickstart.md`. No se marca como completada.
-- **T142 (manual, escenarios 8–16)**: pendiente. Requiere recorrer los escenarios de la ampliación en navegadores reales, incluidos reinicio, dos pestañas, cuota agotada y navegación solo por teclado. No se declara ejecutado.
-- **T069 (usabilidad)**: pendiente. Requiere 5 participantes y la medición de SC-001 a SC-004. No se inventan participantes ni resultados.
-- **Nombres de integrantes (AMB-01)**: completados en la tabla de integrantes y en `spec.md`. La asignación de historias por integrante queda como `[asignar]` hasta el acuerdo del equipo; no se inventan asignaciones.
-- **Entorno de las pruebas**: Node.js con jsdom (Vitest). La accesibilidad, el rendimiento, los tickets y el panel se verificaron a nivel de DOM y de funciones; el contraste se calculó sobre los tokens CSS. La comprobación con navegador real sigue pendiente en T066, y los escenarios 5 y 7 de `quickstart.md` deben recorrerse manualmente en esa misma validación.
-
-### Adaptaciones de pruebas heredadas del template
-
-Las pruebas del template ERP se conservan, pero algunas fijaban supuestos del módulo base que el perfil CRM cambia. No se eliminó ninguna aserción; se ajustó el punto de partida y se justifica el cambio:
-
-| Prueba | Cambio | Justificación |
-|---|---|---|
-| `tests/integration/create-entity.test.js`, `add-document.test.js`, `edit-delete-entity.test.js`, `search-entities.test.js`, `manage-tabs.test.js` | Arrancan con `initApp(normalizeConfig(undefined))` en lugar de `boot()` | `boot()` aplica el perfil CRM (`userConfig`); estas pruebas describen el contrato del módulo base genérico, que debe seguir vigente (FR-029, CA-06-09). Sus aserciones no cambian. |
-| `tests/integration/workspace-shell.test.js` | Espera la etiqueta `Buscar` en la barra lateral | FR-036 fija “Buscar” para el módulo CRM; el texto anterior (“Búsqueda”) era una decisión del template. |
-| `tests/unit/module-config.test.js` | El caso “userConfig null por defecto” pasa a verificar el perfil CRM cargado | T009 exige que `userConfig` contenga el perfil CRM; la prueba anterior comprobaba justamente el valor que la tarea cambia. |
-| `tests/integration/relabeling.test.js` | El perfil CRM abre en Panel, `nav-dashboard` está visible y se añaden aserciones de las tarjetas del panel | P2 habilita Panel y cambia la ruta de respaldo de Clientes a Panel (FR-036, CA-06-02, CA-06-07); las aserciones anteriores fijaban el estado P1. |
-
-## Uso de IA
-
-La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso.
-
-- **Generado con IA**: propuesta de implementación de Fase 2, US1, US2, US4, US5, US6, US3 y US7, y pulido P1/P2 (`src/storage.js`, `src/module-config.js`, `src/crm-rules.js`, `src/crm-metrics.js`, `src/app.js`, componentes —incluidos `ticket-form.js` y `ticket-list.js`— y pruebas asociadas), redacción de esta sección de evidencias y de las notas de adaptación.
-- **Iteración 4 generada con IA**: `src/storage-recovery.js`, `src/crm-trash.js`, `src/crm-timeline.js`, componentes de contactos, actividades, timeline y papelera, ampliación de `storage.js`, `crm-rules.js`, Kanban editable, resolución de tickets y las pruebas nuevas. Revisado manualmente el alcance frente a `spec.md` (US-08 a US-16), las reglas de migración no destructiva y los criterios de integridad; todas las cifras de prueba provienen de comandos ejecutados.
-- **Revisado manualmente**: alcance P1 frente a `spec.md` y `tasks.md`, textos de interfaz en español, criterios de eliminación en cascada, ciclo de vida y decisión de dejar T066/T069 como pendientes.
-- **Verificado con pruebas**: todos los resultados de la tabla anterior provienen de comandos ejecutados en este repositorio (Vitest, ESLint, Prettier y build de Vite). No se declaran pruebas, participantes ni validación empresarial que no se hayan ejecutado.
-
-## Validación documental (T068)
-
-Se contrastaron `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER de `data-model.md` contra la implementación:
-
-- Cliente (`Entity`) y Oportunidad (`Document`) conservan campos, obligatoriedad y estados acordados; `series + folio` es única y `entity_id` se mantiene como contrato de relación.
-- Ciclo de vida, motivo de pérdida y estados finales coinciden con `data-model.md` y `spec.md`.
-- Catálogos: `data-model.md` indica que tipo, responsables y orígenes viven en la configuración; se materializaron en la clave `catalogs` de `ModuleConfig` (extensión de implementación, no cambio de contrato).
-- Divergencia detectada y no corregida (por regla de alcance): el ejemplo JSON de `data-model.md` muestra las colecciones dentro de un único documento, mientras `contracts/entity-storage.md` y la implementación usan claves separadas (`erp_base_module:entities`, `:documents`, `:schemaVersion`). Prevalece el contrato; se deja constancia para la revisión documental.
-- El MER enumera las claves y relaciones usadas por la aplicación; los tickets permanecen declarados para P2.
-
-**Actualización de la iteración 4 (2026-11-28)**:
-
-- `data-model.md` describe Contacto, Actividad y Elemento de papelera, los campos ampliados de Ticket y las fórmulas de actividades; el MER incluye las relaciones con CLIENTE y OPORTUNIDAD.
-- `contracts/entity-storage.md` declara las claves `crmContacts`, `crmActivities`, `crmTrash` y `crmRecovery`, las operaciones nuevas, `SCHEMA_VERSION = 2`/`3` y las invariantes de cascada y papelera; la implementación usa esas mismas claves y firmas.
-- `research.md` documenta las decisiones de capa CRM adicional, recuperación previa a escritura, migración explícita, integridad y Kanban basado en `canTransition`.
-- `plan.md` agrega la estructura de archivos y el orden de incrementos de US-08 a US-16; `quickstart.md` agrega los escenarios 8 a 16.
-- La implementación mantiene `entities`, `documents` y `tickets` sin reemplazo y conserva `entity_id` como clave de relación. La migración de esquema es aditiva y la marcación de tickets históricos es explícita.
-
-## Documentación
-
-- [Especificación](specs/001-crm-module/spec.md)
-- [Plan](specs/001-crm-module/plan.md)
-- [Investigación técnica](specs/001-crm-module/research.md)
-- [Modelo de datos](specs/001-crm-module/data-model.md)
-- [Inicio rápido y validación](specs/001-crm-module/quickstart.md)
-- [Contrato de almacenamiento](specs/001-crm-module/contracts/entity-storage.md)
-- [Checklist](specs/001-crm-module/checklists/requirements.md)
-- [MER (Mermaid, en `data-model.md`)](specs/001-crm-module/data-model.md)
-- **Iteración 3 — rediseño de interfaz** (`specs/002-crm-ui-refresh/`): [especificación](specs/002-crm-ui-refresh/spec.md), [plan](specs/002-crm-ui-refresh/plan.md), [investigación](specs/002-crm-ui-refresh/research.md), [modelo de datos](specs/002-crm-ui-refresh/data-model.md), [contrato de interfaz](specs/002-crm-ui-refresh/contracts/ui-shell.md) y [validación](specs/002-crm-ui-refresh/quickstart.md). No agrega entidades ni cambios de esquema.
-
-## Integración visual del CRM — 15/11/2026
-
-Se incorporan las mejoras visuales preparadas tras el feedback «casi idéntico al template» sobre `ad0f421`, conservando la implementación P1/P2 del equipo: tickets, seis indicadores, reglas, persistencia y pruebas. No se aplica la instantánea de almacenamiento alternativa del borrador local.
-
-- Embudo de seis etapas con cantidad, monto agregado y tarjetas por oportunidad. Cada tarjeta abre el formulario de edición existente.
-- Identidad visual verde, tarjetas comerciales y distribución adaptable a pantallas pequeñas.
-- Imagen del MER vigente: [crm-mer.svg](specs/001-crm-module/assets/crm-mer.svg).
-- Pruebas de interacción del tablero, representación segura del texto y fallback genérico.
-- Continúan pendientes el ensayo visual en navegadores y la validación de usabilidad; no se declaran realizados.
-
+**Límites conocidos**: folio máximo 9999 por año sin reciclaje; concurrencia entre pestañas no transaccional (se rechaza la escritura obsoleta y se pide recarga); los tickets migrados pueden aparecer vencidos por su fecha real; SLA sin pausas ni calendario laboral; sin correo real, adjuntos, notificaciones ni exportación.

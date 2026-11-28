@@ -292,3 +292,83 @@ describe('T140 — rendimiento de la ampliación', () => {
     console.info(`[T140] timeline: ${underBudget}/20 bajo 500 ms`);
   });
 });
+
+describe('T033 — rendimiento de la bandeja con 1000 tickets', () => {
+  it('abre, filtra y ordena 20 veces con 19 mediciones bajo 500 ms', async () => {
+    const clients = buildClients();
+    const tickets = Array.from({ length: 1000 }, (_, index) => ({
+      id: `tkt_${index}`,
+      folio: `TKT-2026-${String(index + 1).padStart(4, '0')}`,
+      entity_id: `cli_${index % CLIENTS}`,
+      contactId: null,
+      requesterName: null,
+      requesterEmail: null,
+      requesterPhone: null,
+      subject: `Ticket de soporte ${String(index).padStart(4, '0')}`,
+      description: 'Falla reportada por el cliente',
+      productId: null,
+      productName: 'Compresor industrial',
+      equipmentReference: null,
+      warrantyEndsAt: null,
+      documentId: null,
+      reason: 'soporte',
+      channel: 'Teléfono',
+      priority: ['Alta', 'Media', 'Baja'][index % 3],
+      status: ['Nuevo', 'En proceso', 'En espera', 'Resuelto', 'Cerrado'][index % 5],
+      assignee: ['Técnico A', 'Técnico B', 'Técnico C', null][index % 4],
+      team: null,
+      slaDueAt: null,
+      firstResponseAt: null,
+      resolutionSummary: index % 5 >= 3 ? 'Solución aplicada' : null,
+      resolvedAt: index % 5 >= 3 ? '2026-11-10T10:00:00.000Z' : null,
+      closedAt: index % 5 === 4 ? '2026-11-11T10:00:00.000Z' : null,
+      satisfactionScore: index % 5 >= 3 ? (index % 5) + 2 : null,
+      satisfactionComment: null,
+      history: [{ id: `tkt_${index}:1`, at: '2026-11-01T10:00:00.000Z', type: 'creacion', actor: 'Sistema' }],
+      legacyResolutionIncomplete: undefined,
+      createdAt: `2026-11-${String((index % 28) + 1).padStart(2, '0')}T10:00:00.000Z`,
+      updatedAt: '2026-11-01T10:00:00.000Z'
+    }));
+
+    dom.window.close();
+    dom = new JSDOM(html, { url: 'http://localhost/' });
+    const w = dom.window;
+    globalThis.window = w;
+    globalThis.document = w.document;
+    globalThis.localStorage = w.localStorage;
+    globalThis.alert = vi.fn();
+    globalThis.confirm = vi.fn(() => true);
+    w.scrollTo = vi.fn();
+    w.localStorage.clear();
+    w.localStorage.setItem('erp_base_module:entities', JSON.stringify(clients));
+    w.localStorage.setItem('erp_base_module:tickets', JSON.stringify(tickets));
+    w.localStorage.setItem('erp_base_module:schemaVersion', JSON.stringify({ schemaVersion: 4 }));
+    vi.resetModules();
+    const { boot } = await import('../../src/app.js');
+    await boot();
+
+    const snapshotBefore = storageSnapshot();
+    const measurements = [];
+    for (let index = 0; index < 20; index += 1) {
+      const start = performance.now();
+      if (index % 3 === 0) {
+        qs('nav-tickets').click();
+      } else if (index % 3 === 1) {
+        qs('ticket-filter-priority').value = index % 2 === 0 ? 'Alta' : 'Baja';
+        qs('ticket-filter-priority').dispatchEvent(new w.Event('change', { bubbles: true }));
+      } else {
+        qs('ticket-sort').value = index % 2 === 0 ? 'sla' : 'recent';
+        qs('ticket-sort').dispatchEvent(new w.Event('change', { bubbles: true }));
+      }
+      measurements.push(performance.now() - start);
+      expect(qs('tickets-table').querySelectorAll('tbody tr[data-ticket-id]').length).toBeGreaterThan(0);
+    }
+    const underBudget = measurements.filter((value) => value < 500).length;
+    expect(measurements.length).toBe(20);
+    expect(underBudget).toBeGreaterThanOrEqual(19);
+    expect(storageSnapshot()).toEqual(snapshotBefore);
+    console.info(
+      `[T033] bandeja 1000 tickets: ${underBudget}/20 bajo 500 ms; más lenta ${Math.max(...measurements).toFixed(1)} ms`
+    );
+  });
+});

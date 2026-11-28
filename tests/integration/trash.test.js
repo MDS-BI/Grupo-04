@@ -48,10 +48,12 @@ function seedAggregate() {
   });
   storage.addTicket({
     entityId: client.entity_id,
+    subject: 'Falla',
     productName: 'Compresor',
     reason: 'soporte',
     description: 'Falla',
-    priority: 'Alta'
+    priority: 'Alta',
+    channel: 'Teléfono'
   });
   storage.addContact({ entityId: client.entity_id, name: 'Contacto Uno', isPrimary: true });
   storage.addActivity({

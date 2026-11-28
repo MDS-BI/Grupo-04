@@ -67,11 +67,14 @@ describe('US9 — integridad del conjunto', () => {
       tickets: [
         {
           id: 'tkt_1',
+          folio: 'TKT-2026-0001',
           entity_id: 'cli_inexistente',
+          subject: 'Falla',
           reason: 'soporte',
           description: 'Falla',
           priority: 'Alta',
-          status: 'En proceso'
+          status: 'En proceso',
+          history: [{ id: 'tkt_1:1', at: '2026-11-20T10:00:00.000Z', type: 'creacion', actor: 'Sistema' }]
         }
       ]
     });
@@ -155,11 +158,14 @@ describe('US9 — integridad del conjunto', () => {
       tickets: [
         {
           id: 'tkt_1',
+          folio: 'TKT-2026-0001',
           entity_id: 'cli_1',
+          subject: 'Falla',
           reason: 'otro',
           description: 'Falla',
           priority: 'Urgente',
-          status: 'En proceso'
+          status: 'En proceso',
+          history: [{ id: 'tkt_1:1', at: '2026-11-20T10:00:00.000Z', type: 'creacion', actor: 'Sistema' }]
         }
       ],
       contacts: [{ id: 'con_1', entity_id: 'cli_1', name: 'Contacto A', isPrimary: true, email: 'malo' }]
@@ -180,5 +186,105 @@ describe('US9 — integridad del conjunto', () => {
       generic
     );
     expect(result.valid).toBe(true);
+  });
+
+  it('tolera tickets v3 sin folio, asunto, historial ni campos opcionales', () => {
+    const result = validateIntegrity(
+      {
+        ...empty,
+        entities: [entity()],
+        tickets: [
+          {
+            id: 'tkt_1',
+            entity_id: 'cli_1',
+            reason: 'soporte',
+            description: 'Falla',
+            priority: 'Alta',
+            status: 'En proceso'
+          }
+        ]
+      },
+      undefined,
+      { version: 3 }
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('exige folio único, asunto e historial en datos v4 estrictos', () => {
+    const missing = validateIntegrity({
+      ...empty,
+      entities: [entity()],
+      tickets: [
+        {
+          id: 'tkt_1',
+          entity_id: 'cli_1',
+          reason: 'soporte',
+          description: 'Falla',
+          priority: 'Alta',
+          status: 'En proceso'
+        }
+      ]
+    });
+    expect(missing.valid).toBe(false);
+    expect(missing.issues.some((issue) => issue.field === 'folio')).toBe(true);
+    expect(missing.issues.some((issue) => issue.field === 'subject')).toBe(true);
+    expect(missing.issues.some((issue) => issue.field === 'history')).toBe(true);
+
+    const duplicated = validateIntegrity({
+      ...empty,
+      entities: [entity()],
+      tickets: [
+        {
+          id: 'tkt_1',
+          folio: 'TKT-2026-0001',
+          entity_id: 'cli_1',
+          subject: 'Falla',
+          reason: 'soporte',
+          description: 'Falla',
+          priority: 'Alta',
+          status: 'En proceso',
+          history: [{ id: 'tkt_1:1', at: '2026-11-20T10:00:00.000Z', type: 'creacion' }]
+        },
+        {
+          id: 'tkt_2',
+          folio: 'TKT-2026-0001',
+          entity_id: 'cli_1',
+          subject: 'Otra falla',
+          reason: 'soporte',
+          description: 'Otra',
+          priority: 'Baja',
+          status: 'Nuevo',
+          history: [{ id: 'tkt_2:1', at: '2026-11-20T10:00:00.000Z', type: 'creacion' }]
+        }
+      ]
+    });
+    expect(duplicated.valid).toBe(false);
+    expect(duplicated.issues.some((issue) => issue.field === 'folio' && /repetido/i.test(issue.message))).toBe(true);
+  });
+
+  it('valida referencias opcionales v4 sin invalidar un contacto eliminado', () => {
+    const results = validateIntegrity({
+      ...empty,
+      entities: [entity()],
+      tickets: [
+        {
+          id: 'tkt_1',
+          folio: 'TKT-2026-0001',
+          entity_id: 'cli_1',
+          subject: 'Falla',
+          reason: 'soporte',
+          description: 'Falla',
+          priority: 'Alta',
+          status: 'En proceso',
+          contactId: 'con_eliminado',
+          channel: 'Fax',
+          warrantyEndsAt: '2027-02-30',
+          history: [{ id: 'tkt_1:1', at: '2026-11-20T10:00:00.000Z', type: 'creacion' }]
+        }
+      ]
+    });
+    expect(results.issues.some((issue) => issue.field === 'contactId')).toBe(false);
+    expect(results.issues.some((issue) => issue.field === 'channel')).toBe(true);
+    expect(results.issues.some((issue) => issue.field === 'warrantyEndsAt')).toBe(true);
   });
 });

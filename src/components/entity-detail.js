@@ -1,4 +1,5 @@
 import { getTargetDateStatus, todayLocal } from '../crm-rules.js';
+import { averageSatisfaction, formatOneDecimal } from '../crm-metrics.js';
 import { renderTimeline } from './timeline.js';
 import { createContactItem } from './contact-list.js';
 import { createActivityItem } from './activity-list.js';
@@ -108,6 +109,9 @@ export function renderEntityDetail(container, client, opportunities = [], today 
     client.targetDate ? `${client.targetDate} · ${getTargetDateStatus(client.targetDate, today)}` : 'Sin programar'
   );
   row(dl, 'Fecha de registro', localDate(client.createdAt));
+  if (Array.isArray(options.tickets)) {
+    row(dl, 'Satisfacción promedio', formatOneDecimal(averageSatisfaction(options.tickets)));
+  }
   container.appendChild(dl);
 
   if (!String(client.email || '').trim() && !String(client.phone || '').trim()) {

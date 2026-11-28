@@ -1,11 +1,25 @@
 // Indicadores descriptivos del panel CRM. Funciones puras: no leen localStorage
 // ni el DOM y no persisten totales derivados.
-import { compareCalendarDates, isValidCalendarDate, todayLocal } from './crm-rules.js';
+import { compareCalendarDates, isValidCalendarDate, todayLocal, computeSlaDueAt, getSlaStatus } from './crm-rules.js';
 
 export const OPEN_STATUSES = Object.freeze(['Nueva', 'Contactada', 'Propuesta', 'Negociación']);
+export const TICKET_OPEN_STATUSES = Object.freeze(['Nuevo', 'En proceso', 'En espera']);
+export const TICKET_PRIORITY_ORDER = Object.freeze(['Alta', 'Media', 'Baja']);
 
 function isOpen(document) {
   return Boolean(document) && OPEN_STATUSES.includes(document.status);
+}
+
+function asTickets(tickets) {
+  return Array.isArray(tickets) ? tickets.filter(Boolean) : [];
+}
+
+function isOpenTicket(ticket) {
+  return TICKET_OPEN_STATUSES.includes(String(ticket && ticket.status));
+}
+
+function isResolvedTicket(ticket) {
+  return Boolean(ticket) && (ticket.status === 'Resuelto' || ticket.status === 'Cerrado');
 }
 
 /** Clientes registrados: todos, incluidos prospectos e inactivos. */
@@ -126,4 +140,70 @@ export function stageDistribution(documents = [], statuses = []) {
     if (Number.isFinite(amount) && amount >= 0) bucket.amount += amount;
   }
   return buckets;
+}
+
+/** Tickets abiertos: Nuevo, En proceso o En espera. */
+export function countOpenTickets(tickets = []) {
+  return asTickets(tickets).filter(isOpenTicket).length;
+}
+
+/** Tickets abiertos con el SLA vencido en el instante indicado. */
+export function countOverdueTickets(tickets = [], now = new Date()) {
+  return asTickets(tickets).filter((ticket) => isOpenTicket(ticket) && getSlaStatus(ticket, now) === 'Vencido').length;
+}
+
+/** Distribución de tickets abiertos por prioridad, incluidos los ceros. */
+export function ticketPriorityDistribution(tickets = []) {
+  const open = asTickets(tickets).filter(isOpenTicket);
+  return TICKET_PRIORITY_ORDER.map((priority) => ({
+    priority,
+    count: open.filter((ticket) => ticket.priority === priority).length
+  }));
+}
+
+/** Tiempo medio de resolución en horas sobre fechas válidas, una decimal. */
+export function averageResolutionHours(tickets = []) {
+  const values = [];
+  for (const ticket of asTickets(tickets)) {
+    if (!isResolvedTicket(ticket)) continue;
+    const start = Date.parse(String(ticket.createdAt ?? ''));
+    const end = Date.parse(String(ticket.resolvedAt ?? ''));
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+    values.push((end - start) / (60 * 60 * 1000));
+  }
+  if (values.length === 0) return null;
+  const mean = values.reduce((total, value) => total + value, 0) / values.length;
+  return Math.round(mean * 10) / 10;
+}
+
+/** Cumplimiento de SLA: resueltos dentro del objetivo / con SLA calculable × 100. */
+export function slaCompliance(tickets = []) {
+  let total = 0;
+  let met = 0;
+  for (const ticket of asTickets(tickets)) {
+    if (!isResolvedTicket(ticket)) continue;
+    const due = computeSlaDueAt(ticket.createdAt, ticket.priority);
+    const resolved = Date.parse(String(ticket.resolvedAt ?? ''));
+    if (!due || !Number.isFinite(resolved)) continue;
+    total += 1;
+    if (resolved <= Date.parse(due)) met += 1;
+  }
+  if (total === 0) return null;
+  return Math.round((met / total) * 1000) / 10;
+}
+
+/** Promedio de satisfacciones válidas (enteros 1–5), una decimal. */
+export function averageSatisfaction(tickets = []) {
+  const values = asTickets(tickets)
+    .map((ticket) => ticket.satisfactionScore)
+    .filter((score) => Number.isInteger(score) && score >= 1 && score <= 5);
+  if (values.length === 0) return null;
+  const mean = values.reduce((total, value) => total + value, 0) / values.length;
+  return Math.round(mean * 10) / 10;
+}
+
+/** Formato de una cifra decimal compartido por panel y ficha del cliente. */
+export function formatOneDecimal(value) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return 'Sin datos';
+  return Number(value).toFixed(1);
 }

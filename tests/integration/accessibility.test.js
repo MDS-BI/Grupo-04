@@ -310,3 +310,83 @@ describe('T138 — accesibilidad de la ampliación', () => {
     expect(document.activeElement).toBe(restore);
   });
 });
+
+describe('T034/T050 — accesibilidad de la bandeja y el detalle', () => {
+  async function seedTicket() {
+    const storage = await import('../../src/storage.js');
+    const client = storage.addEntity({
+      name: 'Empresa Teclado',
+      code: 'CLI-KEY-001',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    });
+    const ticket = storage.addTicket({
+      entityId: client.entity_id,
+      subject: 'Compresor sin arranque',
+      productName: 'Compresor',
+      reason: 'soporte',
+      description: 'No arranca',
+      priority: 'Alta',
+      channel: 'Teléfono',
+      assignee: 'Técnico A'
+    });
+    return { storage, client, ticket };
+  }
+
+  it('etiqueta filtros y orden, expone aria-sort, región y filas enfocables', async () => {
+    const { ticket } = await seedTicket();
+    qs('nav-tickets').click();
+
+    for (const id of ['ticket-filter-status', 'ticket-filter-priority', 'ticket-filter-assignee', 'ticket-sort']) {
+      expect(labelTextFor(qs(id))).not.toBe('');
+    }
+    expect(qs('new-ticket-inbox').textContent).toMatch(/Nuevo ticket/);
+    expect(qs('ticket-filter-announcer').getAttribute('aria-live')).toBe('polite');
+
+    const region = qs('tickets-table').querySelector('[role="region"]');
+    expect(region).not.toBeNull();
+    expect(region.getAttribute('aria-label')).toBeTruthy();
+    const headers = [...qs('tickets-table').querySelectorAll('th[aria-sort]')];
+    expect(headers.length).toBeGreaterThan(0);
+    const priorityHeader = headers.find((header) => header.textContent.includes('Prioridad'));
+    expect(priorityHeader.getAttribute('aria-sort')).toBe('ascending');
+
+    const row = qs('tickets-table').querySelector(`tr[data-ticket-id="${ticket.id}"]`);
+    expect(row.getAttribute('tabindex')).toBe('0');
+    row.focus();
+    expect(document.activeElement).toBe(row);
+  });
+
+  it('abre el detalle con Enter, atrapa el foco, se cierra con Escape y anuncia errores', async () => {
+    const { ticket } = await seedTicket();
+    qs('nav-tickets').click();
+    const row = qs('tickets-table').querySelector(`tr[data-ticket-id="${ticket.id}"]`);
+    row.focus();
+    row.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+    const panel = qs('ticket-detail');
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    expect(panel.contains(document.activeElement)).toBe(true);
+    expect(qs('ticket-detail-history').getAttribute('role')).toBe('list');
+
+    qs('ticket-detail-change-status').click();
+    const dialog = qs('ticket-status-dialog');
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    dialog.querySelector('[data-dialog-confirm]').click();
+    expect(qs('ticket-status-dialog-error').textContent).toMatch(/estado/i);
+    expect(qs('ticket-status-dialog-error').getAttribute('aria-live')).toBe('polite');
+
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(qs('ticket-status-dialog')).toBeNull();
+    expect(qs('ticket-detail')).not.toBeNull();
+
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(qs('ticket-detail')).toBeNull();
+    expect(document.activeElement).toBe(row);
+  });
+});

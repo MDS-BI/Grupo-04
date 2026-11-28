@@ -282,3 +282,15 @@ Si el equipo ejecuta el protocolo de `plan.md`, usar 5 participantes y 4 tareas 
 - Contrato de almacenamiento: [contracts/entity-storage.md](contracts/entity-storage.md)
 - Decisiones técnicas: [research.md](research.md)
 - Estrategia y verificación: [plan.md](plan.md)
+
+## Ticket de post-venta (iteración 004, esquema v4)
+
+El recorrido completo de tickets —bandeja global, folio, asunto, solicitante, canal, responsable, SLA, historial, indicadores, satisfacción y migración `v3 → v4`— se documenta en [specs/004-ticket-postventa/quickstart.md](../004-ticket-postventa/quickstart.md). Usa ese documento para validar el alcance v4; esta guía conserva los escenarios de clientes, oportunidades, contactos, actividades y papelera.
+
+La restauración del respaldo de migración es explícita y no borra el respaldo:
+
+```js
+const storage = await import('/src/storage.js');
+storage.restoreMigrationBackup();
+location.reload();
+```

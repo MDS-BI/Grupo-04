@@ -23,6 +23,11 @@ import {
   addTicket,
   updateTicket,
   resolveTicket as resolveTicketStorage,
+  assignTicket,
+  changeTicketStatus,
+  closeTicket,
+  deleteTicket,
+  registerSatisfaction,
   countTicketsForEntity,
   loadContacts,
   saveContacts,
@@ -46,6 +51,8 @@ import {
   getStoredSchemaVersion,
   requestMigration,
   applyMigration,
+  loadMigrationBackup,
+  restoreMigrationBackup,
   SCHEMA_VERSION
 } from './storage.js';
 import {
@@ -56,7 +63,8 @@ import {
   validateActivity,
   migrateLegacyContactName,
   searchClients,
-  searchOpportunities
+  searchOpportunities,
+  nextTicketStatuses
 } from './crm-rules.js';
 import { buildTimeline } from './crm-timeline.js';
 import { clearEntityForm, startEntityEdit, collectEntityPayload, showEntityErrors } from './components/entity-form.js';
@@ -78,9 +86,9 @@ import {
   openOverlay,
   closeOverlay,
   getTopOverlay,
-  openTextDialog,
   openLossReasonDialog,
-  openContactReassignDialog
+  openContactReassignDialog,
+  openConfirmDialog
 } from './components/ui-overlay.js';
 import { renderEmptyState } from './components/ui.js';
 import { renderFilterChips, syncFilterChips } from './components/filter-chips.js';
@@ -90,9 +98,14 @@ import {
   clearTicketForm,
   startTicketEdit,
   collectTicketPayload,
-  showTicketErrors
+  showTicketErrors,
+  populateTicketContacts,
+  populateTicketDocuments,
+  setTicketFormContacts,
+  fillRequesterFromContact
 } from './components/ticket-form.js';
-import { renderTicketList } from './components/ticket-list.js';
+import { renderTicketList, renderTicketInboxTable, ticketInboxColumns } from './components/ticket-list.js';
+import { openTicketDetail } from './components/ticket-detail.js';
 import {
   clearContactForm,
   startContactEdit,
@@ -158,6 +171,7 @@ const VIEW_IDS = {
   dashboard: 'view-dashboard',
   entities: 'view-entities',
   documents: 'view-documents',
+  tickets: 'view-tickets',
   search: 'view-search',
   activities: 'view-activities',
   trash: 'view-trash'
@@ -177,6 +191,8 @@ let searchClientSort = { key: 'name', direction: 'asc' };
 let searchOpportunitySort = { key: 'folio', direction: 'asc' };
 let clientTimelineState = { filters: {} };
 let opportunityTimelineState = { filters: {} };
+let ticketInboxState = { status: '', priority: '', assignee: '', sort: 'priority-sla' };
+let openTicketDetailId = null;
 
 function nextSortState(state, key) {
   if (state.key === key) {
@@ -192,7 +208,7 @@ function focusSortHeader(container, key) {
 }
 
 function availableViews() {
-  return ['dashboard', 'entities', 'documents', 'search', 'activities', 'trash'];
+  return ['dashboard', 'entities', 'documents', 'tickets', 'search', 'activities', 'trash'];
 }
 
 function fallbackView() {
@@ -509,6 +525,9 @@ function showModule(name, opts = {}) {
     const searchInput = qs('global-search-input');
     if (searchInput && typeof searchInput.focus === 'function') searchInput.focus();
   }
+  if (name === 'tickets') {
+    renderTicketInbox();
+  }
   if (name === 'activities') {
     renderActivityView(opts);
   }
@@ -651,6 +670,482 @@ function renderClientTickets(entityId) {
   }
   const rendered = renderTicketList(listEl, tickets);
   emptyEl.hidden = rendered;
+}
+
+// ---------------------------------------------------------------------------
+// Bandeja global de tickets (US-25) y detalle operativo (US-28…US-32)
+// ---------------------------------------------------------------------------
+
+function populateTicketInboxFilters() {
+  const select = qs('ticket-filter-assignee');
+  if (!select) return;
+  const options = (getConfig().catalogs && getConfig().catalogs.assignee) || [];
+  const previous = select.value;
+  select.innerHTML = '';
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'Todos';
+  select.appendChild(all);
+  for (const option of options) {
+    const node = document.createElement('option');
+    node.value = option;
+    node.textContent = option;
+    select.appendChild(node);
+  }
+  select.value = previous && [...select.options].some((option) => option.value === previous) ? previous : '';
+}
+
+function ticketInboxEmptyState(hasTickets) {
+  if (!hasTickets) {
+    return {
+      reason: 'no-records',
+      title: 'No hay tickets registrados',
+      message: 'Registra el primer ticket para comenzar la bandeja de soporte.',
+      ctaLabel: 'Nuevo ticket',
+      ctaAction: () => openNewTicketDrawer(null),
+      icon: 'inbox'
+    };
+  }
+  return {
+    reason: 'no-matches',
+    title: 'No hay tickets que coincidan con los filtros',
+    message: 'Ajusta los filtros o límpialos para ver todos los tickets.',
+    ctaLabel: 'Limpiar filtros',
+    ctaAction: () => clearTicketFilters(),
+    icon: 'search'
+  };
+}
+
+function announceTicketInbox(filtered, total) {
+  const announcer = qs('ticket-filter-announcer');
+  if (announcer) {
+    announcer.textContent =
+      filtered === total
+        ? `Se muestran ${total} ${total === 1 ? 'ticket' : 'tickets'}.`
+        : `Se muestran ${filtered} de ${total} tickets según los filtros.`;
+  }
+}
+
+function renderTicketInbox({ announce = false } = {}) {
+  const container = qs('tickets-table');
+  if (!container) return;
+  populateTicketInboxFilters();
+  let tickets = [];
+  let entities = [];
+  let contacts = [];
+  try {
+    tickets = loadTickets();
+    entities = loadEntities();
+    contacts = loadContacts();
+  } catch (error) {
+    reportDataError(error);
+  }
+  const entitiesById = new Map(entities.map((entity) => [entity.entity_id, entity]));
+  const contactsById = new Map(contacts.map((contact) => [contact.id, contact]));
+  const filtered = tickets.filter(
+    (ticket) =>
+      (!ticketInboxState.status || ticket.status === ticketInboxState.status) &&
+      (!ticketInboxState.priority || ticket.priority === ticketInboxState.priority) &&
+      (!ticketInboxState.assignee || ticket.assignee === ticketInboxState.assignee)
+  );
+  container.innerHTML = '';
+  container.appendChild(
+    renderTicketInboxTable({
+      tickets: filtered,
+      columns: ticketInboxColumns({ entitiesById, contactsById }),
+      sortKey: ticketInboxState.sort,
+      onSort: handleTicketInboxSort,
+      emptyState: ticketInboxEmptyState(tickets.length > 0),
+      ariaLabel: 'Bandeja de tickets'
+    })
+  );
+  if (announce) announceTicketInbox(filtered.length, tickets.length);
+}
+
+function readTicketFiltersFromControls() {
+  ticketInboxState.status = qs('ticket-filter-status') ? qs('ticket-filter-status').value : '';
+  ticketInboxState.priority = qs('ticket-filter-priority') ? qs('ticket-filter-priority').value : '';
+  ticketInboxState.assignee = qs('ticket-filter-assignee') ? qs('ticket-filter-assignee').value : '';
+}
+
+function handleTicketFilterChange() {
+  readTicketFiltersFromControls();
+  renderTicketInbox({ announce: true });
+}
+
+function clearTicketFilters() {
+  ticketInboxState = { status: '', priority: '', assignee: '', sort: 'priority-sla' };
+  for (const id of ['ticket-filter-status', 'ticket-filter-priority', 'ticket-filter-assignee']) {
+    if (qs(id)) qs(id).value = '';
+  }
+  if (qs('ticket-sort')) qs('ticket-sort').value = 'priority-sla';
+  renderTicketInbox({ announce: true });
+  showFormMessage('ticket-inbox-message', 'Filtros limpiados. Se muestran todos los tickets.');
+}
+
+function handleTicketSortChange() {
+  ticketInboxState.sort = qs('ticket-sort') ? qs('ticket-sort').value : 'priority-sla';
+  renderTicketInbox({ announce: true });
+}
+
+function handleTicketInboxSort(columnKey) {
+  const mapping = { priority: 'priority-sla', sla: 'sla', folio: 'recent' };
+  ticketInboxState.sort = mapping[columnKey] || ticketInboxState.sort;
+  if (qs('ticket-sort')) qs('ticket-sort').value = ticketInboxState.sort;
+  renderTicketInbox({ announce: true });
+}
+
+function populateTicketFormLinks(entityId, contactId, documentId) {
+  let contacts = [];
+  let documents = [];
+  try {
+    contacts = loadContacts();
+    documents = loadDocuments();
+  } catch (error) {
+    reportDataError(error);
+  }
+  setTicketFormContacts(contacts);
+  populateTicketContacts(entityId, contactId);
+  populateTicketDocuments(entityId, documents, documentId);
+}
+
+function ticketDialogWriteError() {
+  if (integrityBlocked) return 'La información guardada no es válida. Corrige o migra los datos antes de guardar.';
+  if (isWriteBlocked())
+    return 'Las escrituras están bloqueadas hasta completar la recuperación. Recarga la aplicación.';
+  if (staleStorage) return 'Los datos cambiaron en otra pestaña. Recarga la página antes de guardar.';
+  return null;
+}
+
+function fieldWrap(labelText, control) {
+  const wrap = document.createElement('div');
+  const label = document.createElement('label');
+  label.setAttribute('for', control.id);
+  label.textContent = labelText;
+  wrap.append(label, control);
+  return wrap;
+}
+
+function dialogSelect(id, options, selected, blankLabel) {
+  const select = document.createElement('select');
+  select.id = id;
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = blankLabel;
+  select.appendChild(blank);
+  for (const option of options) {
+    const node = document.createElement('option');
+    node.value = option;
+    node.textContent = option;
+    select.appendChild(node);
+  }
+  select.value = selected || '';
+  return select;
+}
+
+/** Diálogo modal con contenido propio, mensaje de error y confirmación. */
+function openTicketDialog({ id, title, content, confirmLabel = 'Guardar', onConfirm }) {
+  const error = document.createElement('div');
+  error.className = 'error';
+  error.id = `${id}-error`;
+  error.setAttribute('aria-live', 'polite');
+  const actions = document.createElement('div');
+  actions.className = 'overlay__actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'btn btn-secondary';
+  cancel.setAttribute('data-dialog-cancel', '');
+  cancel.textContent = 'Cancelar';
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.className = 'btn btn-primary';
+  confirm.setAttribute('data-dialog-confirm', '');
+  confirm.textContent = confirmLabel;
+  actions.append(cancel, confirm);
+  content.append(error, actions);
+
+  openOverlay({ id, variant: 'modal', title, content, returnFocus: document.activeElement, isDirty: false });
+  cancel.addEventListener('click', () => closeOverlay(id, { force: true, reason: 'cancel' }));
+  confirm.addEventListener('click', () => {
+    const outcome = onConfirm();
+    if (outcome === true) {
+      closeOverlay(id, { force: true, reason: 'confirm' });
+      return;
+    }
+    if (outcome === 'redirect') return;
+    if (typeof outcome === 'string') {
+      error.textContent = outcome;
+      confirm.focus();
+    }
+  });
+  confirm.focus();
+}
+
+function openTicketDetailById(ticketId, returnFocus) {
+  let ticket;
+  let client = null;
+  let contacts = [];
+  let documents = [];
+  try {
+    const snapshot = { tickets: loadTickets(), entities: loadEntities() };
+    ticket = snapshot.tickets.find((item) => item.id === ticketId);
+    if (!ticket) return;
+    client = snapshot.entities.find((entity) => entity.entity_id === ticket.entity_id) || null;
+    contacts = loadContacts();
+    documents = loadDocuments();
+  } catch (error) {
+    reportDataError(error);
+    return;
+  }
+  openTicketDetailId = ticket.id;
+  openTicketDetail({
+    ticket,
+    client,
+    contacts,
+    documents,
+    returnFocus: returnFocus || document.activeElement,
+    onEdit: (item) => editTicketById(item.id),
+    onAssign: (item) => openAssignTicketDialog(item),
+    onChangeStatus: (item) => openChangeStatusDialog(item),
+    onResolve: (item) => openResolveTicketDialog(item),
+    onCloseTicket: (item) => confirmCloseTicket(item),
+    onDelete: (item) => confirmDeleteTicket(item),
+    onSatisfaction: (item) => openSatisfactionDialog(item)
+  });
+}
+
+function refreshTicketWorkspace(ticketId, message) {
+  if (message) showFormMessage('ticket-inbox-message', message);
+  refreshAll();
+  if (ticketId) openTicketDetailById(ticketId);
+}
+
+function openAssignTicketDialog(ticket) {
+  const catalogs = getConfig().catalogs || {};
+  const content = document.createElement('div');
+  content.className = 'overlay__form';
+  content.appendChild(
+    fieldWrap(
+      'Técnico',
+      dialogSelect('assign-ticket-assignee', catalogs.assignee || [], ticket.assignee, 'Sin asignar')
+    )
+  );
+  content.appendChild(
+    fieldWrap('Equipo', dialogSelect('assign-ticket-team', catalogs.team || [], ticket.team, 'Sin asignar'))
+  );
+  openTicketDialog({
+    id: 'assign-ticket-dialog',
+    title: `Asignar ticket ${ticket.folio || ''}`.trim(),
+    content,
+    confirmLabel: 'Asignar',
+    onConfirm: () => {
+      const blocked = ticketDialogWriteError();
+      if (blocked) return blocked;
+      try {
+        assignTicket(ticket.id, {
+          assignee: qs('assign-ticket-assignee').value || null,
+          team: qs('assign-ticket-team').value || null
+        });
+        refreshTicketWorkspace(ticket.id, 'Ticket asignado correctamente.');
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
+}
+
+function openChangeStatusDialog(ticket) {
+  const targets = nextTicketStatuses(ticket.status);
+  if (targets.length === 0) return;
+  const content = document.createElement('div');
+  content.className = 'overlay__form';
+  const select = dialogSelect('ticket-status-target', targets, '', '-- Selecciona --');
+  content.appendChild(fieldWrap('Nuevo estado', select));
+  const note = document.createElement('textarea');
+  note.id = 'ticket-status-note';
+  note.rows = 2;
+  const noteWrap = fieldWrap('Nota (opcional, para En espera)', note);
+  noteWrap.id = 'ticket-status-note-wrapper';
+  noteWrap.hidden = true;
+  content.appendChild(noteWrap);
+  select.addEventListener('change', () => {
+    noteWrap.hidden = select.value !== 'En espera';
+    if (!noteWrap.hidden && typeof note.focus === 'function') note.focus();
+  });
+
+  openTicketDialog({
+    id: 'ticket-status-dialog',
+    title: 'Cambiar estado',
+    content,
+    confirmLabel: 'Cambiar estado',
+    onConfirm: () => {
+      const target = qs('ticket-status-target').value;
+      if (!target) return 'Selecciona el nuevo estado del ticket';
+      if (target === 'Resuelto') {
+        closeOverlay('ticket-status-dialog', { force: true });
+        openResolveTicketDialog(ticket);
+        return 'redirect';
+      }
+      if (target === 'Cerrado') {
+        closeOverlay('ticket-status-dialog', { force: true });
+        confirmCloseTicket(ticket);
+        return 'redirect';
+      }
+      const blocked = ticketDialogWriteError();
+      if (blocked) return blocked;
+      try {
+        changeTicketStatus(ticket.id, target, { note: qs('ticket-status-note').value });
+        refreshTicketWorkspace(
+          ticket.id,
+          target === 'Cerrado' ? 'Ticket cerrado correctamente.' : 'Estado del ticket actualizado.'
+        );
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
+}
+
+function openResolveTicketDialog(ticket) {
+  const content = document.createElement('div');
+  content.className = 'overlay__form';
+  const summary = document.createElement('textarea');
+  summary.id = 'ticket-resolution-summary';
+  summary.rows = 3;
+  content.appendChild(fieldWrap('Resumen de la solución *', summary));
+  const score = document.createElement('input');
+  score.id = 'ticket-resolution-score';
+  score.type = 'number';
+  score.min = '1';
+  score.max = '5';
+  score.step = '1';
+  content.appendChild(fieldWrap('Satisfacción 1–5 (opcional)', score));
+  const comment = document.createElement('textarea');
+  comment.id = 'ticket-resolution-comment';
+  comment.rows = 2;
+  comment.maxLength = 500;
+  content.appendChild(fieldWrap('Comentario de satisfacción (opcional)', comment));
+
+  openTicketDialog({
+    id: 'ticket-resolve-dialog',
+    title: 'Resolver ticket',
+    content,
+    confirmLabel: 'Resolver ticket',
+    onConfirm: () => {
+      const blocked = ticketDialogWriteError();
+      if (blocked) return blocked;
+      const text = summary.value.trim();
+      if (!text) return 'El resumen de la solución es obligatorio';
+      const options = {};
+      const rawScore = String(score.value || '').trim();
+      if (rawScore !== '') {
+        const numeric = Number(rawScore);
+        if (!Number.isInteger(numeric) || numeric < 1 || numeric > 5) {
+          return 'La satisfacción debe registrarse como una nota entera de 1 a 5';
+        }
+        options.satisfactionScore = numeric;
+        options.satisfactionComment = comment.value;
+      }
+      try {
+        resolveTicketStorage(ticket.id, text, options);
+        refreshTicketWorkspace(ticket.id, 'Ticket resuelto correctamente.');
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
+}
+
+function openSatisfactionDialog(ticket) {
+  const content = document.createElement('div');
+  content.className = 'overlay__form';
+  const score = document.createElement('input');
+  score.id = 'ticket-satisfaction-score';
+  score.type = 'number';
+  score.min = '1';
+  score.max = '5';
+  score.step = '1';
+  content.appendChild(fieldWrap('Nota 1–5 *', score));
+  const comment = document.createElement('textarea');
+  comment.id = 'ticket-satisfaction-comment';
+  comment.rows = 3;
+  comment.maxLength = 500;
+  content.appendChild(fieldWrap('Comentario (opcional, 500)', comment));
+
+  openTicketDialog({
+    id: 'ticket-satisfaction-dialog',
+    title: 'Registrar satisfacción',
+    content,
+    confirmLabel: 'Guardar satisfacción',
+    onConfirm: () => {
+      const blocked = ticketDialogWriteError();
+      if (blocked) return blocked;
+      const rawScore = String(score.value || '').trim();
+      const numeric = rawScore === '' ? NaN : Number(rawScore);
+      try {
+        registerSatisfaction(ticket.id, numeric, comment.value);
+        refreshTicketWorkspace(ticket.id, 'Satisfacción registrada.');
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
+}
+
+function confirmCloseTicket(ticket) {
+  openConfirmDialog({
+    id: 'ticket-close-confirm',
+    title: 'Cerrar ticket',
+    message: [
+      `¿Cerrar el ticket ${ticket.folio || ''} — ${ticket.subject || 'sin asunto'}?`,
+      'El cierre es terminal: el ticket quedará de solo lectura.'
+    ],
+    confirmLabel: 'Cerrar ticket',
+    returnFocus: document.activeElement,
+    onConfirm: () => {
+      const blocked = ticketDialogWriteError();
+      if (blocked) return blocked;
+      try {
+        closeTicket(ticket.id);
+        refreshTicketWorkspace(ticket.id, 'Ticket cerrado correctamente.');
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
+}
+
+function confirmDeleteTicket(ticket) {
+  openConfirmDialog({
+    id: 'ticket-delete-confirm',
+    title: 'Eliminar ticket',
+    message: [
+      `¿Eliminar el ticket ${ticket.folio || ''} — ${ticket.subject || 'sin asunto'}?`,
+      'El cliente, sus oportunidades, contactos y actividades permanecen. La eliminación es definitiva.'
+    ],
+    confirmLabel: 'Eliminar ticket',
+    danger: true,
+    returnFocus: document.activeElement,
+    onConfirm: () => {
+      const blocked = ticketDialogWriteError();
+      if (blocked) return blocked;
+      try {
+        deleteTicket(ticket.id);
+        closeOverlay('ticket-detail', { force: true });
+        openTicketDetailId = null;
+        showFormMessage('ticket-inbox-message', 'Ticket eliminado.');
+        refreshAll();
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
 }
 
 function appendEntityItems(listEl, entities) {
@@ -936,6 +1431,7 @@ function showClientDetail(entityId, timelineFilters = clientTimelineState.filter
     showActivityAction: isCrmProfile(getConfig()),
     contacts,
     activities,
+    tickets,
     timeline: {
       events: timelineEvents,
       filters: timelineFilters,
@@ -954,6 +1450,7 @@ function showClientDetail(entityId, timelineFilters = clientTimelineState.filter
   if (isCrmProfile(getConfig())) {
     clearTicketForm();
     populateTicketEntitySelect(entityId);
+    populateTicketFormLinks(entityId);
     renderClientTickets(entityId);
     clearContactForm();
     const contactForm = qs('contact-form');
@@ -1353,28 +1850,55 @@ function moveOpportunity(id, to) {
   applyOpportunityMove(id, to);
 }
 
-/** Diálogo de resolución de ticket con resumen obligatorio (US-11). */
-function openTicketResolution(ticketId) {
+/** Diálogo de resolución de ticket con resumen obligatorio y CSAT opcional. */
+function resolveTicketById(ticketId) {
+  if (!ticketId) return;
+  let ticket = null;
+  try {
+    ticket = loadTickets().find((item) => item.id === ticketId) || null;
+  } catch (error) {
+    showFormMessage('ticket-message', error.message, 'error');
+    return;
+  }
+  if (!ticket) return;
   if (!writesAllowed('ticket-message')) return;
-  openTextDialog({
-    id: 'ticket-resolution-dialog',
-    title: 'Resolver ticket',
-    label: 'Resumen de la solución aplicada',
-    confirmLabel: 'Resolver ticket',
-    requiredMessage: 'El resumen de la solución es obligatorio',
-    returnFocus: document.activeElement,
-    onConfirm: (summary) => {
-      try {
-        const updated = resolveTicketStorage(ticketId, summary);
-        currentClientEntityId = updated.entity_id || currentClientEntityId;
-        renderClientTickets(currentClientEntityId);
-        showFormMessage('ticket-message', 'Ticket marcado como resuelto.');
-        return true;
-      } catch (error) {
-        return error.message;
+  openResolveTicketDialog(ticket);
+}
+
+function addMigrationRestoreButton(banner) {
+  let backup = null;
+  try {
+    backup = loadMigrationBackup();
+  } catch (error) {
+    showStorageWarning(error.message);
+    return;
+  }
+  if (!backup) return;
+  const restore = document.createElement('button');
+  restore.type = 'button';
+  restore.className = 'btn btn-secondary';
+  restore.textContent = 'Restaurar respaldo v3';
+  restore.addEventListener('click', () => {
+    openConfirmDialog({
+      id: 'migration-restore-confirm',
+      title: 'Restaurar respaldo de migración',
+      message: ['Se restaurarán las colecciones guardadas antes de la última migración.', 'El respaldo se conserva.'],
+      confirmLabel: 'Restaurar respaldo',
+      danger: true,
+      returnFocus: restore,
+      onConfirm: () => {
+        try {
+          const result = restoreMigrationBackup();
+          banner.hidden = true;
+          showStorageWarning(`Respaldo restaurado en v${result.schemaVersion}. Recarga la aplicación para continuar.`);
+          return true;
+        } catch (error) {
+          return error.message;
+        }
       }
-    }
+    });
   });
+  banner.append(' ', restore);
 }
 
 function offerMigrationIfNeeded() {
@@ -1397,19 +1921,35 @@ function offerMigrationIfNeeded() {
   action.className = 'btn btn-secondary';
   action.textContent = 'Revisar y migrar';
   action.addEventListener('click', () => {
-    if (!confirm(`Se creará una versión recuperable y luego se aplicará la migración.\n\n${plan.steps.join('\n')}`)) {
-      return;
-    }
-    if (!writesAllowed('storage-warning')) return;
-    try {
-      applyMigration();
-      banner.hidden = true;
-      showStorageWarning('Migración aplicada. Recarga la aplicación para continuar.');
-    } catch (error) {
-      showStorageWarning(error.message);
-    }
+    const current = requestMigration(stored, SCHEMA_VERSION);
+    openConfirmDialog({
+      id: 'migration-confirm',
+      title: 'Migrar datos al esquema 4',
+      message: ['Se creará un respaldo recuperable y luego se aplicará la migración.', ...current.steps],
+      confirmLabel: 'Migrar ahora',
+      returnFocus: action,
+      onConfirm: () => {
+        const blocked = ticketDialogWriteError();
+        if (blocked) return blocked;
+        try {
+          applyMigration();
+          banner.innerHTML = '';
+          const done = document.createElement('span');
+          done.textContent = 'Migración aplicada al esquema 4. ';
+          banner.appendChild(done);
+          addMigrationRestoreButton(banner);
+          banner.hidden = false;
+          showStorageWarning('Migración aplicada. La bandeja y el panel ya usan el esquema 4.');
+          refreshAll();
+          return true;
+        } catch (error) {
+          return error.message;
+        }
+      }
+    });
   });
   banner.append(text, action);
+  addMigrationRestoreButton(banner);
   banner.hidden = false;
 }
 
@@ -1769,6 +2309,7 @@ function refreshAll() {
   renderOpportunityPanel();
   if (currentClientEntityId) renderClientTickets(currentClientEntityId);
   if (currentView === 'dashboard') renderDashboard({ onMove: moveOpportunity });
+  if (currentView === 'tickets') renderTicketInbox();
   if (currentView === 'search') refreshSearch();
   if (currentView === 'activities') {
     const entitySelect = qs('activity-entity');
@@ -1916,9 +2457,14 @@ function handleTicketSubmit(ev) {
       ...(existingTicket || {}),
       ...payload,
       entityId: payload.entityId,
-      status: id ? payload.status : 'En proceso'
+      status: id ? existingTicket.status : 'Nuevo'
     },
-    { entities, mode: id ? 'update' : 'create' }
+    {
+      entities,
+      contacts: loadContacts(),
+      documents: loadDocuments(),
+      mode: id ? 'update' : 'create'
+    }
   ).errors;
   showTicketErrors(errors);
   if (Object.keys(errors).length > 0) {
@@ -1937,15 +2483,14 @@ function handleTicketSubmit(ev) {
     finishFormDrawer('tickets');
     populateTicketEntitySelect(currentClientEntityId);
     renderClientTickets(currentClientEntityId);
-    showFormMessage('ticket-message', id ? 'Ticket actualizado correctamente.' : 'Ticket registrado correctamente.');
+    const message = id ? 'Ticket actualizado correctamente.' : 'Ticket registrado correctamente.';
+    showFormMessage('ticket-message', message);
+    showFormMessage('ticket-inbox-message', message);
+    renderTicketInbox();
+    if (currentView === 'dashboard') renderDashboard({ onMove: moveOpportunity });
   } catch (error) {
     showFormMessage('ticket-message', error.message, 'error');
   }
-}
-
-function resolveTicketById(ticketId) {
-  if (!ticketId) return;
-  openTicketResolution(ticketId);
 }
 
 function openNewTicketDrawer(entityId) {
@@ -1956,7 +2501,8 @@ function openNewTicketDrawer(entityId) {
   populateTicketEntitySelect(currentClientEntityId);
   const select = qs('ticket-entity');
   if (select && currentClientEntityId) select.value = currentClientEntityId;
-  if (qs('ticket-product-name')) qs('ticket-product-name').focus();
+  populateTicketFormLinks(select ? select.value : currentClientEntityId);
+  if (qs('ticket-subject')) qs('ticket-subject').focus();
 }
 
 function editTicketById(ticketId) {
@@ -1970,9 +2516,10 @@ function editTicketById(ticketId) {
   if (!ticket) return;
   currentClientEntityId = ticket.entity_id;
   populateTicketEntitySelect(ticket.entity_id);
+  populateTicketFormLinks(ticket.entity_id, ticket.contactId, ticket.documentId);
   startTicketEdit(ticket);
   openFormDrawer('tickets', 'edit');
-  if (qs('ticket-description')) qs('ticket-description').focus();
+  if (qs('ticket-subject')) qs('ticket-subject').focus();
 }
 
 function onStorageChange(event) {
@@ -1980,6 +2527,10 @@ function onStorageChange(event) {
   // Solo las claves del CRM (o el borrado total) invalidan los formularios.
   if (!isCrmStorageKey(key)) return;
   staleStorage = true;
+  if (openTicketDetailId) {
+    closeOverlay('ticket-detail', { force: true });
+    openTicketDetailId = null;
+  }
   showStorageWarning('Los datos cambiaron en otra pestaña. Recarga la página antes de seguir editando.');
 }
 
@@ -2037,6 +2588,11 @@ function wireEvents() {
   qs('ticket-form').addEventListener('submit', handleTicketSubmit);
   qs('ticket-cancel-edit').addEventListener('click', () => cancelFormEdition('tickets'));
   qs('ticket-list-items').addEventListener('click', (event) => {
+    const open = event.target.closest ? event.target.closest('[data-open-ticket]') : null;
+    if (open) {
+      openTicketDetailById(open.dataset.openTicket, open);
+      return;
+    }
     const resolve = event.target.closest ? event.target.closest('[data-resolve-ticket]') : null;
     if (resolve) {
       resolveTicketById(resolve.dataset.resolveTicket);
@@ -2045,6 +2601,27 @@ function wireEvents() {
     const edit = event.target.closest ? event.target.closest('[data-edit-ticket]') : null;
     if (edit) editTicketById(edit.dataset.editTicket);
   });
+  if (qs('new-ticket-inbox')) {
+    qs('new-ticket-inbox').addEventListener('click', () => openNewTicketDrawer(null));
+  }
+  for (const id of ['ticket-filter-status', 'ticket-filter-priority', 'ticket-filter-assignee']) {
+    if (qs(id)) qs(id).addEventListener('change', handleTicketFilterChange);
+  }
+  if (qs('ticket-sort')) qs('ticket-sort').addEventListener('change', handleTicketSortChange);
+  if (qs('ticket-clear-filters')) qs('ticket-clear-filters').addEventListener('click', clearTicketFilters);
+  if (qs('tickets-table')) {
+    qs('tickets-table').addEventListener('click', (event) => {
+      const row = event.target.closest ? event.target.closest('tr[data-ticket-id]') : null;
+      if (row) openTicketDetailById(row.dataset.ticketId, row);
+    });
+    qs('tickets-table').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+      const row = event.target.closest ? event.target.closest('tr[data-ticket-id]') : null;
+      if (!row) return;
+      event.preventDefault();
+      openTicketDetailById(row.dataset.ticketId, row);
+    });
+  }
   qs('contact-form').addEventListener('submit', handleContactSubmit);
   qs('contact-cancel').addEventListener('click', () => {
     clearContactForm();
@@ -2212,6 +2789,27 @@ function wireEvents() {
   qs('document-entity').addEventListener('change', () => {
     populateDocumentContactSelect(qs('document-entity').value);
   });
+  if (qs('ticket-entity')) {
+    qs('ticket-entity').addEventListener('change', () => {
+      populateTicketFormLinks(qs('ticket-entity').value);
+      for (const id of ['ticket-requester-name', 'ticket-requester-email', 'ticket-requester-phone']) {
+        if (qs(id)) qs(id).value = '';
+      }
+    });
+  }
+  if (qs('ticket-contact')) {
+    qs('ticket-contact').addEventListener('change', () => {
+      const contactId = qs('ticket-contact').value;
+      if (!contactId) return;
+      let contact = null;
+      try {
+        contact = loadContacts().find((item) => item.id === contactId) || null;
+      } catch (error) {
+        reportDataError(error);
+      }
+      if (contact) fillRequesterFromContact(contact);
+    });
+  }
   qs('delete-entity').addEventListener('click', handleDeleteSelectedEntity);
   qs('view-trash-action').addEventListener('click', () => showModule('trash'));
   qs('delete-document').addEventListener('click', handleDeleteSelectedDocument);
@@ -2236,6 +2834,7 @@ export function initApp(resolved) {
   applyProfileVisibility();
   wireEvents();
   prepareTicketForm();
+  populateTicketInboxFilters();
   prepareActivityForm();
   clearEntityForm();
   clearDocumentForm();

@@ -72,10 +72,12 @@ function openClientDetail(client) {
 
 function fillTicket(overrides = {}) {
   if (overrides.entityId !== undefined) qs('ticket-entity').value = overrides.entityId;
+  qs('ticket-subject').value = overrides.subject ?? 'Compresor no arranca';
   qs('ticket-product-name').value = overrides.productName ?? 'Compresor industrial';
   qs('ticket-reason').value = overrides.reason ?? 'soporte';
   qs('ticket-description').value = overrides.description ?? 'Falla en el arranque';
   qs('ticket-priority').value = overrides.priority ?? 'Alta';
+  qs('ticket-channel').value = overrides.channel ?? 'Teléfono';
 }
 
 beforeEach(async () => {
@@ -98,7 +100,10 @@ describe('US3 — tickets de soporte', () => {
     const tickets = storage.loadTickets();
     expect(tickets.length).toBe(1);
     expect(tickets[0].entity_id).toBe(client.entity_id);
-    expect(tickets[0].status).toBe('En proceso');
+    expect(tickets[0].status).toBe('Nuevo');
+    expect(tickets[0].subject).toBe('Compresor no arranca');
+    expect(tickets[0].folio).toMatch(/^TKT-\d{4}-\d{4}$/);
+    expect(tickets[0].channel).toBe('Teléfono');
     expect(tickets[0].reason).toBe('soporte');
     expect(tickets[0].priority).toBe('Alta');
     expect(tickets[0].productName).toBe('Compresor industrial');
@@ -106,7 +111,7 @@ describe('US3 — tickets de soporte', () => {
     const list = qs('ticket-list-items');
     expect(list.textContent).toContain('soporte');
     expect(list.textContent).toContain('Alta');
-    expect(list.textContent).toContain('En proceso');
+    expect(list.textContent).toContain('Nuevo');
     expect(list.textContent).toMatch(/Fecha: \d{4}-\d{2}-\d{2}/);
     expect(qs('ticket-list-empty').hidden).toBe(true);
     expect(qs('ticket-message').textContent).toMatch(/registrado/i);
@@ -147,10 +152,12 @@ describe('US3 — tickets de soporte', () => {
     expect(() =>
       storage.addTicket({
         entityId: client.entity_id,
+        subject: 'Compresor',
         productName: 'Compresor',
         reason: 'soporte',
         description: 'Falla',
-        priority: 'Urgente'
+        priority: 'Urgente',
+        channel: 'Teléfono'
       })
     ).toThrow(/prioridad/i);
   });
@@ -162,11 +169,13 @@ describe('US3 — tickets de soporte', () => {
     submitForm('ticket-form');
 
     const created = storage.loadTickets()[0];
+    storage.changeTicketStatus(created.id, 'En proceso');
+    openClientDetail(client);
     const resolve = qs('ticket-list-items').querySelector('[data-resolve-ticket]');
     expect(resolve).not.toBeNull();
     resolve.click();
 
-    const dialogInput = document.getElementById('ticket-resolution-dialog-input');
+    const dialogInput = document.getElementById('ticket-resolution-summary');
     expect(dialogInput).not.toBeNull();
     dialogInput.value = 'Se reemplazó el filtro';
     document.querySelector('[data-dialog-confirm]').click();
@@ -176,18 +185,19 @@ describe('US3 — tickets de soporte', () => {
     expect(resolved.resolutionSummary).toBe('Se reemplazó el filtro');
     expect(resolved.resolvedAt).toBeTruthy();
     expect(qs('ticket-list-items').textContent).toContain('Resuelto');
-    expect(qs('ticket-message').textContent).toMatch(/resuelto/i);
+    expect(qs('ticket-inbox-message').textContent).toMatch(/resuelto/i);
 
     expect(() => storage.updateTicket(created.id, { status: 'En proceso' })).toThrow(/reabr|transici/i);
     expect(storage.loadTickets()[0].status).toBe('Resuelto');
   });
 
-  it('edits description and priority of a resolved ticket without changing its status', () => {
+  it('edits description of a resolved ticket without changing its status or frozen priority', () => {
     const client = seedClient();
     openClientDetail(client);
     fillTicket({ entityId: client.entity_id });
     submitForm('ticket-form');
     const created = storage.loadTickets()[0];
+    storage.changeTicketStatus(created.id, 'En proceso');
     storage.resolveTicket(created.id, 'Se reemplazó el filtro');
 
     openClientDetail(client);
@@ -195,29 +205,49 @@ describe('US3 — tickets de soporte', () => {
 
     expect(qs('ticket-id').value).toBe(created.id);
     expect(qs('ticket-status-display').textContent).toContain('Resuelto');
+    expect(qs('ticket-folio').value).toBe(created.folio);
     expect(qs('ticket-description').value).toBe('Falla en el arranque');
     expect(document.querySelector('#ticket-form select#ticket-status')).toBeNull();
 
-    qs('ticket-description').value = 'Se reemplazó el filtro';
-    qs('ticket-priority').value = 'Media';
+    qs('ticket-description').value = 'Se limpió el filtro';
     submitForm('ticket-form');
 
     const updated = storage.loadTickets()[0];
     expect(updated.id).toBe(created.id);
     expect(updated.entity_id).toBe(created.entity_id);
     expect(updated.status).toBe('Resuelto');
-    expect(updated.description).toBe('Se reemplazó el filtro');
-    expect(updated.priority).toBe('Media');
+    expect(updated.description).toBe('Se limpió el filtro');
+    expect(updated.priority).toBe('Alta');
+  });
+
+  it('rejects changing the priority of a resolved ticket from the form', () => {
+    const client = seedClient();
+    openClientDetail(client);
+    fillTicket({ entityId: client.entity_id });
+    submitForm('ticket-form');
+    const created = storage.loadTickets()[0];
+    storage.changeTicketStatus(created.id, 'En proceso');
+    storage.resolveTicket(created.id, 'Solución');
+
+    openClientDetail(client);
+    qs('ticket-list-items').querySelector('[data-edit-ticket]').click();
+    qs('ticket-priority').value = 'Media';
+    submitForm('ticket-form');
+
+    expect(storage.loadTickets()[0].priority).toBe('Alta');
+    expect(qs('ticket-message').textContent).toMatch(/congelada/i);
   });
 
   it('shows the client tickets on the client detail card', () => {
     const client = seedClient();
     storage.addTicket({
       entityId: client.entity_id,
+      subject: 'Ruido anormal',
       productName: 'Compresor industrial',
       reason: 'reclamo',
       description: 'Ruido anormal',
-      priority: 'Media'
+      priority: 'Media',
+      channel: 'Teléfono'
     });
 
     openClientDetail(client);
@@ -234,24 +264,30 @@ describe('US3 — tickets de soporte', () => {
     const other = seedClient({ name: 'Empresa Demo 2', code: 'CLI-DEMO-004' });
     storage.addTicket({
       entityId: client.entity_id,
+      subject: 'Falla 1',
       productName: 'Compresor',
       reason: 'soporte',
       description: 'Falla 1',
-      priority: 'Alta'
+      priority: 'Alta',
+      channel: 'Teléfono'
     });
     storage.addTicket({
       entityId: client.entity_id,
+      subject: 'Duda 2',
       productName: 'Bomba',
       reason: 'consulta',
       description: 'Duda 2',
-      priority: 'Baja'
+      priority: 'Baja',
+      channel: 'Correo'
     });
     storage.addTicket({
       entityId: other.entity_id,
+      subject: 'Ruido 3',
       productName: 'Compresor',
       reason: 'reclamo',
       description: 'Ruido 3',
-      priority: 'Media'
+      priority: 'Media',
+      channel: 'Portal'
     });
 
     qs('nav-entities').click();
@@ -271,6 +307,7 @@ describe('US3 — tickets de soporte', () => {
     openClientDetail(client);
     fillTicket({ entityId: client.entity_id });
     submitForm('ticket-form');
+    storage.changeTicketStatus(storage.loadTickets()[0].id, 'En proceso');
     storage.resolveTicket(storage.loadTickets()[0].id, 'Se reemplazó el filtro');
 
     const previous = snapshotStorage();
@@ -320,10 +357,12 @@ describe('US3 — tickets de soporte', () => {
     const client = seedClient();
     storage.addTicket({
       entityId: client.entity_id,
+      subject: 'Falla en el arranque',
       productName: 'Compresor industrial',
       reason: 'soporte',
       description: 'Falla en el arranque',
-      priority: 'Alta'
+      priority: 'Alta',
+      channel: 'Teléfono'
     });
     openClientDetail(client);
 
@@ -352,5 +391,129 @@ describe('US3 — tickets de soporte', () => {
 
     expect(drawer()).toBeNull();
     expect(storage.loadTickets()[0].description).toBe('Falla en el arranque');
+  });
+
+  it('requires a subject, trims it and limits it to 120 characters', () => {
+    const client = seedClient();
+    openClientDetail(client);
+
+    fillTicket({ entityId: client.entity_id, subject: '' });
+    submitForm('ticket-form');
+    expect(qs('error-ticket-subject').textContent).toMatch(/asunto/i);
+    expect(storage.loadTickets()).toHaveLength(0);
+    expect(qs('ticket-product-name').value).toBe('Compresor industrial');
+
+    fillTicket({ entityId: client.entity_id, subject: 'a'.repeat(121) });
+    submitForm('ticket-form');
+    expect(qs('error-ticket-subject').textContent).toMatch(/120/);
+    expect(storage.loadTickets()).toHaveLength(0);
+
+    fillTicket({ entityId: client.entity_id, subject: '  Compresor sin arranque  ' });
+    submitForm('ticket-form');
+    expect(storage.loadTickets()[0].subject).toBe('Compresor sin arranque');
+    expect(qs('ticket-list-items').textContent).toContain('TKT-');
+  });
+
+  it('shows the folio as read-only and rejects direct folio changes', () => {
+    const client = seedClient();
+    openClientDetail(client);
+    fillTicket({ entityId: client.entity_id });
+    submitForm('ticket-form');
+    const created = storage.loadTickets()[0];
+
+    openClientDetail(client);
+    qs('ticket-list-items').querySelector('[data-edit-ticket]').click();
+    expect(qs('ticket-folio').value).toBe(created.folio);
+    expect(qs('ticket-folio').readOnly).toBe(true);
+    expect(qs('ticket-folio').hasAttribute('readonly')).toBe(true);
+    pressEscape();
+    if (qs('confirm-discard')) qs('confirm-discard').querySelector('[data-confirm-discard]').click();
+
+    expect(() => storage.updateTicket(created.id, { folio: 'TKT-1999-0001' })).toThrow(/folio/i);
+    expect(storage.loadTickets()[0].folio).toBe(created.folio);
+  });
+
+  it('limits contacts to the client, copies the requester backup and clears it when changing client', () => {
+    const client = seedClient();
+    seedClient({ name: 'Empresa Demo 2', code: 'CLI-DEMO-004' });
+    const contact = storage.addContact({
+      entityId: client.entity_id,
+      name: 'María Pérez',
+      role: 'Compras',
+      email: 'maria@example.com',
+      phone: '+56 9 1234 5678',
+      isPrimary: true
+    });
+    const otherContact = storage.addContact({
+      entityId: storage.loadEntities().find((entity) => entity.code === 'CLI-DEMO-004').entity_id,
+      name: 'Otro Contacto',
+      isPrimary: true
+    });
+
+    openClientDetail(client);
+    fillTicket({ entityId: client.entity_id });
+    const options = [...qs('ticket-contact').options].map((option) => option.value);
+    expect(options).toContain(contact.id);
+    expect(options).not.toContain(otherContact.id);
+
+    qs('ticket-contact').value = contact.id;
+    qs('ticket-contact').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(qs('ticket-requester-name').value).toBe('María Pérez');
+    expect(qs('ticket-requester-email').value).toBe('maria@example.com');
+    expect(qs('ticket-requester-phone').value).toBe('+56 9 1234 5678');
+    submitForm('ticket-form');
+
+    const saved = storage.loadTickets()[0];
+    expect(saved.contactId).toBe(contact.id);
+    expect(saved.requesterName).toBe('María Pérez');
+    expect(saved.requesterEmail).toBe('maria@example.com');
+    expect(() => storage.addTicket({ ...saved, contactId: otherContact.id, folio: undefined })).toThrow(/contacto/i);
+
+    openClientDetail(client);
+    fillTicket({ entityId: client.entity_id });
+    qs('ticket-entity').value = 'cli_otro';
+    qs('ticket-entity').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(qs('ticket-requester-name').value).toBe('');
+    expect([...qs('ticket-contact').options].some((option) => option.value === contact.id)).toBe(false);
+  });
+
+  it('stores channel, assignee, team, warranty and source document and shows their labels', () => {
+    const client = seedClient();
+    const document_ = storage.addDocument({
+      entityId: client.entity_id,
+      folio: 3001,
+      opportunityTitle: 'Venta del compresor',
+      startDate: '2026-11-02',
+      endDate: '2026-11-30',
+      totalAmount: 1000,
+      opportunityOwner: 'Ejecutivo A'
+    });
+
+    openClientDetail(client);
+    fillTicket({ entityId: client.entity_id, channel: 'WhatsApp' });
+    qs('ticket-assignee').value = 'Técnico B';
+    qs('ticket-team').value = 'Terreno';
+    qs('ticket-warranty').value = '2027-12-31';
+    qs('ticket-document').value = document_.id;
+    submitForm('ticket-form');
+
+    const saved = storage.loadTickets()[0];
+    expect(saved.channel).toBe('WhatsApp');
+    expect(saved.assignee).toBe('Técnico B');
+    expect(saved.team).toBe('Terreno');
+    expect(saved.warrantyEndsAt).toBe('2027-12-31');
+    expect(saved.documentId).toBe(document_.id);
+
+    qs('ticket-list-items').querySelector('[data-open-ticket]').click();
+    expect(qs('ticket-detail-channel').textContent).toBe('WhatsApp');
+    expect(qs('ticket-detail-assignee').textContent).toBe('Técnico B');
+    expect(qs('ticket-detail-team').textContent).toBe('Terreno');
+    expect(qs('ticket-detail-warranty').textContent).toBe('En garantía');
+    expect(qs('ticket-detail-document').textContent).toContain('Venta del compresor');
+    pressEscape();
+
+    storage.deleteDocument(document_.id);
+    qs('ticket-list-items').querySelector('[data-open-ticket]').click();
+    expect(qs('ticket-detail-document').textContent).toBe('Venta de origen no disponible');
   });
 });

@@ -441,6 +441,77 @@ export function openLossReasonDialog({ onConfirm = null, onCancel = null, return
 }
 
 /**
+ * Confirmación accesible reutilizable para acciones destructivas y para la
+ * migración. `onConfirm` devuelve `true` para cerrar o una cadena de error.
+ */
+export function openConfirmDialog({
+  id = 'confirm-dialog',
+  title = 'Confirmar',
+  message = [],
+  confirmLabel = 'Confirmar',
+  cancelLabel = 'Cancelar',
+  danger = false,
+  returnFocus = null,
+  onConfirm = null,
+  onCancel = null
+} = {}) {
+  const content = document.createElement('div');
+  content.className = 'overlay__confirm';
+
+  const lines = Array.isArray(message) ? message : [message];
+  for (const line of lines.filter(Boolean)) {
+    const text = document.createElement('p');
+    text.className = 'overlay__text';
+    text.textContent = line;
+    content.appendChild(text);
+  }
+
+  const error = document.createElement('div');
+  error.className = 'error';
+  error.id = `${id}-error`;
+  error.setAttribute('aria-live', 'polite');
+  content.appendChild(error);
+
+  const actions = document.createElement('div');
+  actions.className = 'overlay__actions';
+  const cancel = button(cancelLabel, 'btn btn-secondary', { 'data-dialog-cancel': '' });
+  const confirm = button(confirmLabel, danger ? 'btn btn-danger' : 'btn btn-primary', {
+    'data-dialog-confirm': ''
+  });
+  actions.append(cancel, confirm);
+  content.appendChild(actions);
+
+  openOverlay({
+    id,
+    variant: 'modal',
+    title,
+    content,
+    returnFocus: returnFocus || document.activeElement,
+    isDirty: false,
+    onClose: (reason) => {
+      if (reason !== 'confirm' && typeof onCancel === 'function') onCancel();
+    }
+  });
+
+  cancel.addEventListener('click', () => closeOverlay(id, { force: true, reason: 'cancel' }));
+
+  confirm.addEventListener('click', () => {
+    let outcome = true;
+    if (typeof onConfirm === 'function') outcome = onConfirm();
+    if (outcome === true) {
+      closeOverlay(id, { force: true, reason: 'confirm' });
+      return;
+    }
+    if (typeof outcome === 'string') {
+      error.textContent = outcome;
+      confirm.focus();
+    }
+  });
+
+  confirm.focus();
+}
+
+/**
  * Diálogo de selección de una opción. Devuelve el valor elegido en
  * `onConfirm(value)`; devolver `true` cierra el diálogo o una cadena muestra el
  * error y lo mantiene abierto.

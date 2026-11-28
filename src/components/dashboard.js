@@ -1,6 +1,6 @@
 import { renderCommercialBoard } from './commercial-board.js';
 import { getConfig, isCrmProfile } from '../module-config.js';
-import { loadEntities, loadDocuments, loadActivities } from '../storage.js';
+import { loadEntities, loadDocuments, loadActivities, loadTickets } from '../storage.js';
 import {
   countClients,
   countOpenOpportunities,
@@ -10,7 +10,14 @@ import {
   closeRate,
   formatCloseRate,
   activitiesToday,
-  overdueActivities
+  overdueActivities,
+  countOpenTickets,
+  countOverdueTickets,
+  ticketPriorityDistribution,
+  averageResolutionHours,
+  slaCompliance,
+  averageSatisfaction,
+  formatOneDecimal
 } from '../crm-metrics.js';
 
 export function recordCounts() {
@@ -44,10 +51,12 @@ export function renderDashboard(options = {}) {
   let entities = [];
   let documents = [];
   let activities = [];
+  let tickets = [];
   try {
     entities = loadEntities();
     documents = loadDocuments();
     activities = loadActivities();
+    tickets = loadTickets();
   } catch (error) {
     reportReadError(error);
   }
@@ -70,6 +79,8 @@ export function renderDashboard(options = {}) {
   if (activityCard) activityCard.hidden = !crm;
   const activityOverdueCard = document.getElementById('stat-activities-overdue-card');
   if (activityOverdueCard) activityOverdueCard.hidden = !crm;
+  const supportGrid = document.getElementById('support-stat-grid');
+  if (supportGrid) supportGrid.hidden = !crm;
 
   setText('stat-entities', entities.length);
   setText('stat-documents', documents.length);
@@ -93,6 +104,17 @@ export function renderDashboard(options = {}) {
   setText('stat-close-rate', formatCloseRate(rate));
   setText('stat-activities-today', activitiesToday(activities));
   setText('stat-activities-overdue', overdueActivities(activities));
+
+  const prioritySummary = ticketPriorityDistribution(tickets)
+    .map((bucket) => `${bucket.priority} ${bucket.count}`)
+    .join(' · ');
+  setText('stat-open-tickets', countOpenTickets(tickets));
+  setText('stat-overdue-tickets', countOverdueTickets(tickets));
+  setText('stat-priority-distribution', prioritySummary);
+  setText('stat-avg-resolution', formatOneDecimal(averageResolutionHours(tickets)));
+  const compliance = slaCompliance(tickets);
+  setText('stat-sla-compliance', compliance === null ? 'Sin datos' : `${formatOneDecimal(compliance)} %`);
+  setText('stat-avg-satisfaction', formatOneDecimal(averageSatisfaction(tickets)));
 
   setText('stat-clients-label', `${labels.entities} registrados`);
   setText('stat-open-opportunities-label', `${labels.documents} abiertas`);

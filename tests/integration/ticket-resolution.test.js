@@ -68,10 +68,12 @@ function openClientDetail(client) {
 function addTicket(client, { equipment, priority = 'Alta' } = {}) {
   qs('entity-detail-body').querySelector('[data-new-ticket]').click();
   qs('ticket-entity').value = client.entity_id;
+  fill('ticket-subject', 'Falla en el arranque');
   fill('ticket-product-name', 'Compresor industrial');
   if (equipment) fill('ticket-equipment', equipment);
   qs('ticket-reason').value = 'soporte';
   qs('ticket-priority').value = priority;
+  qs('ticket-channel').value = 'Teléfono';
   fill('ticket-description', 'Falla en el arranque');
   submitForm('ticket-form');
 }
@@ -89,15 +91,17 @@ describe('US11 — resolución de tickets', () => {
     const client = seedClient();
     openClientDetail(client);
     addTicket(client, { equipment: 'EQ-001' });
+    storage.changeTicketStatus(storage.loadTickets()[0].id, 'En proceso');
+    openClientDetail(client);
 
     qs('ticket-list-items').querySelector('[data-resolve-ticket]').click();
-    const input = qs('ticket-resolution-dialog-input');
+    const input = qs('ticket-resolution-summary');
     expect(input).not.toBeNull();
     input.value = '   ';
     document.querySelector('[data-dialog-confirm]').click();
 
-    expect(qs('ticket-resolution-dialog')).not.toBeNull();
-    expect(document.querySelector('#ticket-resolution-dialog-error').textContent).toMatch(/obligatorio/i);
+    expect(qs('ticket-resolve-dialog')).not.toBeNull();
+    expect(document.querySelector('#ticket-resolve-dialog-error').textContent).toMatch(/obligatorio/i);
     expect(storage.loadTickets()[0].status).toBe('En proceso');
   });
 
@@ -106,11 +110,13 @@ describe('US11 — resolución de tickets', () => {
     openClientDetail(client);
     addTicket(client, { equipment: 'EQ-001' });
     addTicket(client, { equipment: 'EQ-002' });
+    for (const ticket of storage.loadTickets()) storage.changeTicketStatus(ticket.id, 'En proceso');
+    openClientDetail(client);
 
     const [first] = storage.loadTickets();
     const resolveButton = document.querySelector(`[data-resolve-ticket="${first.id}"]`);
     resolveButton.click();
-    qs('ticket-resolution-dialog-input').value = 'Se reemplazó el filtro EQ-001';
+    qs('ticket-resolution-summary').value = 'Se reemplazó el filtro EQ-001';
     document.querySelector('[data-dialog-confirm]').click();
 
     const resolved = storage.loadTickets().find((ticket) => ticket.id === first.id);
@@ -143,18 +149,18 @@ describe('US11 — resolución de tickets', () => {
     openClientDetail(client);
     addTicket(client, { equipment: 'EQ-010' });
     const ticket = storage.loadTickets()[0];
+    storage.changeTicketStatus(ticket.id, 'En proceso');
     storage.resolveTicket(ticket.id, 'Solución original');
 
     openClientDetail(client);
     qs('ticket-list-items').querySelector('[data-edit-ticket]').click();
     fill('ticket-description', 'Descripción actualizada');
-    qs('ticket-priority').value = 'Media';
     submitForm('ticket-form');
 
     const updated = storage.loadTickets()[0];
     expect(updated.status).toBe('Resuelto');
     expect(updated.resolutionSummary).toBe('Solución original');
     expect(updated.description).toBe('Descripción actualizada');
-    expect(updated.priority).toBe('Media');
+    expect(updated.priority).toBe('Alta');
   });
 });

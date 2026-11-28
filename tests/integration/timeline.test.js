@@ -77,11 +77,14 @@ describe('US14 — timeline por cliente y oportunidad', () => {
     });
     const ticket = storage.addTicket({
       entityId: client.entity_id,
+      subject: 'Falla',
       productName: 'Compresor',
       reason: 'soporte',
       description: 'Falla',
-      priority: 'Alta'
+      priority: 'Alta',
+      channel: 'Teléfono'
     });
+    storage.changeTicketStatus(ticket.id, 'En proceso');
     storage.resolveTicket(ticket.id, 'Se reemplazó el filtro');
 
     openClientDetail(client);

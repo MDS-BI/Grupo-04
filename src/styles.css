@@ -1383,3 +1383,154 @@ body.has-overlay {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* ==========================================================================
+   Tickets de post-venta: bandeja, detalle, semáforo e historial
+   ========================================================================== */
+.ticket-inbox-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.ticket-inbox-toolbar label {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.ticket-inbox-toolbar select {
+  min-width: 140px;
+}
+
+.ticket-row {
+  cursor: pointer;
+}
+
+.ticket-row:hover {
+  background: var(--accent-soft);
+}
+
+.ticket-row:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--accent));
+  outline-offset: -3px;
+}
+
+.status-badge.status-new {
+  background: #e8f0fe;
+  color: #1a3f8f;
+  border-color: #c3d4f7;
+}
+
+.status-badge.status-in-progress {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border-color: rgba(15, 118, 110, 0.25);
+}
+
+.status-badge.status-waiting {
+  background: #fff8e1;
+  color: #8a6100;
+  border-color: #f2d98d;
+}
+
+.status-badge.status-resolved {
+  background: #e7f6ee;
+  color: var(--success);
+  border-color: #b9dfc9;
+}
+
+.status-badge.status-closed {
+  background: #e7ebf1;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.sla-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sla-indicator svg {
+  flex: none;
+}
+
+.sla-on-time {
+  color: var(--success);
+}
+
+.sla-due-soon {
+  color: #8a6100;
+}
+
+.sla-overdue {
+  color: var(--danger);
+}
+
+.sla-no-data {
+  color: var(--muted);
+}
+
+.ticket-detail__section {
+  margin-top: 18px;
+}
+
+.ticket-detail__actions {
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.ticket-history {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.ticket-history__event {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+}
+
+.ticket-history__event strong {
+  display: block;
+}
+
+.ticket-history__event .muted {
+  display: block;
+  font-size: var(--text-xs);
+}
+
+.overlay__form {
+  display: grid;
+  gap: 12px;
+}
+
+.support-kpis {
+  margin: 18px 0;
+}
+
+.support-kpis h2 {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1023px) {
+  .col-requester,
+  .col-channel {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .col-client,
+  .col-assignee,
+  .col-priority {
+    display: none;
+  }
+}

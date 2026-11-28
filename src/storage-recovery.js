@@ -12,6 +12,7 @@
 
 export const RECOVERY_KEY = 'erp_base_module:crmRecovery';
 export const SCHEMA_KEY = 'erp_base_module:schemaVersion';
+export const MIGRATION_BACKUP_KEY = 'erp_base_module:crmBackup:v3';
 
 export const COLLECTION_KEYS = Object.freeze({
   entities: 'erp_base_module:entities',
@@ -22,7 +23,12 @@ export const COLLECTION_KEYS = Object.freeze({
   trash: 'erp_base_module:crmTrash'
 });
 
-export const CRM_STORAGE_KEYS = Object.freeze([...Object.values(COLLECTION_KEYS), RECOVERY_KEY, SCHEMA_KEY]);
+export const CRM_STORAGE_KEYS = Object.freeze([
+  ...Object.values(COLLECTION_KEYS),
+  RECOVERY_KEY,
+  SCHEMA_KEY,
+  MIGRATION_BACKUP_KEY
+]);
 
 const QUOTA_MESSAGE =
   'No hay espacio suficiente para preparar una versión recuperable. La operación se rechazó y los datos anteriores se conservaron.';

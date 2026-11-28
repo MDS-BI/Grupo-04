@@ -72,8 +72,9 @@ describe('User Story 13 - branded ERP workspace shell', () => {
     expect(qs('nav-dashboard-label').textContent).toBe('Panel');
     expect(qs('nav-entities-label').textContent).toBe('Entidades');
     expect(qs('nav-documents-label').textContent).toBe('Documentos');
+    expect(qs('nav-tickets-label').textContent).toBe('Tickets');
     expect(qs('nav-search-label')).toBeNull();
-    expect(document.querySelectorAll('.nav-module').length).toBe(3);
+    expect(document.querySelectorAll('.nav-module').length).toBe(4);
     expect([...document.querySelectorAll('.nav-section')].map((section) => section.dataset.module)).toEqual([
       'entities',
       'documents'

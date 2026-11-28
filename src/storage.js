@@ -12,7 +12,14 @@ import {
   validateActivity,
   completeActivity,
   resolveTicket as resolveTicketRecord,
-  assertImmutableIdentity
+  assertImmutableIdentity,
+  appendTicketHistory,
+  nextTicketFolio,
+  formatTicketFolio,
+  computeSlaDueAt,
+  validateSatisfaction,
+  TICKET_FOLIO_PATTERN,
+  TICKET_FOLIO_LIMIT
 } from './crm-rules.js';
 import {
   RECOVERY_KEY,
@@ -37,9 +44,12 @@ export const SCHEMA_KEY = RECOVERY_SCHEMA_KEY;
 export { RECOVERY_KEY, isCrmStorageKey };
 
 // 1 → colecciones base · 2 → contactos, actividades, papelera y recuperación
-// · 3 → resolución de tickets (US-11). Las ampliaciones son aditivas y no
-// convierten datos existentes; la migración de tickets históricos es explícita.
-export const SCHEMA_VERSION = 3;
+// · 3 → resolución de tickets (US-11) · 4 → ticket de post-venta completo.
+// Las ampliaciones son aditivas y no convierten datos existentes; la migración
+// de tickets históricos es explícita.
+export const SCHEMA_VERSION = 4;
+
+export const MIGRATION_BACKUP_KEY = 'erp_base_module:crmBackup:v3';
 
 const CORRUPT_MESSAGE =
   'No se pudo leer la información guardada: los datos están corruptos o tienen un formato inválido. No se modificó nada.';
@@ -127,7 +137,7 @@ function formatIssues(issues) {
  */
 export function loadSnapshot() {
   const snapshot = readRawCollections();
-  const integrity = validateIntegrity(snapshot);
+  const integrity = validateIntegrity(snapshot, getConfig(), { version: readSchemaVersion() });
   if (!integrity.valid) throw new Error(formatIssues(integrity.issues));
   return snapshot;
 }
@@ -153,6 +163,11 @@ function writeRawSnapshot(snapshot) {
  */
 function saveSnapshot(snapshot) {
   assertCompatibleSchema();
+  if (readSchemaVersion() < SCHEMA_VERSION) {
+    throw new Error(
+      'Las escrituras están bloqueadas hasta completar la migración al esquema 4. Revisa el aviso de migración y confírmala.'
+    );
+  }
   if (!recoveryCanWrite()) throw new Error(BLOCKED_MESSAGE);
 
   const normalized = {
@@ -753,88 +768,428 @@ export function deleteDocumentsForEntity(entityId) {
   return newDocuments;
 }
 
-function buildTicket(payload, existing) {
-  const now = new Date().toISOString();
+function ticketText(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function sameTicketValue(a, b) {
+  return String(a ?? '').trim() === String(b ?? '').trim();
+}
+
+const TICKET_EDITABLE_FIELDS = [
+  'subject',
+  'description',
+  'contactId',
+  'requesterName',
+  'requesterEmail',
+  'requesterPhone',
+  'productId',
+  'productName',
+  'equipmentReference',
+  'warrantyEndsAt',
+  'documentId',
+  'reason',
+  'channel',
+  'assignee',
+  'team',
+  'priority'
+];
+
+function buildTicket(payload, existing, options = {}) {
+  const now = options.now || new Date().toISOString();
+  const entityId = existing ? existing.entity_id : payload.entityId || payload.entity_id;
+  const priority = ticketText(payload.priority);
+  const status = ticketText(payload.status) || (existing ? existing.status : 'Nuevo');
+  const createdAt = existing ? existing.createdAt : options.createdAt || now;
+  const history = Array.isArray(payload.history)
+    ? payload.history
+    : existing && Array.isArray(existing.history)
+      ? existing.history
+      : [];
   return {
     id: existing ? existing.id : generateId('tkt'),
-    entity_id: existing ? existing.entity_id : payload.entityId || payload.entity_id,
-    productId: textOrUndefined(payload.productId),
-    productName: textOrUndefined(payload.productName),
-    equipmentReference: textOrUndefined(payload.equipmentReference),
-    reason: textOrUndefined(payload.reason),
-    description: textOrUndefined(payload.description),
-    priority: textOrUndefined(payload.priority),
-    status: textOrUndefined(payload.status) || (existing ? existing.status : 'En proceso'),
-    resolutionSummary: textOrUndefined(payload.resolutionSummary),
-    resolvedAt: textOrUndefined(payload.resolvedAt),
+    folio: existing ? existing.folio : options.folio || null,
+    entity_id: entityId,
+    contactId: ticketText(payload.contactId),
+    requesterName: ticketText(payload.requesterName),
+    requesterEmail: ticketText(payload.requesterEmail),
+    requesterPhone: ticketText(payload.requesterPhone),
+    subject: String(payload.subject ?? '').trim(),
+    description: ticketText(payload.description),
+    productId: ticketText(payload.productId),
+    productName: ticketText(payload.productName),
+    equipmentReference: ticketText(payload.equipmentReference),
+    warrantyEndsAt: ticketText(payload.warrantyEndsAt),
+    documentId: ticketText(payload.documentId),
+    reason: ticketText(payload.reason),
+    channel: ticketText(payload.channel),
+    priority,
+    status,
+    assignee: ticketText(payload.assignee),
+    team: ticketText(payload.team),
+    slaDueAt: computeSlaDueAt(createdAt, priority) || null,
+    firstResponseAt:
+      payload.firstResponseAt !== undefined
+        ? payload.firstResponseAt
+        : existing
+          ? (existing.firstResponseAt ?? null)
+          : null,
+    resolutionSummary: ticketText(payload.resolutionSummary),
+    resolvedAt: payload.resolvedAt !== undefined ? payload.resolvedAt : existing ? (existing.resolvedAt ?? null) : null,
+    closedAt: payload.closedAt !== undefined ? payload.closedAt : existing ? (existing.closedAt ?? null) : null,
+    satisfactionScore:
+      payload.satisfactionScore !== undefined && payload.satisfactionScore !== null
+        ? payload.satisfactionScore
+        : existing && Number.isInteger(existing.satisfactionScore)
+          ? existing.satisfactionScore
+          : null,
+    satisfactionComment:
+      payload.satisfactionComment !== undefined
+        ? ticketText(payload.satisfactionComment)
+        : existing
+          ? (existing.satisfactionComment ?? null)
+          : null,
+    history,
     legacyResolutionIncomplete:
       existing && existing.legacyResolutionIncomplete === true
         ? true
         : payload.legacyResolutionIncomplete === true
           ? true
           : undefined,
-    createdAt: existing ? existing.createdAt : now,
+    createdAt,
     updatedAt: now
   };
 }
 
-/**
- * Añade un ticket validado y con estado inicial En proceso. El cliente debe
- * existir y el producto se identifica por `productId` o `productName`.
- */
-export function addTicket(payload) {
-  const snapshot = loadSnapshot();
-  const candidate = { ...payload, entityId: payload.entityId || payload.entity_id, status: 'En proceso' };
-  const errors = validateTicket(candidate, { entities: snapshot.entities }).errors;
+function validateTicketRecord(candidate, snapshot, mode) {
+  const errors = validateTicket(
+    { ...candidate, entityId: candidate.entityId || candidate.entity_id, status: candidate.status },
+    {
+      entities: snapshot.entities,
+      contacts: snapshot.contacts,
+      documents: snapshot.documents,
+      mode
+    }
+  ).errors;
   if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
+}
 
-  const ticket = buildTicket(candidate);
-  saveSnapshot({ ...snapshot, tickets: [...snapshot.tickets, ticket] });
+/**
+ * Añade un ticket validado con folio determinista y estado inicial `Nuevo`.
+ * Ignora los campos generados aunque el formulario los envíe.
+ */
+export function addTicket(payload, options = {}) {
+  const snapshot = loadSnapshot();
+  const now = options.now || new Date().toISOString();
+  const createdAt = options.createdAt || now;
+  const safe = { ...payload };
+  for (const key of [
+    'folio',
+    'history',
+    'slaDueAt',
+    'firstResponseAt',
+    'resolvedAt',
+    'closedAt',
+    'satisfactionScore',
+    'satisfactionComment'
+  ]) {
+    delete safe[key];
+  }
+  const candidate = { ...safe, entityId: payload.entityId || payload.entity_id, status: 'Nuevo' };
+  validateTicketRecord(candidate, snapshot, 'create');
+
+  const folio = nextTicketFolio(snapshot.tickets, createdAt);
+  const fresh = loadSnapshot();
+  if (fresh.tickets.some((ticket) => ticket && ticket.folio === folio)) {
+    throw new Error('El folio asignado dejó de estar disponible. Recarga la aplicación antes de guardar.');
+  }
+  let ticket = buildTicket(candidate, null, { now, createdAt, folio });
+  ticket = appendTicketHistory(ticket, { type: 'creacion', note: folio, actor: candidate.assignee }, now);
+  saveSnapshot({ ...fresh, tickets: [...fresh.tickets, ticket] });
   return ticket;
 }
 
 /**
- * Actualiza un ticket conservando `id`, `entity_id` y `status`. Cambiar a
- * Resuelto exige resumen y genera `resolvedAt`; no se permite reapertura.
+ * Actualiza un ticket conservando identidad, folio y fechas generadas. Aplica
+ * las reglas de estado, prioridad congelada y solo lectura de `Cerrado`, y
+ * agrega los eventos de historial en la misma instantánea atómica.
  */
-export function updateTicket(id, updates) {
+export function updateTicket(id, updates = {}, options = {}) {
   const snapshot = loadSnapshot();
-  const idx = snapshot.tickets.findIndex((t) => t.id === id);
+  const idx = snapshot.tickets.findIndex((ticket) => ticket.id === id);
   if (idx === -1) throw new Error('Ticket no encontrado');
   const previous = snapshot.tickets[idx];
-  const merged = { ...previous, ...updates, entity_id: previous.entity_id };
-  const nextStatus = updates.status !== undefined ? String(updates.status || '').trim() : previous.status;
+  const now = options.now || new Date().toISOString();
 
-  if (nextStatus !== previous.status) {
-    if (!canTransitionTicket(previous.status, nextStatus)) {
-      throw new Error(
-        `Transición de ticket no permitida de "${previous.status}" a "${nextStatus}". Los tickets resueltos no se reabren en el MVP.`
-      );
+  if (updates.id !== undefined && updates.id !== previous.id)
+    throw new Error('El identificador del ticket no se puede modificar');
+  if (updates.folio !== undefined && updates.folio !== previous.folio) {
+    throw new Error('El folio del ticket es inmutable y no se puede modificar');
+  }
+  if (updates.entity_id !== undefined && updates.entity_id !== previous.entity_id) {
+    throw new Error('El cliente del ticket no se puede reasignar');
+  }
+  if (updates.createdAt !== undefined && updates.createdAt !== previous.createdAt) {
+    throw new Error('La fecha de creación del ticket no se puede modificar');
+  }
+
+  const nextStatus =
+    updates.status !== undefined && String(updates.status).trim() !== ''
+      ? String(updates.status).trim()
+      : previous.status;
+  const statusChanged = nextStatus !== previous.status;
+
+  if (previous.status === 'Cerrado') {
+    const meaningful = Object.entries(updates).some(
+      ([key, value]) => key !== 'status' && !sameTicketValue(value, previous[key])
+    );
+    if (meaningful || statusChanged) {
+      throw new Error('El ticket está cerrado; los tickets cerrados son de solo lectura.');
     }
+    return { ...previous };
+  }
+
+  if (statusChanged && !canTransitionTicket(previous.status, nextStatus)) {
+    throw new Error(
+      `Transición de ticket no permitida de "${previous.status}" a "${nextStatus}". Los tickets resueltos no se reabren.`
+    );
+  }
+
+  if (previous.status === 'Resuelto') {
+    if (updates.priority !== undefined && !sameTicketValue(updates.priority, previous.priority)) {
+      throw new Error('La prioridad del ticket está congelada desde que se resolvió.');
+    }
+    if (updates.assignee !== undefined && !sameTicketValue(updates.assignee, previous.assignee)) {
+      throw new Error('El técnico no se reasigna cuando el ticket está resuelto.');
+    }
+    if (
+      updates.resolutionSummary !== undefined &&
+      !sameTicketValue(updates.resolutionSummary, previous.resolutionSummary)
+    ) {
+      throw new Error('La solución registrada no se puede modificar.');
+    }
+    if (
+      updates.satisfactionScore !== undefined &&
+      updates.satisfactionScore !== null &&
+      !sameTicketValue(updates.satisfactionScore, previous.satisfactionScore)
+    ) {
+      throw new Error('La satisfacción se registra con la operación específica.');
+    }
+  }
+
+  const merged = { ...previous };
+  for (const field of TICKET_EDITABLE_FIELDS) {
+    if (updates[field] !== undefined) merged[field] = updates[field];
+  }
+  merged.status = nextStatus;
+
+  const events = [];
+  if (statusChanged) {
     if (nextStatus === 'Resuelto') {
-      const resolved = resolveTicketRecord(previous, updates.resolutionSummary);
-      Object.assign(merged, {
-        status: 'Resuelto',
-        resolutionSummary: resolved.resolutionSummary,
-        resolvedAt: resolved.resolvedAt
+      if (String(updates.resolutionSummary ?? '').trim() === '') {
+        throw new Error('El resumen de la solución es obligatorio al resolver el ticket');
+      }
+      merged.resolutionSummary = String(updates.resolutionSummary).trim();
+      merged.resolvedAt = now;
+      merged.firstResponseAt = merged.firstResponseAt || now;
+      events.push({
+        type: 'resolucion',
+        field: 'status',
+        from: previous.status,
+        to: nextStatus,
+        note: merged.resolutionSummary
+      });
+    } else if (nextStatus === 'Cerrado') {
+      merged.closedAt = now;
+      events.push({ type: 'cierre', field: 'status', from: previous.status, to: nextStatus });
+    } else {
+      if (previous.status === 'Nuevo' && !previous.firstResponseAt) merged.firstResponseAt = now;
+      events.push({
+        type: 'estado',
+        field: 'status',
+        from: previous.status,
+        to: nextStatus,
+        note: updates.statusNote
       });
     }
   }
 
-  const candidate = { ...merged, status: nextStatus === 'Resuelto' ? 'Resuelto' : nextStatus };
-  const errors = validateTicket(candidate, { entities: snapshot.entities, mode: 'update' }).errors;
-  if (Object.keys(errors).length > 0) throw new Error(firstError(errors));
+  if (!sameTicketValue(merged.priority, previous.priority)) {
+    events.push({ type: 'prioridad', field: 'priority', from: previous.priority, to: merged.priority });
+  }
+  if (!sameTicketValue(merged.assignee, previous.assignee)) {
+    events.push({ type: 'asignacion', field: 'assignee', from: previous.assignee, to: merged.assignee });
+  }
+  if (!sameTicketValue(merged.team, previous.team)) {
+    events.push({ type: 'equipo', field: 'team', from: previous.team, to: merged.team });
+  }
 
-  const next = { ...buildTicket(candidate, previous), status: candidate.status };
+  validateTicketRecord(merged, snapshot, 'update');
+
+  let next = { ...merged, history: Array.isArray(previous.history) ? previous.history : [] };
+  for (const event of events) next = appendTicketHistory(next, { ...event, actor: options.actor }, now);
+  const saved = buildTicket(next, previous, { now });
+  saved.status = nextStatus;
   const tickets = [...snapshot.tickets];
-  tickets[idx] = next;
+  tickets[idx] = saved;
   saveSnapshot({ ...snapshot, tickets });
-  return next;
+  return saved;
 }
 
-/** Resuelve un ticket con resumen obligatorio en una sola escritura. */
-export function resolveTicket(id, summary) {
-  return updateTicket(id, { status: 'Resuelto', resolutionSummary: summary });
+/** Reasigna técnico o equipo de un ticket abierto en una sola escritura. */
+export function assignTicket(id, changes = {}, options = {}) {
+  const snapshot = loadSnapshot();
+  const ticket = snapshot.tickets.find((item) => item.id === id);
+  if (!ticket) throw new Error('Ticket no encontrado');
+  if (!['Nuevo', 'En proceso', 'En espera'].includes(ticket.status)) {
+    throw new Error('Solo se pueden asignar tickets abiertos (Nuevo, En proceso o En espera).');
+  }
+  const updates = {};
+  if ('assignee' in changes) updates.assignee = changes.assignee;
+  if ('team' in changes) updates.team = changes.team;
+  if (updates.assignee === undefined) updates.assignee = ticket.assignee;
+  if (updates.team === undefined) updates.team = ticket.team;
+  const noChange = sameTicketValue(updates.assignee, ticket.assignee) && sameTicketValue(updates.team, ticket.team);
+  if (noChange) return { ...ticket };
+  return updateTicket(id, updates, options);
+}
+
+/** Resuelve un ticket con resumen obligatorio y satisfacción opcional. */
+export function resolveTicket(id, summary, options = {}) {
+  const snapshot = loadSnapshot();
+  const idx = snapshot.tickets.findIndex((ticket) => ticket.id === id);
+  if (idx === -1) throw new Error('Ticket no encontrado');
+  const previous = snapshot.tickets[idx];
+  if (previous.status === 'Cerrado') {
+    throw new Error('El ticket está cerrado; los tickets cerrados son de solo lectura.');
+  }
+  if (previous.status === 'Resuelto') {
+    throw new Error('El ticket ya está resuelto; los tickets resueltos no se reabren.');
+  }
+  if (previous.status !== 'En proceso' && previous.status !== 'En espera') {
+    throw new Error(
+      `Transición de ticket no permitida de "${previous.status}" a "Resuelto". Los tickets nuevos deben pasar por En proceso.`
+    );
+  }
+  if (String(summary ?? '').trim() === '') {
+    throw new Error('El resumen de la solución es obligatorio al resolver el ticket');
+  }
+  const now = options.now || new Date().toISOString();
+  const resolvedRecord = resolveTicketRecord(previous, summary, now);
+  let next = {
+    ...previous,
+    status: 'Resuelto',
+    resolutionSummary: resolvedRecord.resolutionSummary,
+    resolvedAt: now,
+    firstResponseAt: previous.firstResponseAt || now
+  };
+  next = appendTicketHistory(
+    next,
+    {
+      type: 'resolucion',
+      field: 'status',
+      from: previous.status,
+      to: 'Resuelto',
+      note: resolvedRecord.resolutionSummary,
+      actor: options.actor
+    },
+    now
+  );
+
+  const hasScore =
+    options.satisfactionScore !== undefined && options.satisfactionScore !== null && options.satisfactionScore !== '';
+  if (hasScore) {
+    const check = validateSatisfaction(options.satisfactionScore, options.satisfactionComment);
+    if (!check.valid) throw new Error(firstError(check.errors));
+    next = { ...next, satisfactionScore: check.score, satisfactionComment: check.comment };
+    next = appendTicketHistory(
+      next,
+      { type: 'satisfaccion', field: 'satisfactionScore', to: check.score, actor: options.actor },
+      now
+    );
+  }
+
+  const saved = buildTicket(next, previous, { now });
+  validateTicketRecord(saved, snapshot, 'update');
+  const tickets = [...snapshot.tickets];
+  tickets[idx] = saved;
+  saveSnapshot({ ...snapshot, tickets });
+  return saved;
+}
+
+/** Cierra un ticket resuelto; `Cerrado` es terminal. */
+export function closeTicket(id, options = {}) {
+  const snapshot = loadSnapshot();
+  const idx = snapshot.tickets.findIndex((ticket) => ticket.id === id);
+  if (idx === -1) throw new Error('Ticket no encontrado');
+  const previous = snapshot.tickets[idx];
+  if (previous.status !== 'Resuelto') {
+    throw new Error(`Transición de ticket no permitida de "${previous.status}" a "Cerrado".`);
+  }
+  const now = options.now || new Date().toISOString();
+  let next = { ...previous, status: 'Cerrado', closedAt: now };
+  next = appendTicketHistory(
+    next,
+    { type: 'cierre', field: 'status', from: previous.status, to: 'Cerrado', actor: options.actor },
+    now
+  );
+  const saved = buildTicket(next, previous, { now });
+  const tickets = [...snapshot.tickets];
+  tickets[idx] = saved;
+  saveSnapshot({ ...snapshot, tickets });
+  return saved;
+}
+
+/** Cambia el estado respetando la máquina de estados compartida. */
+export function changeTicketStatus(id, to, options = {}) {
+  const snapshot = loadSnapshot();
+  const ticket = snapshot.tickets.find((item) => item.id === id);
+  if (!ticket) throw new Error('Ticket no encontrado');
+  if (!canTransitionTicket(ticket.status, to)) {
+    throw new Error(`Transición de ticket no permitida de "${ticket.status}" a "${to}".`);
+  }
+  if (to === 'Resuelto') return resolveTicket(id, options.resolutionSummary, options);
+  if (to === 'Cerrado') return closeTicket(id, options);
+  return updateTicket(id, { status: to, statusNote: options.note }, options);
+}
+
+/** Registra la satisfacción una sola vez mientras el ticket está Resuelto. */
+export function registerSatisfaction(id, score, comment, options = {}) {
+  const snapshot = loadSnapshot();
+  const idx = snapshot.tickets.findIndex((ticket) => ticket.id === id);
+  if (idx === -1) throw new Error('Ticket no encontrado');
+  const previous = snapshot.tickets[idx];
+  if (previous.status !== 'Resuelto') {
+    throw new Error('La satisfacción solo se registra mientras el ticket está Resuelto.');
+  }
+  if (Number.isInteger(previous.satisfactionScore)) {
+    throw new Error('El ticket ya tiene una satisfacción registrada.');
+  }
+  const check = validateSatisfaction(score, comment);
+  if (!check.valid) throw new Error(firstError(check.errors));
+  const now = options.now || new Date().toISOString();
+  let next = { ...previous, satisfactionScore: check.score, satisfactionComment: check.comment };
+  next = appendTicketHistory(
+    next,
+    { type: 'satisfaccion', field: 'satisfactionScore', to: check.score, actor: options.actor },
+    now
+  );
+  const saved = buildTicket(next, previous, { now });
+  const tickets = [...snapshot.tickets];
+  tickets[idx] = saved;
+  saveSnapshot({ ...snapshot, tickets });
+  return saved;
+}
+
+/** Elimina un ticket y su historial embebido; no toca al cliente. */
+export function deleteTicket(id) {
+  const snapshot = loadSnapshot();
+  const ticket = snapshot.tickets.find((item) => item.id === id);
+  if (!ticket) throw new Error('Ticket no encontrado');
+  saveSnapshot({ ...snapshot, tickets: snapshot.tickets.filter((item) => item.id !== id) });
+  return { deleted: true, ticket };
 }
 
 export function deleteTicketsForEntity(entityId) {
@@ -1070,7 +1425,13 @@ export function recoverPendingOperation() {
         activities: snapshot.activities,
         trash: snapshot.trash
       });
-      localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION }));
+      let version = SCHEMA_VERSION;
+      try {
+        version = readSchemaVersion();
+      } catch {
+        version = SCHEMA_VERSION;
+      }
+      localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: version }));
     });
     return { recovered: result.restored === true, blocked: false };
   } catch (error) {
@@ -1089,9 +1450,29 @@ export function isWriteBlocked() {
 
 let pendingMigrationPlan = null;
 
+function migrationSteps(stored) {
+  const steps = [];
+  if (stored < 2) {
+    steps.push(
+      'Agregar las colecciones de contactos, actividades y papelera sin reemplazar clientes, oportunidades ni tickets.'
+    );
+  }
+  if (stored < 3) {
+    steps.push(
+      'Marcar los tickets resueltos históricos sin resumen con legacyResolutionIncomplete, sin inventar solución ni fecha.'
+    );
+  }
+  if (stored < 4) {
+    steps.push(
+      'Ampliar los tickets con folio determinista, asunto copiado de la descripción, canal, historial y SLA; respaldar la instantánea antes de escribir y no inventar datos.'
+    );
+  }
+  return steps;
+}
+
 /**
- * Solicita una migración explícita. No escribe nada: describe los pasos y
- * exige confirmación del usuario antes de aplicar.
+ * Solicita una migración explícita. No escribe nada: describe los pasos que
+ * faltan y exige confirmación del usuario antes de aplicar.
  */
 export function requestMigration(from, to = SCHEMA_VERSION) {
   const stored = Number.isInteger(from) ? from : readSchemaVersion();
@@ -1102,42 +1483,180 @@ export function requestMigration(from, to = SCHEMA_VERSION) {
   pendingMigrationPlan = {
     from: stored,
     to,
-    steps: [
-      'Agregar las colecciones de contactos, actividades y papelera sin reemplazar clientes, oportunidades ni tickets.',
-      'Marcar los tickets resueltos históricos sin resumen con legacyResolutionIncomplete, sin inventar solución ni fecha.'
-    ],
+    steps: migrationSteps(stored),
     requiresConfirmation: true,
     backup: true
   };
   return pendingMigrationPlan;
 }
 
+function rawCollectionsSnapshot() {
+  return {
+    entities: localStorage.getItem(ENTITIES_KEY),
+    documents: localStorage.getItem(DOCUMENTS_KEY),
+    tickets: localStorage.getItem(TICKETS_KEY),
+    contacts: localStorage.getItem(CONTACTS_KEY),
+    activities: localStorage.getItem(ACTIVITIES_KEY),
+    trash: localStorage.getItem(TRASH_KEY),
+    schema: localStorage.getItem(SCHEMA_KEY),
+    recovery: localStorage.getItem(RECOVERY_KEY)
+  };
+}
+
+function restoreRawCollections(previous) {
+  restoreRaw(ENTITIES_KEY, previous.entities);
+  restoreRaw(DOCUMENTS_KEY, previous.documents);
+  restoreRaw(TICKETS_KEY, previous.tickets);
+  restoreRaw(CONTACTS_KEY, previous.contacts);
+  restoreRaw(ACTIVITIES_KEY, previous.activities);
+  restoreRaw(TRASH_KEY, previous.trash);
+  restoreRaw(SCHEMA_KEY, previous.schema);
+  restoreRaw(RECOVERY_KEY, previous.recovery);
+}
+
+function migrateTicketToV4(ticket, folio, now) {
+  const description = String(ticket.description ?? '').trim();
+  const subject = String(ticket.subject ?? description)
+    .trim()
+    .slice(0, 120);
+  const priority = ticket.priority ?? null;
+  const status = ticket.status ?? 'Nuevo';
+  const legacyIncomplete =
+    status === 'Resuelto' && (!String(ticket.resolutionSummary ?? '').trim() || !ticket.resolvedAt)
+      ? true
+      : ticket.legacyResolutionIncomplete === true
+        ? true
+        : undefined;
+  const history =
+    Array.isArray(ticket.history) && ticket.history.length > 0
+      ? ticket.history
+      : [
+          {
+            id: `${ticket.id}:1`,
+            at: now,
+            type: 'migracion',
+            note: 'Migración a esquema 4: no se reconstruyeron datos históricos.',
+            actor: 'Sistema'
+          }
+        ];
+  return {
+    ...ticket,
+    folio,
+    contactId: ticket.contactId ?? null,
+    requesterName: ticket.requesterName ?? null,
+    requesterEmail: ticket.requesterEmail ?? null,
+    requesterPhone: ticket.requesterPhone ?? null,
+    subject: subject || 'Sin asunto',
+    description,
+    warrantyEndsAt: ticket.warrantyEndsAt ?? null,
+    documentId: ticket.documentId ?? null,
+    channel: ticket.channel ?? null,
+    assignee: ticket.assignee ?? null,
+    team: ticket.team ?? null,
+    slaDueAt: computeSlaDueAt(ticket.createdAt, priority) || null,
+    firstResponseAt: ticket.firstResponseAt ?? null,
+    closedAt: ticket.closedAt ?? null,
+    satisfactionScore: Number.isInteger(ticket.satisfactionScore) ? ticket.satisfactionScore : null,
+    satisfactionComment: ticket.satisfactionComment ?? null,
+    history,
+    legacyResolutionIncomplete: legacyIncomplete
+  };
+}
+
+function buildMigratedTickets(tickets, now) {
+  const counters = new Map();
+  const used = new Set();
+  for (const ticket of tickets) {
+    const match = TICKET_FOLIO_PATTERN.exec(String(ticket && ticket.folio ? ticket.folio : ''));
+    if (match) {
+      counters.set(Number(match[1]), Math.max(counters.get(Number(match[1])) || 0, Number(match[2])));
+      used.add(String(ticket.folio));
+    }
+  }
+  const ordered = [...tickets].sort((left, right) => {
+    const leftTime = Date.parse(String(left && left.createdAt ? left.createdAt : ''));
+    const rightTime = Date.parse(String(right && right.createdAt ? right.createdAt : ''));
+    return leftTime - rightTime || String(left && left.id).localeCompare(String(right && right.id));
+  });
+  const folioById = new Map();
+  for (const ticket of ordered) {
+    const createdAt = Date.parse(String(ticket && ticket.createdAt ? ticket.createdAt : ''));
+    if (!Number.isFinite(createdAt)) {
+      throw new Error(
+        `No se puede migrar el ticket ${ticket && ticket.id ? ticket.id : '(sin id)'}: su fecha de creación no es válida.`
+      );
+    }
+    if (ticket.folio && TICKET_FOLIO_PATTERN.test(String(ticket.folio))) {
+      folioById.set(ticket.id, ticket.folio);
+      continue;
+    }
+    const year = new Date(createdAt).getFullYear();
+    let sequence = (counters.get(year) || 0) + 1;
+    while (used.has(formatTicketFolio(year, sequence))) sequence += 1;
+    if (sequence > TICKET_FOLIO_LIMIT) {
+      throw new Error(`Se agotó el correlativo anual de folios del año ${year}.`);
+    }
+    const folio = formatTicketFolio(year, sequence);
+    counters.set(year, sequence);
+    used.add(folio);
+    folioById.set(ticket.id, folio);
+  }
+  return tickets.map((ticket) => migrateTicketToV4(ticket, folioById.get(ticket.id), now));
+}
+
 /**
- * Aplica la migración solicitada conservando una versión recuperable. Solo
- * marca datos ausentes; no inventa ni convierte valores existentes.
+ * Aplica la migración solicitada conservando un respaldo recuperable. Escribe
+ * las colecciones verificadas y solo al final el marcador de versión.
  */
 export function applyMigration() {
   if (!pendingMigrationPlan) throw new Error('No hay una migración solicitada pendiente de confirmación.');
+  const plan = pendingMigrationPlan;
   const snapshot = readRawCollections();
   const now = new Date().toISOString();
-  const migrated = {
-    ...snapshot,
-    tickets: snapshot.tickets.map((ticket) =>
-      ticket && ticket.status === 'Resuelto' && isEmpty(ticket.resolutionSummary)
-        ? { ...ticket, legacyResolutionIncomplete: true, updatedAt: ticket.updatedAt || now }
-        : ticket
-    ),
-    entities: snapshot.entities,
-    documents: snapshot.documents,
-    contacts: snapshot.contacts,
-    activities: snapshot.activities,
-    trash: snapshot.trash
+  const tickets = buildMigratedTickets(snapshot.tickets, now);
+  const migrated = { ...snapshot, tickets };
+
+  const integrity = validateIntegrity(migrated, getConfig(), { version: plan.to });
+  if (!integrity.valid) throw new Error(formatIssues(integrity.issues));
+
+  const backup = {
+    createdAt: now,
+    schemaVersion: plan.from,
+    collections: snapshot,
+    ticketCount: snapshot.tickets.length
   };
-  saveSnapshot(migrated);
-  localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: pendingMigrationPlan.to }));
-  const plan = pendingMigrationPlan;
+  try {
+    localStorage.setItem(MIGRATION_BACKUP_KEY, JSON.stringify(backup));
+  } catch {
+    throw new Error(
+      'No hay espacio suficiente para guardar el respaldo de la migración. No se modificó nada; libera espacio e inténtalo de nuevo.'
+    );
+  }
+
+  const previousRaw = rawCollectionsSnapshot();
+  prepareRecovery(snapshot);
+  try {
+    writeRawSnapshot(migrated);
+    const written = readRawCollections();
+    const verification = validateIntegrity(written, getConfig(), { version: plan.to });
+    if (!verification.valid) throw new Error(formatIssues(verification.issues));
+    for (const collection of ['entities', 'documents', 'contacts', 'activities', 'trash']) {
+      if (JSON.stringify(written[collection]) !== JSON.stringify(snapshot[collection])) {
+        throw new Error(`La migración alteró la colección ${collection}; se restaura la instantánea anterior.`);
+      }
+    }
+    localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: plan.to }));
+  } catch (error) {
+    restoreRawCollections(previousRaw);
+    throw new Error(
+      error && error.message
+        ? `${error.message} No se modificó la instantánea anterior.`
+        : 'La migración falló y se restauró la instantánea anterior.'
+    );
+  }
+  commitRecovery(snapshot);
   pendingMigrationPlan = null;
-  return { applied: true, ...plan };
+  return { applied: true, ...plan, ticketCount: tickets.length };
 }
 
 /** Cancela la migración propuesta y conserva el formato original. */
@@ -1145,6 +1664,52 @@ export function cancelMigration() {
   const plan = pendingMigrationPlan;
   pendingMigrationPlan = null;
   return { applied: false, keptVersion: readSchemaVersion(), plan };
+}
+
+/** Respaldo guardado antes de la última migración, o `null`. */
+export function loadMigrationBackup() {
+  const raw = localStorage.getItem(MIGRATION_BACKUP_KEY);
+  if (raw === null || raw === undefined || raw === '') return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('No se pudo leer el respaldo de migración: está corrupto. No se modificó nada.');
+  }
+  if (!parsed || typeof parsed !== 'object' || !parsed.collections || typeof parsed.collections !== 'object') {
+    throw new Error('El respaldo de migración no tiene la forma esperada. No se modificó nada.');
+  }
+  return parsed;
+}
+
+/** Restaura explícitamente el respaldo de migración sin borrarlo. */
+export function restoreMigrationBackup() {
+  const backup = loadMigrationBackup();
+  if (!backup) throw new Error('No existe un respaldo de migración para restaurar.');
+  const version = Number(backup.schemaVersion);
+  if (!Number.isInteger(version) || version < 1 || version > 3) {
+    throw new Error('El respaldo de migración no declara una versión de origen válida (1 a 3).');
+  }
+  const collections = {};
+  for (const name of ['entities', 'documents', 'tickets', 'contacts', 'activities', 'trash']) {
+    const value = backup.collections[name];
+    if (value !== undefined && !Array.isArray(value)) {
+      throw new Error(`El respaldo de migración no es válido: la colección ${name} no es un arreglo.`);
+    }
+    collections[name] = Array.isArray(value) ? value : [];
+  }
+  const current = readRawCollections();
+  const previousRaw = rawCollectionsSnapshot();
+  prepareRecovery(current);
+  try {
+    writeRawSnapshot(collections);
+    localStorage.setItem(SCHEMA_KEY, JSON.stringify({ schemaVersion: version }));
+  } catch {
+    restoreRawCollections(previousRaw);
+    throw new Error('No se pudo restaurar el respaldo; la instantánea actual se conservó.');
+  }
+  commitRecovery(current);
+  return { restored: true, schemaVersion: version, ticketCount: collections.tickets.length };
 }
 
 export function searchEntities(term) {

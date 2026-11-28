@@ -173,12 +173,15 @@ describe('T139 — renderizado seguro de la ampliación', () => {
     });
     const ticket = storage.addTicket({
       entityId: client.entity_id,
+      subject: SCRIPT_NAME,
       productName: SCRIPT_NAME,
       reason: 'soporte',
       description: SCRIPT_TEXT,
       priority: 'Alta',
+      channel: 'Teléfono',
       equipmentReference: SCRIPT_NAME
     });
+    storage.updateTicket(ticket.id, { status: 'En proceso' });
     storage.resolveTicket(ticket.id, SCRIPT_TEXT);
     openClientDetail(client);
     expect(qs('ticket-list-items').textContent).toContain(SCRIPT_TEXT);
@@ -188,6 +191,41 @@ describe('T139 — renderizado seguro de la ampliación', () => {
     qs('nav-trash').click();
     expect(qs('trash-list-items').textContent).toContain(SCRIPT_NAME);
     expect(qs('trash-list-items').querySelector('img')).toBeNull();
+    expect(dom.window.__xss).toBeUndefined();
+  });
+
+  it('muestra solicitante, garantía e historial como texto seguro en el detalle', () => {
+    const client = storage.addEntity({
+      name: 'Empresa Segura 3',
+      code: 'CLI-SEG-004',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    });
+    const ticket = storage.addTicket({
+      entityId: client.entity_id,
+      subject: SCRIPT_NAME,
+      productName: 'Compresor',
+      reason: 'soporte',
+      description: SCRIPT_TEXT,
+      priority: 'Alta',
+      channel: 'Teléfono',
+      requesterName: SCRIPT_NAME,
+      requesterEmail: 'seguro@example.com',
+      requesterPhone: SCRIPT_TEXT,
+      warrantyEndsAt: '2027-12-31'
+    });
+    storage.changeTicketStatus(ticket.id, 'En proceso');
+    storage.resolveTicket(ticket.id, SCRIPT_TEXT);
+
+    openClientDetail(client);
+    qs('ticket-list-items').querySelector('[data-open-ticket]').click();
+    const detail = qs('ticket-detail');
+    expect(detail.textContent).toContain(SCRIPT_NAME);
+    expect(detail.textContent).toContain(SCRIPT_TEXT);
+    expect(detail.textContent).toContain('En garantía');
+    expect(detail.querySelector('img')).toBeNull();
+    expect(detail.querySelector('script')).toBeNull();
     expect(dom.window.__xss).toBeUndefined();
   });
 });

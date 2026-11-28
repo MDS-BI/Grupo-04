@@ -332,26 +332,177 @@ export function validateOpportunity(opportunity, context = {}) {
 
 export const TICKET_REASONS = Object.freeze(['soporte', 'reclamo', 'consulta']);
 export const TICKET_PRIORITIES = Object.freeze(['Alta', 'Media', 'Baja']);
-export const TICKET_STATUSES = Object.freeze(['En proceso', 'Resuelto']);
+export const TICKET_STATUSES = Object.freeze(['Nuevo', 'En proceso', 'En espera', 'Resuelto', 'Cerrado']);
+export const TICKET_CHANNELS = Object.freeze(['Teléfono', 'Correo', 'WhatsApp', 'Presencial', 'Portal']);
+export const TICKET_ASSIGNEES = Object.freeze(['Técnico A', 'Técnico B', 'Técnico C']);
+export const TICKET_TEAMS = Object.freeze(['Soporte técnico', 'Terreno', 'Repuestos']);
+
+/** Máquina de estados compartida: única fuente de transiciones del ticket. */
+export const TICKET_TRANSITIONS = Object.freeze({
+  Nuevo: Object.freeze(['En proceso']),
+  'En proceso': Object.freeze(['En espera', 'Resuelto']),
+  'En espera': Object.freeze(['En proceso', 'Resuelto']),
+  Resuelto: Object.freeze(['Cerrado']),
+  Cerrado: Object.freeze([])
+});
+
+export const TICKET_FOLIO_PATTERN = /^TKT-(\d{4})-(\d{4})$/;
+export const TICKET_FOLIO_LIMIT = 9999;
+
+/** Objetivos de SLA en horas desde `createdAt`, según la prioridad. */
+export const SLA_HOURS_BY_PRIORITY = Object.freeze({ Alta: 24, Media: 72, Baja: 168 });
+
+const HOUR_MS = 60 * 60 * 1000;
 
 function ticketCatalog(name, fallback, config) {
   const declared = catalog(name, config);
   return declared.length > 0 ? declared : [...fallback];
 }
 
-/** Un ticket solo avanza de En proceso a Resuelto; no se reabre en el MVP. */
+/** Transiciones declaradas del ciclo de vida del ticket. */
 export function canTransitionTicket(from, to) {
-  return from === 'En proceso' && to === 'Resuelto';
+  if (!from || !to || from === to) return false;
+  return (TICKET_TRANSITIONS[from] || []).includes(to);
+}
+
+/** Estados siguientes permitidos; vacío en `Cerrado`. */
+export function nextTicketStatuses(status) {
+  return [...(TICKET_TRANSITIONS[status] || [])];
+}
+
+/** Folio determinista `TKT-AAAA-####` con ceros a la izquierda. */
+export function formatTicketFolio(year, sequence) {
+  const numericYear = Number(year);
+  const numericSequence = Number(sequence);
+  if (!Number.isInteger(numericYear) || numericYear < 0 || !Number.isInteger(numericSequence) || numericSequence < 1) {
+    throw new Error('El folio requiere un año y un correlativo válidos');
+  }
+  return `TKT-${String(numericYear).padStart(4, '0')}-${String(numericSequence).padStart(4, '0')}`;
+}
+
+/** Año local de `createdAt` usado para el correlativo anual. */
+export function ticketFolioYear(createdAt) {
+  const date = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getFullYear();
 }
 
 /**
- * Valida un ticket: cliente existente, producto (`productId` o `productName`),
- * motivo y prioridad de catálogo, descripción no vacía y estado inicial
- * `En proceso` al crear.
+ * Siguiente folio `TKT-AAAA-####` del año local de `createdAt`: máximo
+ * correlativo del año más uno. No reutiliza huecos y rechaza el agotamiento.
+ */
+export function nextTicketFolio(tickets = [], createdAt = new Date().toISOString()) {
+  const year = ticketFolioYear(createdAt);
+  if (year === null) throw new Error('La fecha de creación del ticket no es válida para asignar el folio');
+  let maximum = 0;
+  for (const ticket of Array.isArray(tickets) ? tickets : []) {
+    const match = TICKET_FOLIO_PATTERN.exec(String(ticket && ticket.folio ? ticket.folio : ''));
+    if (match && Number(match[1]) === year) maximum = Math.max(maximum, Number(match[2]));
+  }
+  if (maximum >= TICKET_FOLIO_LIMIT) {
+    throw new Error(
+      `Se alcanzó el límite de ${TICKET_FOLIO_LIMIT} folios del año ${year}. No se reciclan correlativos.`
+    );
+  }
+  return formatTicketFolio(year, maximum + 1);
+}
+
+/** Vencimiento de SLA calculado desde `createdAt` y la prioridad vigente. */
+export function computeSlaDueAt(createdAt, priority) {
+  const hours = SLA_HOURS_BY_PRIORITY[String(priority ?? '').trim()];
+  if (!hours) return null;
+  if (createdAt === undefined || createdAt === null || String(createdAt).trim() === '') return null;
+  const start = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  if (Number.isNaN(start.getTime())) return null;
+  return new Date(start.getTime() + hours * HOUR_MS).toISOString();
+}
+
+/**
+ * Semáforo del SLA. Abiertos: `now >= slaDueAt` → Vencido; 25 % restante o
+ * menos → Por vencer. Resueltos/cerrados: `resolvedAt <= slaDueAt` → En plazo.
+ */
+export function getSlaStatus(ticket, now = new Date()) {
+  if (!ticket) return 'Sin datos';
+  const due = computeSlaDueAt(ticket.createdAt, ticket.priority);
+  if (!due) return 'Sin datos';
+  const dueMs = Date.parse(due);
+  const closed = ticket.status === 'Resuelto' || ticket.status === 'Cerrado';
+  let referenceMs;
+  if (closed) {
+    referenceMs = Date.parse(String(ticket.resolvedAt ?? ''));
+  } else {
+    const nowDate = now instanceof Date ? now : new Date(now);
+    referenceMs = nowDate.getTime();
+  }
+  if (!Number.isFinite(referenceMs)) return 'Sin datos';
+  if (closed) return referenceMs <= dueMs ? 'En plazo' : 'Vencido';
+  if (referenceMs >= dueMs) return 'Vencido';
+  const goalMs = SLA_HOURS_BY_PRIORITY[String(ticket.priority ?? '').trim()] * HOUR_MS;
+  const remaining = dueMs - referenceMs;
+  return remaining <= goalMs * 0.25 ? 'Por vencer' : 'En plazo';
+}
+
+/** Fecha de garantía opcional: fecha real de calendario `YYYY-MM-DD`. */
+export function validateWarrantyDate(value) {
+  if (isBlank(value)) return { valid: true, error: null };
+  if (!isValidCalendarDate(String(value))) {
+    return { valid: false, error: 'La fecha de garantía debe ser una fecha válida (YYYY-MM-DD)' };
+  }
+  return { valid: true, error: null };
+}
+
+/**
+ * Nota de satisfacción: entero de 1 a 5 y comentario opcional recortado de
+ * hasta 500 caracteres.
+ */
+export function validateSatisfaction(score, comment) {
+  const errors = {};
+  if (!Number.isInteger(score) || score < 1 || score > 5) {
+    errors.score = 'La satisfacción debe registrarse como una nota entera de 1 a 5';
+  }
+  const text = comment === undefined || comment === null ? '' : String(comment).trim();
+  if (text.length > 500) {
+    errors.comment = 'El comentario de satisfacción no puede superar los 500 caracteres';
+  }
+  return { valid: Object.keys(errors).length === 0, errors, score, comment: text || null };
+}
+
+/**
+ * Agrega un evento al final del historial sin mutar el ticket recibido.
+ * El `actor` explícito prevalece sobre el técnico vigente y sobre "Sistema".
+ */
+export function appendTicketHistory(ticket, event = {}, now = new Date().toISOString()) {
+  if (!ticket || !ticket.id) throw new Error('El ticket no tiene identificador para registrar el historial');
+  if (!event || !String(event.type ?? '').trim()) {
+    throw new Error('El evento de historial requiere un tipo');
+  }
+  const history = Array.isArray(ticket.history) ? ticket.history : [];
+  const actor = String(event.actor ?? ticket.assignee ?? '').trim() || 'Sistema';
+  const entry = {
+    id: `${ticket.id}:${history.length + 1}`,
+    at: now,
+    type: String(event.type).trim(),
+    actor
+  };
+  if (event.field !== undefined && event.field !== null && event.field !== '') entry.field = event.field;
+  if (event.from !== undefined) entry.from = event.from;
+  if (event.to !== undefined) entry.to = event.to;
+  if (event.note !== undefined && event.note !== null && String(event.note).trim() !== '') {
+    entry.note = String(event.note).trim();
+  }
+  return { ...ticket, history: [...history, entry] };
+}
+
+/**
+ * Valida un ticket v4: cliente existente, asunto, descripción, producto,
+ * motivo, prioridad, canal, solicitante, técnico, equipo, garantía y vínculo
+ * de origen. Los campos opcionales ausentes se toleran en datos históricos.
  */
 export function validateTicket(ticket, context = {}) {
   const config = context.config || getConfig();
   const entities = Array.isArray(context.entities) ? context.entities : null;
+  const contacts = Array.isArray(context.contacts) ? context.contacts : null;
+  const documents = Array.isArray(context.documents) ? context.documents : null;
   const mode = context.mode || 'create';
   const errors = {};
 
@@ -360,6 +511,17 @@ export function validateTicket(ticket, context = {}) {
     errors.entityId = 'Selecciona un cliente para el ticket';
   } else if (entities && !entities.some((entity) => entity.entity_id === entityId)) {
     errors.entityId = 'Selecciona un cliente existente para el ticket';
+  }
+
+  const subject = String(ticket.subject ?? '').trim();
+  if (!subject) {
+    errors.subject = 'El asunto del ticket es obligatorio';
+  } else if (subject.length > 120) {
+    errors.subject = 'El asunto del ticket no puede superar los 120 caracteres';
+  }
+
+  if (isBlank(ticket.description)) {
+    errors.description = 'La descripción del ticket es obligatoria';
   }
 
   if (isBlank(ticket.productName) && isBlank(ticket.productId)) {
@@ -373,10 +535,6 @@ export function validateTicket(ticket, context = {}) {
     errors.reason = `El motivo debe ser uno de: ${reasons.join(', ')}`;
   }
 
-  if (isBlank(ticket.description)) {
-    errors.description = 'La descripción del ticket es obligatoria';
-  }
-
   const priorities = ticketCatalog('priority', TICKET_PRIORITIES, config);
   if (isBlank(ticket.priority)) {
     errors.priority = 'La prioridad del ticket es obligatoria';
@@ -384,10 +542,50 @@ export function validateTicket(ticket, context = {}) {
     errors.priority = `La prioridad debe ser uno de: ${priorities.join(', ')}`;
   }
 
+  const channels = ticketCatalog('channel', TICKET_CHANNELS, config);
+  if (isBlank(ticket.channel)) {
+    if (mode === 'create') errors.channel = 'El canal del ticket es obligatorio';
+  } else if (!isValidCatalogValue(ticket.channel, channels)) {
+    errors.channel = `El canal debe ser uno de: ${channels.join(', ')}`;
+  }
+
+  const assignees = ticketCatalog('assignee', TICKET_ASSIGNEES, config);
+  if (!isBlank(ticket.assignee) && !isValidCatalogValue(ticket.assignee, assignees)) {
+    errors.assignee = `El técnico debe ser uno de: ${assignees.join(', ')}`;
+  }
+  const teams = ticketCatalog('team', TICKET_TEAMS, config);
+  if (!isBlank(ticket.team) && !isValidCatalogValue(ticket.team, teams)) {
+    errors.team = `El equipo debe ser uno de: ${teams.join(', ')}`;
+  }
+
+  if (!isValidEmail(ticket.requesterEmail)) {
+    errors.requesterEmail = 'El correo del solicitante no es válido';
+  }
+
+  const warranty = validateWarrantyDate(ticket.warrantyEndsAt);
+  if (!warranty.valid) errors.warrantyEndsAt = warranty.error;
+
+  if (!isBlank(ticket.contactId) && contacts) {
+    const contact = contacts.find((item) => item && item.id === ticket.contactId);
+    if (!contact) {
+      errors.contactId = 'El contacto seleccionado no existe';
+    } else if (contact.entity_id !== entityId) {
+      errors.contactId = 'El contacto debe pertenecer al cliente del ticket';
+    }
+  }
+  if (!isBlank(ticket.documentId) && documents) {
+    const document = documents.find((item) => item && item.id === ticket.documentId);
+    if (!document) {
+      errors.documentId = 'La venta de origen no existe';
+    } else if (document.entity_id !== entityId) {
+      errors.documentId = 'La venta de origen debe pertenecer al cliente del ticket';
+    }
+  }
+
   const status = String(ticket.status ?? '').trim();
   if (mode === 'create') {
-    if (status && status !== 'En proceso') {
-      errors.status = 'Un ticket nuevo debe comenzar en estado En proceso';
+    if (status && status !== 'Nuevo') {
+      errors.status = 'Un ticket nuevo debe comenzar en estado Nuevo';
     }
   } else if (status && !TICKET_STATUSES.includes(status)) {
     errors.status = `El estado del ticket debe ser uno de: ${TICKET_STATUSES.join(', ')}`;
@@ -421,8 +619,14 @@ export function resolveTicket(ticket, summary, now = new Date().toISOString()) {
   if (isBlank(summary)) {
     throw new Error('El resumen de la solución es obligatorio al resolver el ticket');
   }
+  if (!ticket || ticket.status === 'Cerrado') {
+    throw new Error('El ticket está cerrado; los tickets cerrados son de solo lectura.');
+  }
   if (ticket.status === 'Resuelto' && !ticket.legacyResolutionIncomplete) {
     throw new Error('El ticket ya está resuelto; los tickets resueltos no se reabren.');
+  }
+  if (ticket.status !== 'En proceso' && ticket.status !== 'En espera' && !ticket.legacyResolutionIncomplete) {
+    throw new Error(`Transición de ticket no permitida de "${ticket.status ?? ''}" a "Resuelto".`);
   }
   return {
     ...ticket,
@@ -609,9 +813,11 @@ function uniqueValues(items, key, normalize) {
  * el perfil CRM está activo, las mismas reglas de los formularios (catálogos,
  * fechas y montos).
  */
-export function validateIntegrity(snapshot = {}, config = getConfig()) {
+export function validateIntegrity(snapshot = {}, config = getConfig(), options = {}) {
   const issues = [];
   const crm = isCrmProfile(config);
+  const version = Number.isInteger(options.version) ? options.version : 4;
+  const strictV4 = version >= 4;
   const collections = ['entities', 'documents', 'tickets', 'contacts', 'activities'];
   for (const name of collections) {
     if (snapshot[name] !== undefined && !Array.isArray(snapshot[name])) {
@@ -739,6 +945,7 @@ export function validateIntegrity(snapshot = {}, config = getConfig()) {
     }
   }
 
+  const ticketDocumentById = new Map(documents.map((document) => [document && document.id, document]));
   for (const ticket of tickets) {
     if (!ticket || typeof ticket !== 'object') {
       reportIssue(issues, 'tickets', null, 'ticket', 'Hay un ticket con estructura inválida');
@@ -771,6 +978,54 @@ export function validateIntegrity(snapshot = {}, config = getConfig()) {
     if (!TICKET_STATUSES.includes(String(ticket.status ?? '').trim())) {
       reportIssue(issues, 'tickets', ticket, 'status', 'El estado del ticket no es válido');
     }
+    if (strictV4) {
+      const folio = String(ticket.folio ?? '');
+      if (!TICKET_FOLIO_PATTERN.test(folio)) {
+        reportIssue(issues, 'tickets', ticket, 'folio', 'El ticket no tiene un folio válido TKT-AAAA-####');
+      }
+      if (isBlank(ticket.subject)) {
+        reportIssue(issues, 'tickets', ticket, 'subject', 'El ticket no tiene asunto');
+      } else if (String(ticket.subject).trim().length > 120) {
+        reportIssue(issues, 'tickets', ticket, 'subject', 'El asunto del ticket supera los 120 caracteres');
+      }
+      const history = Array.isArray(ticket.history) ? ticket.history : [];
+      if (history.length === 0) {
+        reportIssue(issues, 'tickets', ticket, 'history', 'El ticket no tiene historial');
+      }
+      for (const event of history) {
+        if (!event || isBlank(event.id) || isBlank(event.type) || isBlank(event.at)) {
+          reportIssue(issues, 'tickets', ticket, 'history', 'El historial contiene un evento incompleto');
+          break;
+        }
+      }
+      const channels = ticketCatalog('channel', TICKET_CHANNELS, config);
+      if (!isBlank(ticket.channel) && !isValidCatalogValue(ticket.channel, channels)) {
+        reportIssue(issues, 'tickets', ticket, 'channel', `El canal debe ser uno de: ${channels.join(', ')}`);
+      }
+      const assignees = ticketCatalog('assignee', TICKET_ASSIGNEES, config);
+      if (!isBlank(ticket.assignee) && !isValidCatalogValue(ticket.assignee, assignees)) {
+        reportIssue(issues, 'tickets', ticket, 'assignee', `El técnico debe ser uno de: ${assignees.join(', ')}`);
+      }
+      const teams = ticketCatalog('team', TICKET_TEAMS, config);
+      if (!isBlank(ticket.team) && !isValidCatalogValue(ticket.team, teams)) {
+        reportIssue(issues, 'tickets', ticket, 'team', `El equipo debe ser uno de: ${teams.join(', ')}`);
+      }
+      if (!isBlank(ticket.warrantyEndsAt) && !isValidCalendarDate(String(ticket.warrantyEndsAt))) {
+        reportIssue(issues, 'tickets', ticket, 'warrantyEndsAt', 'La fecha de garantía no es válida');
+      }
+      if (!isBlank(ticket.contactId)) {
+        const contact = contacts.find((item) => item && item.id === ticket.contactId);
+        if (contact && contact.entity_id !== ticket.entity_id) {
+          reportIssue(issues, 'tickets', ticket, 'contactId', 'El ticket referencia un contacto de otro cliente');
+        }
+      }
+      if (!isBlank(ticket.documentId)) {
+        const linked = ticketDocumentById.get(ticket.documentId);
+        if (linked && linked.entity_id !== ticket.entity_id) {
+          reportIssue(issues, 'tickets', ticket, 'documentId', 'El ticket referencia una venta de otro cliente');
+        }
+      }
+    }
     if (
       ticket.status === 'Resuelto' &&
       isBlank(ticket.resolutionSummary) &&
@@ -783,6 +1038,16 @@ export function validateIntegrity(snapshot = {}, config = getConfig()) {
         'resolutionSummary',
         'Un ticket resuelto sin resumen debe identificarse como histórico mediante migración'
       );
+    }
+  }
+  const ticketFolios = new Map();
+  for (const ticket of tickets) {
+    if (!ticket || typeof ticket !== 'object' || isBlank(ticket.folio)) continue;
+    const key = String(ticket.folio).trim();
+    if (ticketFolios.has(key)) {
+      reportIssue(issues, 'tickets', ticket, 'folio', `El folio ${key} está repetido`);
+    } else {
+      ticketFolios.set(key, ticket);
     }
   }
   for (const duplicated of uniqueValues(tickets, 'id', (value) => String(value ?? '').trim())) {

@@ -82,6 +82,30 @@ El monto estimado no es ingreso contable ni venta facturada. Los campos económi
 
 El ticket no elimina ni modifica al cliente. La referencia a producto es externa: en la demo se guarda `productName` y, cuando exista, `productId`. No se crea el módulo Producto aquí. Los tickets nuevos se crean en `En proceso` sin `resolvedAt`; la ausencia de datos de resolución solo se admite en tickets históricos identificados por la migración mediante `legacyResolutionIncomplete`. Al resolver se guardan `resolutionSummary`, `status = Resuelto` y `resolvedAt` como una sola operación; si no se conoce la referencia del equipo se muestra “Equipo no individualizado”.
 
+> **Actualización (iteración 004, esquema v4)**: esta tabla describe el ticket P2 de `001`. La ampliación vigente está en [004-ticket-postventa/data-model.md](../004-ticket-postventa/data-model.md): agrega folio, asunto, solicitante, canal, técnico, equipo, garantía, vínculo de origen, SLA derivado e historial embebido; cambia el estado inicial a `Nuevo` y amplía el ciclo a `Nuevo → En proceso → En espera → En proceso → Resuelto → Cerrado`. Los campos existentes se conservan.
+
+### Ampliación v4 del ticket (iteración 004)
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `folio` | string | `TKT-AAAA-####`, único global, inmutable, asignado por almacenamiento. |
+| `subject` | string | Obligatorio, recortado, 1–120 caracteres; separado de la descripción. |
+| `contactId` | string \| null | Contacto del mismo cliente; se conserva si el contacto se elimina. |
+| `requesterName`, `requesterEmail`, `requesterPhone` | string \| null | Respaldo del solicitante; correo válido si existe. |
+| `channel` | string | Catálogo `channel`; obligatorio en altas nuevas, opcional en datos migrados. |
+| `assignee`, `team` | string \| null | Catálogos `assignee` y `team`; opcionales y reasignables solo en tickets abiertos. |
+| `warrantyEndsAt` | string \| null | Fecha real `YYYY-MM-DD`; no calcula cobertura. |
+| `documentId` | string \| null | Oportunidad del mismo cliente; se conserva si se elimina y se muestra “Venta de origen no disponible”. |
+| `slaDueAt` | string | Derivado de `createdAt` y `priority` (24/72/168 h); informativo, se recalcula en cada lectura. |
+| `firstResponseAt` | string \| null | Se genera al abandonar `Nuevo`; no se inventa en la migración. |
+| `closedAt` | string \| null | Lo asigna el cierre; `Cerrado` es terminal. |
+| `satisfactionScore` | integer \| null | 1–5, una sola vez, al resolver o mientras está `Resuelto`. |
+| `satisfactionComment` | string \| null | Hasta 500 caracteres recortados. |
+| `history` | array | Historial embebido append-only: `creacion`, `estado`, `prioridad`, `asignacion`, `equipo`, `resolucion`, `cierre`, `satisfaccion`, `migracion`. |
+| `slaDueAt` / `history` / `firstResponseAt` | — | No se aceptan como entrada del usuario; los deriva el sistema. |
+
+Catálogos v4: `channel` (`Teléfono`, `Correo`, `WhatsApp`, `Presencial`, `Portal`), `assignee` (`Técnico A`, `Técnico B`, `Técnico C`) y `team` (`Soporte técnico`, `Terreno`, `Repuestos`). Se conservan `priority` y `reason`. La migración `v3 → v4` respalda la instantánea en `erp_base_module:crmBackup:v3`, asigna folios deterministas por año local, copia el asunto desde la descripción y no inventa solución, técnico, canal, cierre ni satisfacción.
+
 ## Entidad: Contacto (`crmContacts`)
 
 | Campo | Tipo | Significado | Restricción |
@@ -191,7 +215,7 @@ Se permite guardar otros cambios conservando el estado actual. Se rechazan salto
 
 El template base documenta las claves `erp_base_module:entities` y `erp_base_module:documents`. Se conservan. Para tickets P2 se propone `erp_base_module:tickets` y para la versión de esquema `erp_base_module:schemaVersion`. La iteración 4 agrega `erp_base_module:crmContacts`, `erp_base_module:crmActivities`, `erp_base_module:crmTrash` y `erp_base_module:crmRecovery`, sin reemplazar las colecciones existentes.
 
-`SCHEMA_VERSION = 2` cubre la instantánea de cinco colecciones (clientes, oportunidades, tickets, contactos y actividades) con papelera y recuperación; `SCHEMA_VERSION = 3` se aplica al incorporar los campos de resolución de tickets de US-11. Toda migración es explícita, informada y conserva una versión recuperable.
+`SCHEMA_VERSION = 2` cubre la instantánea de cinco colecciones (clientes, oportunidades, tickets, contactos y actividades) con papelera y recuperación; `SCHEMA_VERSION = 3` se aplica al incorporar los campos de resolución de tickets de US-11; `SCHEMA_VERSION = 4` amplía el ticket de post-venta (folio, asunto, solicitante, canal, técnico, equipo, garantía, vínculo de origen, SLA e historial) y agrega la clave de respaldo `erp_base_module:crmBackup:v3`. Toda migración es explícita, informada y conserva una versión recuperable.
 
 Forma JSON propuesta:
 

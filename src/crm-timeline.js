@@ -43,6 +43,11 @@ function ticketEvent(ticket) {
   const resolvedAt = calendarDate(ticket.resolvedAt);
   const date = resolvedAt || createdAt;
   if (!date) return null;
+  const title = ticket.subject
+    ? `Ticket ${ticket.folio ? `${ticket.folio} · ` : ''}${ticket.subject}`
+    : ticket.reason
+      ? `Ticket: ${ticket.reason}`
+      : 'Ticket de soporte';
   return {
     id: `ticket:${ticket.id}`,
     recordId: ticket.id,
@@ -50,10 +55,10 @@ function ticketEvent(ticket) {
     type: 'ticket',
     date,
     timestamp: timestampOf(date),
-    title: ticket.reason ? `Ticket: ${ticket.reason}` : 'Ticket de soporte',
+    title,
     summary: [ticket.description, ticket.resolutionSummary].filter(Boolean).join(' · '),
-    owner: '',
-    status: ticket.status || 'En proceso'
+    owner: ticket.assignee || '',
+    status: ticket.status || 'Nuevo'
   };
 }
 

@@ -98,18 +98,32 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 | `lossReason` | Condicional | Obligatorio solo al pasar a `Perdida` |
 | `notes` | No | Texto seguro |
 
-### Ticket (P2)
+### Ticket (P2, ampliado en el esquema v4)
+
+> La ampliación vigente se documenta en [004-ticket-postventa/contracts/ticket-storage.md](../../004-ticket-postventa/contracts/ticket-storage.md). Un ticket v4 incluye además folio, asunto, solicitante, canal, técnico, equipo, garantía, vínculo de origen, SLA derivado e historial embebido, y comienza en `Nuevo`.
 
 | Campo | Obligatorio | Regla |
 |---|---|---|
 | `entity_id` | Sí | Cliente existente |
+| `folio` | Automático | `TKT-AAAA-####`, único global e inmutable; lo asigna el almacenamiento |
+| `subject` | Sí | 1–120 caracteres tras recorte; separado de la descripción |
 | `productName` | Sí en demo | No vacío si no hay `productId` |
 | `productId` | No | Si se informa, cadena no vacía; no se valida contra catálogo externo (el módulo Producto está fuera del alcance) |
 | `reason` | Sí | soporte, reclamo o consulta |
 | `description` | Sí | No vacío |
-| `priority` | Sí | Alta, Media o Baja |
-| `status` | Automático | `En proceso` al crear |
-| `equipmentReference` | No | Recortado; no es clave única global ni sustituye a `productId` |
+| `priority` | Sí | Alta, Media o Baja; congelada desde `Resuelto` |
+| `status` | Automático | `Nuevo` al crear; ciclo `Nuevo → En proceso → En espera → En proceso → Resuelto → Cerrado` |
+| `channel` | Sí en altas nuevas | Catálogo `channel`; tolerado ausente en datos migrados |
+| `assignee`, `team` | No | Catálogos `assignee` y `team` o nulos; reasignación solo en tickets abiertos |
+| `contactId` | No | Contacto del mismo cliente; se conserva si el contacto se elimina |
+| `requesterName`, `requesterEmail`, `requesterPhone` | No | Respaldo del solicitante; correo válido si existe |
+| `warrantyEndsAt` | No | Fecha real `YYYY-MM-DD` |
+| `documentId` | No | Oportunidad del mismo cliente; se conserva si se elimina |
+| `slaDueAt` | Derivado | 24/72/168 h desde `createdAt`; se recalcula y no se acepta del usuario |
+| `firstResponseAt`, `closedAt` | Automático | Generados por el sistema; no editables |
+| `satisfactionScore` | No | Entero 1–5, una sola vez, al resolver o mientras está `Resuelto` |
+| `satisfactionComment` | No | Hasta 500 caracteres recortados |
+| `history` | Automático | Historial append-only con al menos un evento por ticket v4 |
 | `resolutionSummary` | Sí al resolver | No vacío ni solo espacios; obligatorio en la transición a `Resuelto` |
 | `resolvedAt` | Automático | ISO 8601 generado al resolver; se conserva en ediciones posteriores |
 | `legacyResolutionIncomplete` | Automático | Solo lo asigna la migración; no editable por el usuario |
@@ -164,9 +178,16 @@ El almacenamiento genérico acepta los campos como opcionales para no romper el 
 ### Tickets (P2)
 
 - `loadTickets()`: devuelve todos los tickets.
-- `saveTickets(tickets)`: persiste la lista completa.
-- `addTicket(ticket)`: añade un ticket.
-- `updateTicket(id, updates)`: actualiza un ticket existente.
+- `saveTickets(tickets)`: persiste la lista completa por compatibilidad; no aplica reglas de folio, transición ni historial.
+- `addTicket(payload, options?)`: añade un ticket en `Nuevo`, asigna folio determinista y agrega el evento `creacion`.
+- `updateTicket(id, updates, options?)`: actualiza campos permitidos, valida transiciones, congela la prioridad desde `Resuelto`, aplica solo lectura a `Cerrado` y agrega los eventos de historial en la misma instantánea.
+- `assignTicket(id, { assignee, team }, options?)`: reasigna técnico o equipo de un ticket abierto con eventos `asignacion` y `equipo`.
+- `changeTicketStatus(id, to, options?)`: aplica la máquina de estados compartida; delega resolución y cierre.
+- `resolveTicket(id, summary, { satisfactionScore?, satisfactionComment? })`: resuelve con resumen obligatorio y CSAT opcional en una sola escritura.
+- `closeTicket(id, options?)`: cierra un ticket `Resuelto` y escribe `closedAt`; `Cerrado` es terminal.
+- `registerSatisfaction(id, score, comment, options?)`: registra la satisfacción una sola vez mientras el ticket está `Resuelto`.
+- `deleteTicket(id)`: elimina solo el ticket y su historial embebido; no toca al cliente ni usa la papelera.
+- `requestMigration`, `applyMigration`, `cancelMigration`, `loadMigrationBackup` y `restoreMigrationBackup`: protocolo explícito `v3 → v4` con respaldo `erp_base_module:crmBackup:v3` y restauración verificada.
 
 ### Contactos
 

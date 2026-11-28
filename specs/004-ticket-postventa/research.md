@@ -174,7 +174,7 @@ El panel y la ficha del cliente consumen estas funciones en cada render; no se p
 
 ### R-12 — Satisfacción entera 1–5 y comentario seguro
 
-**Decisión**: `validateSatisfaction(score, comment)` exige un entero entre 1 y 5 y un comentario opcional recortado de hasta 500 caracteres. La nota se registra al resolver (campo opcional en el diálogo) o desde el detalle mientras el ticket está `Resuelto`; una vez `Cerrado`, es de solo lectura. `registerSatisfaction` no modifica estado ni `resolvedAt`, agrega una entrada `satisfaccion` y se escribe en la misma instantánea. El comentario se muestra como texto seguro (`textContent`).
+**Decisión**: `validateSatisfaction(score, comment)` exige un entero entre 1 y 5 y un comentario opcional recortado de hasta 500 caracteres. La nota se registra al resolver (campo opcional en el diálogo) o desde el detalle mientras el ticket está `Resuelto` y aún no tiene nota; un segundo registro se rechaza y una vez `Cerrado` es de solo lectura. `registerSatisfaction` no modifica estado ni `resolvedAt`, agrega una entrada `satisfaccion` y se escribe en la misma instantánea. El comentario se muestra como texto seguro (`textContent`).
 
 **Rationale**: CSAT es la métrica de voz del cliente definida en la especificación; una nota entera evita promedios ambiguos y el comentario acotado evita abusos de almacenamiento. La inmutabilidad tras el cierre protege la medición.
 

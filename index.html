@@ -170,6 +170,26 @@
             </button>
           </div>
 
+          <button type="button" class="nav-module" data-module="tickets" id="nav-tickets">
+            <svg
+              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 5.5h14v9H3z"></path>
+              <path d="M7 5.5V4h6v1.5"></path>
+              <path d="M7 9.5h6"></path>
+              <path d="M7 12h4"></path>
+            </svg>
+            <span class="nav-label" id="nav-tickets-label">Tickets</span>
+          </button>
+
           <button type="button" class="nav-module" data-module="activities" id="nav-activities">
             <svg
               viewBox="0 0 20 20"
@@ -264,6 +284,36 @@
               <span class="stat-label" id="stat-activities-overdue-label">Actividades vencidas</span>
             </div>
           </div>
+
+          <section class="support-kpis" id="support-stat-grid" hidden aria-labelledby="support-kpis-heading">
+            <h2 id="support-kpis-heading">Soporte</h2>
+            <div class="stat-grid kpi-band">
+              <div class="stat-card">
+                <span class="stat-value" id="stat-open-tickets">0</span>
+                <span class="stat-label" id="stat-open-tickets-label">Tickets abiertos</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="stat-overdue-tickets">0</span>
+                <span class="stat-label" id="stat-overdue-tickets-label">Tickets vencidos de SLA</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="stat-priority-distribution">Alta 0 · Media 0 · Baja 0</span>
+                <span class="stat-label" id="stat-priority-distribution-label">Tickets por prioridad</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="stat-avg-resolution">Sin datos</span>
+                <span class="stat-label" id="stat-avg-resolution-label">Tiempo medio de resolución (h)</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="stat-sla-compliance">Sin datos</span>
+                <span class="stat-label" id="stat-sla-compliance-label">Cumplimiento de SLA</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value" id="stat-avg-satisfaction">Sin datos</span>
+                <span class="stat-label" id="stat-avg-satisfaction-label">Satisfacción promedio</span>
+              </div>
+            </div>
+          </section>
 
           <div class="empty-state" id="dashboard-empty-state" hidden>
             <span class="empty-state__icon" aria-hidden="true">
@@ -561,6 +611,46 @@
           </section>
         </section>
 
+        <section id="view-tickets" class="view" aria-labelledby="tickets-heading" hidden>
+          <h1 id="tickets-heading">Tickets</h1>
+          <div class="message" id="ticket-inbox-message" role="status" aria-live="polite"></div>
+          <section class="card" aria-labelledby="tickets-table-heading">
+            <h2 id="tickets-table-heading" class="sr-only">Bandeja de tickets</h2>
+            <div class="toolbar ticket-inbox-toolbar" role="group" aria-label="Filtros y orden de la bandeja">
+              <button type="button" id="new-ticket-inbox" class="primary">Nuevo ticket</button>
+              <label for="ticket-filter-status">Estado</label>
+              <select id="ticket-filter-status">
+                <option value="">Todos</option>
+                <option value="Nuevo">Nuevo</option>
+                <option value="En proceso">En proceso</option>
+                <option value="En espera">En espera</option>
+                <option value="Resuelto">Resuelto</option>
+                <option value="Cerrado">Cerrado</option>
+              </select>
+              <label for="ticket-filter-priority">Prioridad</label>
+              <select id="ticket-filter-priority">
+                <option value="">Todos</option>
+                <option value="Alta">Alta</option>
+                <option value="Media">Media</option>
+                <option value="Baja">Baja</option>
+              </select>
+              <label for="ticket-filter-assignee">Técnico</label>
+              <select id="ticket-filter-assignee">
+                <option value="">Todos</option>
+              </select>
+              <button type="button" id="ticket-clear-filters" class="secondary">Limpiar filtros</button>
+              <label for="ticket-sort">Orden</label>
+              <select id="ticket-sort">
+                <option value="priority-sla">Prioridad y SLA</option>
+                <option value="sla">Vencimiento SLA</option>
+                <option value="recent">Más reciente</option>
+              </select>
+            </div>
+            <p class="sr-only" id="ticket-filter-announcer" aria-live="polite"></p>
+            <div id="tickets-table"></div>
+          </section>
+        </section>
+
         <section id="view-search" class="view" aria-labelledby="search-view-heading" hidden>
           <h1 id="search-view-heading">Buscar Entidades</h1>
 
@@ -624,11 +714,28 @@
               <h3 id="ticket-heading">Tickets de soporte</h3>
               <form id="ticket-form" novalidate hidden>
                 <input type="hidden" id="ticket-id" />
-                <input type="hidden" id="ticket-status" value="En proceso" />
+                <input type="hidden" id="ticket-status" value="Nuevo" />
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-entity">Cliente *</label>
+                    <select id="ticket-entity" aria-describedby="error-ticket-entity" aria-required="true"></select>
+                    <div class="error" id="error-ticket-entity" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="ticket-folio">Folio</label>
+                    <input id="ticket-folio" readonly aria-describedby="ticket-folio-help" />
+                    <p class="muted" id="ticket-folio-help">Asignado automáticamente. No editable.</p>
+                  </div>
+                </div>
                 <div>
-                  <label for="ticket-entity">Cliente *</label>
-                  <select id="ticket-entity" aria-describedby="error-ticket-entity" aria-required="true"></select>
-                  <div class="error" id="error-ticket-entity" aria-live="polite"></div>
+                  <label for="ticket-subject">Asunto *</label>
+                  <input
+                    id="ticket-subject"
+                    maxlength="120"
+                    aria-describedby="error-ticket-subject"
+                    aria-required="true"
+                  />
+                  <div class="error" id="error-ticket-subject" aria-live="polite"></div>
                 </div>
                 <div class="field-row">
                   <div>
@@ -641,9 +748,16 @@
                     <div class="error" id="error-ticket-product" aria-live="polite"></div>
                   </div>
                 </div>
-                <div>
-                  <label for="ticket-equipment">Referencia del equipo</label>
-                  <input id="ticket-equipment" placeholder="Número de serie o código interno (opcional)" />
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-equipment">Referencia del equipo</label>
+                    <input id="ticket-equipment" placeholder="Número de serie o código interno (opcional)" />
+                  </div>
+                  <div>
+                    <label for="ticket-warranty">Fin de garantía</label>
+                    <input id="ticket-warranty" type="date" aria-describedby="error-ticket-warranty" />
+                    <div class="error" id="error-ticket-warranty" aria-live="polite"></div>
+                  </div>
                 </div>
                 <div class="field-row">
                   <div>
@@ -657,6 +771,51 @@
                     <div class="error" id="error-ticket-priority" aria-live="polite"></div>
                   </div>
                 </div>
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-channel">Canal *</label>
+                    <select id="ticket-channel" aria-describedby="error-ticket-channel" aria-required="true"></select>
+                    <div class="error" id="error-ticket-channel" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="ticket-contact">Contacto solicitante</label>
+                    <select id="ticket-contact" aria-describedby="error-ticket-contact"></select>
+                    <div class="error" id="error-ticket-contact" aria-live="polite"></div>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-requester-name">Solicitante (nombre)</label>
+                    <input id="ticket-requester-name" aria-describedby="error-ticket-requester-name" />
+                    <div class="error" id="error-ticket-requester-name" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="ticket-requester-email">Solicitante (correo)</label>
+                    <input id="ticket-requester-email" aria-describedby="error-ticket-requester-email" />
+                    <div class="error" id="error-ticket-requester-email" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="ticket-requester-phone">Solicitante (teléfono)</label>
+                    <input id="ticket-requester-phone" />
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div>
+                    <label for="ticket-assignee">Técnico</label>
+                    <select id="ticket-assignee" aria-describedby="error-ticket-assignee"></select>
+                    <div class="error" id="error-ticket-assignee" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="ticket-team">Equipo</label>
+                    <select id="ticket-team" aria-describedby="error-ticket-team"></select>
+                    <div class="error" id="error-ticket-team" aria-live="polite"></div>
+                  </div>
+                </div>
+                <div>
+                  <label for="ticket-document">Venta de origen</label>
+                  <select id="ticket-document" aria-describedby="error-ticket-document"></select>
+                  <div class="error" id="error-ticket-document" aria-live="polite"></div>
+                </div>
                 <div>
                   <label for="ticket-description">Descripción *</label>
                   <textarea
@@ -667,7 +826,7 @@
                   ></textarea>
                   <div class="error" id="error-ticket-description" aria-live="polite"></div>
                 </div>
-                <p class="fixed-value" id="ticket-status-display">Estado: En proceso (se fija al crear el ticket)</p>
+                <p class="fixed-value" id="ticket-status-display">Estado: Nuevo (se fija al crear el ticket)</p>
                 <div class="message" id="ticket-message" role="status" aria-live="polite"></div>
                 <div class="form-actions">
                   <button type="submit" id="ticket-submit" class="primary">Registrar ticket</button>

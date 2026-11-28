@@ -27,10 +27,12 @@ function seedAggregate() {
   storage.addDocument({ entityId: entity.entity_id, folio: 3001, startDate: '2026-11-02', endDate: '2026-11-30' });
   storage.addTicket({
     entityId: entity.entity_id,
+    subject: 'Falla',
     productName: 'Compresor',
     reason: 'soporte',
     description: 'Falla',
-    priority: 'Alta'
+    priority: 'Alta',
+    channel: 'Teléfono'
   });
   return entity;
 }

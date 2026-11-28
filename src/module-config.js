@@ -23,6 +23,9 @@ export const CRM_ACQUISITION_SOURCES = Object.freeze(['Sitio web', 'Referido', '
 export const CRM_CATEGORIES = Object.freeze(['Prospecto', 'Activo', 'Inactivo']);
 export const CRM_TICKET_PRIORITIES = Object.freeze(['Alta', 'Media', 'Baja']);
 export const CRM_TICKET_REASONS = Object.freeze(['soporte', 'reclamo', 'consulta']);
+export const CRM_TICKET_CHANNELS = Object.freeze(['Teléfono', 'Correo', 'WhatsApp', 'Presencial', 'Portal']);
+export const CRM_TICKET_ASSIGNEES = Object.freeze(['Técnico A', 'Técnico B', 'Técnico C']);
+export const CRM_TICKET_TEAMS = Object.freeze(['Soporte técnico', 'Terreno', 'Repuestos']);
 export const CRM_ACTIVITY_TYPES = Object.freeze(['llamada', 'correo', 'reunion', 'nota', 'tarea']);
 
 // Perfil CRM — Clientes y Oportunidades (MVP P1).
@@ -75,6 +78,9 @@ export const userConfig = {
     acquisitionSource: [...CRM_ACQUISITION_SOURCES],
     priority: [...CRM_TICKET_PRIORITIES],
     reason: [...CRM_TICKET_REASONS],
+    channel: [...CRM_TICKET_CHANNELS],
+    assignee: [...CRM_TICKET_ASSIGNEES],
+    team: [...CRM_TICKET_TEAMS],
     activityTypes: [...CRM_ACTIVITY_TYPES]
   },
   statusLifecycle: {

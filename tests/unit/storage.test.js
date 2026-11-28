@@ -12,7 +12,16 @@ import {
   updateDocument,
   deleteDocument,
   deleteDocumentsForEntity,
-  validateDocument
+  validateDocument,
+  addTicket,
+  updateTicket,
+  loadTickets,
+  assignTicket,
+  changeTicketStatus,
+  resolveTicket,
+  closeTicket,
+  registerSatisfaction,
+  deleteTicket
 } from '../../src/storage.js';
 import { setActiveConfig } from '../../src/module-config.js';
 
@@ -428,6 +437,211 @@ describe('clearAll', () => {
   });
 });
 
+describe('ticket storage v4', () => {
+  function seedClient() {
+    return addEntity({ name: 'Empresa Tickets', code: `CLI-T-${Math.random().toString(36).slice(2, 7)}` });
+  }
+
+  function seedTicket(overrides = {}) {
+    const entity = seedClient();
+    return addTicket({
+      entityId: entity.entity_id,
+      subject: 'Compresor no arranca',
+      productName: 'Compresor industrial',
+      reason: 'soporte',
+      description: 'Falla en el arranque',
+      priority: 'Alta',
+      channel: 'Teléfono',
+      ...overrides
+    });
+  }
+
+  it('assigns folio, Nuevo status, creacion event and empty generated dates', () => {
+    const ticket = seedTicket();
+    expect(ticket.folio).toMatch(/^TKT-\d{4}-0001$/);
+    expect(ticket.status).toBe('Nuevo');
+    expect(ticket.firstResponseAt).toBeNull();
+    expect(ticket.resolvedAt).toBeNull();
+    expect(ticket.closedAt).toBeNull();
+    expect(ticket.satisfactionScore).toBeNull();
+    expect(ticket.history).toHaveLength(1);
+    expect(ticket.history[0].type).toBe('creacion');
+    expect(ticket.history[0].note).toBe(ticket.folio);
+    expect(ticket.slaDueAt).toBeTruthy();
+  });
+
+  it('ignores folio, status and generated fields sent by the caller', () => {
+    const entity = seedClient();
+    const ticket = addTicket({
+      entityId: entity.entity_id,
+      subject: 'Caso',
+      productName: 'P',
+      reason: 'soporte',
+      description: 'D',
+      priority: 'Baja',
+      channel: 'Portal',
+      folio: 'TKT-1999-9999',
+      status: 'Cerrado',
+      firstResponseAt: '1999-01-01T00:00:00.000Z',
+      resolvedAt: '1999-01-01T00:00:00.000Z',
+      satisfactionScore: 5
+    });
+    expect(ticket.folio).not.toBe('TKT-1999-9999');
+    expect(ticket.status).toBe('Nuevo');
+    expect(ticket.firstResponseAt).toBeNull();
+    expect(ticket.satisfactionScore).toBeNull();
+  });
+
+  it('rejects a ticket without subject, channel or a valid reference', () => {
+    const entity = seedClient();
+    const base = {
+      entityId: entity.entity_id,
+      subject: 'Caso',
+      productName: 'P',
+      reason: 'soporte',
+      description: 'D',
+      priority: 'Alta',
+      channel: 'Teléfono'
+    };
+    expect(() => addTicket({ ...base, subject: '' })).toThrow(/asunto/i);
+    expect(() => addTicket({ ...base, channel: '' })).toThrow(/canal/i);
+    expect(() => addTicket({ ...base, contactId: 'con_x' })).toThrow(/contacto/i);
+    expect(() => addTicket({ ...base, documentId: 'doc_x' })).toThrow(/venta de origen/i);
+    expect(() => addTicket({ ...base, warrantyEndsAt: '2027-02-30' })).toThrow(/garantía/i);
+  });
+
+  it('rejects changes to id, folio, client and createdAt', () => {
+    const ticket = seedTicket();
+    expect(() => updateTicket(ticket.id, { folio: 'TKT-2026-9999' })).toThrow(/folio/i);
+    expect(() => updateTicket(ticket.id, { entity_id: 'cli_otro' })).toThrow(/cliente/i);
+    expect(() => updateTicket(ticket.id, { createdAt: '1999-01-01T00:00:00.000Z' })).toThrow(/creación/i);
+    expect(loadTickets()[0].folio).toBe(ticket.folio);
+  });
+
+  it('records the first response when leaving Nuevo and rejects invalid jumps', () => {
+    const ticket = seedTicket();
+    expect(() => changeTicketStatus(ticket.id, 'Resuelto', { resolutionSummary: 'Hecho' })).toThrow(/transición/i);
+    expect(() => changeTicketStatus(ticket.id, 'Cerrado')).toThrow(/transición/i);
+    const inProgress = changeTicketStatus(ticket.id, 'En proceso');
+    expect(inProgress.status).toBe('En proceso');
+    expect(inProgress.firstResponseAt).toBeTruthy();
+    expect(inProgress.history.some((event) => event.type === 'estado')).toBe(true);
+    expect(() => changeTicketStatus(ticket.id, 'En espera', { note: 'Cliente' })).not.toThrow();
+  });
+
+  it('assigns technician and team with one event per effective change', () => {
+    const ticket = seedTicket();
+    const assigned = assignTicket(ticket.id, { assignee: 'Técnico B', team: 'Terreno' });
+    expect(assigned.assignee).toBe('Técnico B');
+    expect(assigned.team).toBe('Terreno');
+    expect(assigned.history.filter((event) => event.type === 'asignacion')).toHaveLength(1);
+    expect(assigned.history.filter((event) => event.type === 'equipo')).toHaveLength(1);
+    expect(() => assignTicket(ticket.id, { assignee: 'Técnico Z' })).toThrow(/técnico/i);
+    const same = assignTicket(ticket.id, { assignee: 'Técnico B', team: 'Terreno' });
+    expect(same.history).toHaveLength(assigned.history.length);
+  });
+
+  it('resolves with summary and optional CSAT in one write and closes terminally', () => {
+    const ticket = seedTicket();
+    changeTicketStatus(ticket.id, 'En proceso');
+    const resolved = resolveTicket(ticket.id, 'Se reemplazó el fusible', {
+      satisfactionScore: 5,
+      satisfactionComment: 'Atención rápida'
+    });
+    expect(resolved.status).toBe('Resuelto');
+    expect(resolved.resolutionSummary).toBe('Se reemplazó el fusible');
+    expect(resolved.resolvedAt).toBeTruthy();
+    expect(resolved.satisfactionScore).toBe(5);
+    expect(resolved.history.some((event) => event.type === 'resolucion')).toBe(true);
+    expect(resolved.history.some((event) => event.type === 'satisfaccion')).toBe(true);
+    const closed = closeTicket(ticket.id);
+    expect(closed.status).toBe('Cerrado');
+    expect(closed.closedAt).toBeTruthy();
+    expect(() => updateTicket(ticket.id, { description: 'Otro' })).toThrow(/cerrado/i);
+    expect(() => changeTicketStatus(ticket.id, 'En proceso')).toThrow(/transición/i);
+  });
+
+  it('registers satisfaction once while Resuelto and rejects invalid scores', () => {
+    const ticket = seedTicket();
+    expect(() => registerSatisfaction(ticket.id, 5, '')).toThrow(/Resuelto/i);
+    changeTicketStatus(ticket.id, 'En proceso');
+    resolveTicket(ticket.id, 'Solución');
+    expect(() => registerSatisfaction(ticket.id, 0, '')).toThrow(/nota entera de 1 a 5/i);
+    expect(() => registerSatisfaction(ticket.id, 1.5, '')).toThrow(/nota entera de 1 a 5/i);
+    const saved = registerSatisfaction(ticket.id, 4, '  Bien  ');
+    expect(saved.satisfactionScore).toBe(4);
+    expect(saved.satisfactionComment).toBe('Bien');
+    expect(() => registerSatisfaction(ticket.id, 5, '')).toThrow(/ya tiene/i);
+    closeTicket(ticket.id);
+    expect(() => registerSatisfaction(ticket.id, 5, '')).toThrow(/Resuelto/i);
+  });
+
+  it('deletes only the selected ticket and keeps the client', () => {
+    const client = seedClient();
+    const first = addTicket({
+      entityId: client.entity_id,
+      subject: 'Uno',
+      productName: 'P',
+      reason: 'soporte',
+      description: 'D',
+      priority: 'Alta',
+      channel: 'Correo'
+    });
+    addTicket({
+      entityId: client.entity_id,
+      subject: 'Dos',
+      productName: 'P',
+      reason: 'consulta',
+      description: 'D',
+      priority: 'Baja',
+      channel: 'Portal'
+    });
+    const result = deleteTicket(first.id);
+    expect(result.deleted).toBe(true);
+    expect(loadTickets()).toHaveLength(1);
+    expect(loadTickets()[0].subject).toBe('Dos');
+    expect(loadEntities().some((entity) => entity.entity_id === client.entity_id)).toBe(true);
+    expect(() => deleteTicket('tkt_x')).toThrow(/no encontrado/i);
+  });
+
+  it('does not leave a partial ticket when the write fails', () => {
+    const entity = seedClient();
+    const real = globalThis.localStorage;
+    const broken = {
+      getItem: (key) => real.getItem(key),
+      setItem: (key, value) => {
+        if (key === 'erp_base_module:tickets') throw new Error('QuotaExceededError');
+        real.setItem(key, value);
+      },
+      removeItem: (key) => real.removeItem(key),
+      clear: () => real.clear()
+    };
+    globalThis.localStorage = broken;
+    try {
+      expect(() =>
+        addTicket({
+          entityId: entity.entity_id,
+          subject: 'Falla',
+          productName: 'P',
+          reason: 'soporte',
+          description: 'D',
+          priority: 'Alta',
+          channel: 'Teléfono'
+        })
+      ).toThrow(/guard|espacio|cuota|almacen/i);
+    } finally {
+      globalThis.localStorage = real;
+    }
+    expect(loadTickets()).toHaveLength(0);
+  });
+
+  it('blocks writes while the stored version is lower than 4', () => {
+    globalThis.localStorage.setItem('erp_base_module:schemaVersion', JSON.stringify({ schemaVersion: 3 }));
+    expect(() => addEntity({ name: 'Bloqueada', code: 'BL-1' })).toThrow(/migración/i);
+    expect(loadEntities()).toHaveLength(0);
+  });
+});
+
 describe('schema, identity and recovery (T005)', () => {
   const SCHEMA_KEY = 'erp_base_module:schemaVersion';
 
@@ -488,7 +702,7 @@ describe('schema, identity and recovery (T005)', () => {
     addEntity({ name: 'Acme', code: 'AC-001' });
     const raw = globalThis.localStorage.getItem(SCHEMA_KEY);
     expect(raw).not.toBeNull();
-    expect(JSON.parse(raw).schemaVersion).toBe(3);
+    expect(JSON.parse(raw).schemaVersion).toBe(4);
   });
 
   it('reports corrupt JSON without deleting the stored data', () => {

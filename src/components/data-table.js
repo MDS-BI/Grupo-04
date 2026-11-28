@@ -131,7 +131,9 @@ export function renderDataTable({
   emptyState = null,
   ariaLabel = '',
   rowClassName = null,
-  getRowKey = null
+  getRowKey = null,
+  rowsAreSorted = false,
+  rowAttributes = null
 } = {}) {
   const list = Array.isArray(rows) ? rows : [];
 
@@ -166,12 +168,23 @@ export function renderDataTable({
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  const sorted = sortRows(list, columns, resolvedSortKey, sortDirection);
+  const sorted = rowsAreSorted ? list : sortRows(list, columns, resolvedSortKey, sortDirection);
   sorted.forEach((row, index) => {
     const tableRow = document.createElement('tr');
     tableRow.dataset.key = rowKeyFor(row, index, getRowKey);
     const extraClass = typeof rowClassName === 'function' ? rowClassName(row) : rowClassName;
     if (extraClass) tableRow.className = extraClass;
+    if (typeof rowAttributes === 'function') {
+      const attributes = rowAttributes(row) || {};
+      Object.entries(attributes).forEach(([name, value]) => {
+        if (value === undefined || value === null || value === false) return;
+        if (name === 'className') {
+          tableRow.className = [tableRow.className, value].filter(Boolean).join(' ');
+        } else {
+          tableRow.setAttribute(name, String(value));
+        }
+      });
+    }
 
     columns.forEach((column) => {
       const cell = document.createElement('td');
