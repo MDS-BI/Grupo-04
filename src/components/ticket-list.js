@@ -8,7 +8,7 @@ function localDate(iso) {
   return `${year}-${month}-${day}`;
 }
 
-/** Fila de ticket: motivo, prioridad, estado, fecha y descripción. */
+/** Fila de ticket: motivo, prioridad, estado, fecha, equipo y solución. */
 export function createTicketItem(ticket) {
   const li = document.createElement('li');
   li.className = 'ticket-item';
@@ -30,7 +30,8 @@ export function createTicketItem(ticket) {
   meta.textContent = [
     `Prioridad: ${ticket.priority || 'sin información'}`,
     `Fecha: ${localDate(ticket.createdAt) || 'sin información'}`,
-    `Producto: ${ticket.productName || ticket.productId || 'sin información'}`
+    `Producto: ${ticket.productName || ticket.productId || 'sin información'}`,
+    `Equipo: ${ticket.equipmentReference || 'Equipo no individualizado'}`
   ].join(' · ');
   li.appendChild(meta);
 
@@ -39,6 +40,17 @@ export function createTicketItem(ticket) {
     description.className = 'ticket-description';
     description.textContent = ticket.description;
     li.appendChild(description);
+  }
+
+  if (ticket.status === 'Resuelto') {
+    const resolution = document.createElement('p');
+    resolution.className = 'ticket-resolution';
+    resolution.dataset.ticketResolution = ticket.id || '';
+    const summary = ticket.resolutionSummary || 'Resumen de solución no registrado';
+    const when = ticket.resolvedAt ? ` · Resuelto: ${localDate(ticket.resolvedAt)}` : '';
+    const legacy = ticket.legacyResolutionIncomplete ? ' · Ticket histórico sin datos verificables' : '';
+    resolution.textContent = `Solución: ${summary}${when}${legacy}`;
+    li.appendChild(resolution);
   }
 
   const actions = document.createElement('div');

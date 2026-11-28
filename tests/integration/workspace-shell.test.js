@@ -73,7 +73,7 @@ describe('User Story 13 - branded ERP workspace shell', () => {
     expect(qs('nav-entities-label').textContent).toBe('Entidades');
     expect(qs('nav-documents-label').textContent).toBe('Documentos');
     expect(qs('nav-search-label')).toBeNull();
-    expect(document.querySelectorAll('.nav-module').length).toBe(1);
+    expect(document.querySelectorAll('.nav-module').length).toBe(3);
     expect([...document.querySelectorAll('.nav-section')].map((section) => section.dataset.module)).toEqual([
       'entities',
       'documents'

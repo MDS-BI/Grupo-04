@@ -172,15 +172,29 @@ function matchesClientFilters(client, filters = {}) {
 /**
  * Busca clientes y prospectos por nombre o código con normalización
  * `trim → minúsculas → sin diacríticos` y filtros combinados con AND.
+ * Si se entregan contactos, también coinciden nombre, correo o teléfono del
+ * contacto y devuelven el cliente asociado (CA-12-05).
  */
-export function searchClients(criterion, filters = {}, entities = []) {
+export function searchClients(criterion, filters = {}, entities = [], contacts = []) {
   const query = normalizeText(criterion);
   if (!query) return [];
+  const contactList = Array.isArray(contacts) ? contacts : [];
+  const matchesContact = (entity) =>
+    contactList.some(
+      (contact) =>
+        contact &&
+        contact.entity_id === entity.entity_id &&
+        (normalizeText(contact.name).includes(query) ||
+          normalizeText(contact.email).includes(query) ||
+          normalizeText(contact.phone).includes(query))
+    );
   return entities.filter(
     (entity) =>
       entity &&
       matchesClientFilters(entity, filters) &&
-      (normalizeText(entity.name).includes(query) || normalizeText(entity.code).includes(query))
+      (normalizeText(entity.name).includes(query) ||
+        normalizeText(entity.code).includes(query) ||
+        matchesContact(entity))
   );
 }
 
@@ -371,5 +385,466 @@ export function validateTicket(ticket, context = {}) {
     errors.status = `El estado del ticket debe ser uno de: ${TICKET_STATUSES.join(', ')}`;
   }
 
+  if (
+    mode !== 'create' &&
+    status === 'Resuelto' &&
+    isBlank(ticket.resolutionSummary) &&
+    !ticket.legacyResolutionIncomplete
+  ) {
+    errors.resolutionSummary = 'El resumen de la solución es obligatorio al resolver el ticket';
+  }
+
   return { valid: Object.keys(errors).length === 0, errors };
+}
+
+export const ACTIVITY_TYPES = Object.freeze(['llamada', 'correo', 'reunion', 'nota', 'tarea']);
+export const ACTIVITY_STATUSES = Object.freeze(['pendiente', 'completada']);
+
+function catalogOrFallback(name, fallback, config) {
+  const declared = catalog(name, config);
+  return declared.length > 0 ? declared : [...fallback];
+}
+
+/**
+ * Resuelve un ticket generando la fecha y hora de resolución en el sistema.
+ * El resumen es obligatorio y no puede contener únicamente espacios.
+ */
+export function resolveTicket(ticket, summary, now = new Date().toISOString()) {
+  if (isBlank(summary)) {
+    throw new Error('El resumen de la solución es obligatorio al resolver el ticket');
+  }
+  if (ticket.status === 'Resuelto' && !ticket.legacyResolutionIncomplete) {
+    throw new Error('El ticket ya está resuelto; los tickets resueltos no se reabren.');
+  }
+  return {
+    ...ticket,
+    status: 'Resuelto',
+    resolutionSummary: String(summary).trim(),
+    resolvedAt: now,
+    updatedAt: now
+  };
+}
+
+/**
+ * Valida un contacto: cliente existente, nombre obligatorio y correo válido
+ * cuando existe. No exige un correo único.
+ */
+export function validateContact(contact, context = {}) {
+  const entities = Array.isArray(context.entities) ? context.entities : null;
+  const errors = {};
+  const entityId = contact.entityId || contact.entity_id;
+  if (isBlank(entityId)) errors.entityId = 'Selecciona un cliente para el contacto';
+  else if (entities && !entities.some((entity) => entity.entity_id === entityId)) {
+    errors.entityId = 'Selecciona un cliente existente para el contacto';
+  }
+  if (isBlank(contact.name)) errors.name = 'El nombre del contacto es obligatorio';
+  if (!isValidEmail(contact.email)) errors.email = 'El correo electrónico no es válido';
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+/**
+ * Garantiza exactamente un contacto principal por cliente cuando tiene al
+ * menos un contacto. Sin `preferredId` conserva el principal actual o el
+ * primero; con `preferredId` marca ese y desmarca los demás.
+ */
+export function ensureSinglePrimary(contacts = [], entityId, preferredId) {
+  const list = Array.isArray(contacts) ? contacts : [];
+  const own = list.filter((contact) => contact && contact.entity_id === entityId);
+  if (own.length === 0) return list.map((contact) => ({ ...contact }));
+  const current = own.find((contact) => contact.isPrimary);
+  const primaryId =
+    preferredId && own.some((contact) => contact.id === preferredId) ? preferredId : current ? current.id : own[0].id;
+  return list.map((contact) =>
+    contact && contact.entity_id === entityId ? { ...contact, isPrimary: contact.id === primaryId } : { ...contact }
+  );
+}
+
+let legacyContactSequence = 0;
+
+/**
+ * Migra `contactName` al primer contacto una sola vez y de forma idempotente.
+ * No borra el valor heredado ni duplica un contacto con el mismo nombre.
+ */
+export function migrateLegacyContactName(entity, contacts = [], now = new Date().toISOString()) {
+  const list = Array.isArray(contacts) ? contacts : [];
+  const legacy = String(entity && entity.contactName ? entity.contactName : '').trim();
+  if (!entity || !entity.entity_id || !legacy) return { contacts: list, migrated: false };
+  const own = list.filter((contact) => contact && contact.entity_id === entity.entity_id);
+  // Si el cliente ya tiene contactos, la migración ya ocurrió (o el usuario los
+  // gestionó manualmente): no se vuelve a crear el contacto heredado.
+  if (own.length > 0) return { contacts: list, migrated: false };
+  legacyContactSequence += 1;
+  const contact = {
+    id: `con_${Date.now().toString(36)}${legacyContactSequence}`,
+    entity_id: entity.entity_id,
+    name: legacy,
+    role: '',
+    email: String(entity.email ?? '').trim() || undefined,
+    phone: String(entity.phone ?? '').trim() || undefined,
+    isPrimary: !own.some((item) => item.isPrimary),
+    createdAt: now,
+    updatedAt: now
+  };
+  return { contacts: [...list, contact], migrated: true, contact };
+}
+
+/**
+ * Valida una actividad: cliente existente, tipo de catálogo, asunto, vencimiento
+ * obligatorio en tareas, responsable y vínculos opcionales coherentes.
+ */
+export function validateActivity(activity, context = {}) {
+  const config = context.config || getConfig();
+  const entities = Array.isArray(context.entities) ? context.entities : null;
+  const contacts = Array.isArray(context.contacts) ? context.contacts : null;
+  const documents = Array.isArray(context.documents) ? context.documents : null;
+  const mode = context.mode || 'create';
+  const errors = {};
+
+  const entityId = activity.entityId || activity.entity_id;
+  if (isBlank(entityId)) errors.entityId = 'Selecciona un cliente para la actividad';
+  else if (entities && !entities.some((entity) => entity.entity_id === entityId)) {
+    errors.entityId = 'Selecciona un cliente existente para la actividad';
+  }
+
+  const types = catalogOrFallback('activityTypes', ACTIVITY_TYPES, config);
+  const type = String(activity.type ?? '').trim();
+  if (isBlank(type)) errors.type = 'El tipo de actividad es obligatorio';
+  else if (!types.includes(type)) errors.type = `El tipo debe ser uno de: ${types.join(', ')}`;
+
+  if (isBlank(activity.subject)) errors.subject = 'El asunto de la actividad es obligatorio';
+
+  const dueDate = String(activity.dueDate ?? '').trim();
+  if (type === 'tarea' && isBlank(dueDate)) {
+    errors.dueDate = 'El vencimiento es obligatorio en una tarea';
+  } else if (!isBlank(dueDate) && !isValidCalendarDate(dueDate)) {
+    errors.dueDate = 'El vencimiento debe ser una fecha válida (YYYY-MM-DD)';
+  }
+
+  const owners = [...catalog('accountOwner', config), ...catalog('opportunityOwner', config)];
+  if (isBlank(activity.owner)) errors.owner = 'El responsable de la actividad es obligatorio';
+  else if (owners.length > 0 && !owners.includes(String(activity.owner).trim())) {
+    errors.owner = `El responsable debe ser uno de: ${[...new Set(owners)].join(', ')}`;
+  }
+
+  if (!isBlank(activity.contactId) && contacts) {
+    const linked = contacts.find((contact) => contact && contact.id === activity.contactId);
+    if (!linked || linked.entity_id !== entityId) {
+      errors.contactId = 'El contacto debe pertenecer al mismo cliente';
+    }
+  }
+  if (!isBlank(activity.documentId) && documents) {
+    const linked = documents.find((document) => document && document.id === activity.documentId);
+    if (!linked || linked.entity_id !== entityId) {
+      errors.documentId = 'La oportunidad debe pertenecer al mismo cliente';
+    }
+  }
+
+  const status = String(activity.status ?? '').trim();
+  if (mode === 'create') {
+    if (status && status !== 'pendiente') {
+      errors.status = 'Una actividad nueva debe comenzar pendiente';
+    }
+  } else if (status && !ACTIVITY_STATUSES.includes(status)) {
+    errors.status = `El estado debe ser uno de: ${ACTIVITY_STATUSES.join(', ')}`;
+  }
+
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+/** Actividad vencida: pendiente con vencimiento anterior al día local. */
+export function isActivityOverdue(activity, today = todayLocal()) {
+  if (!activity || activity.status === 'completada') return false;
+  const dueDate = String(activity.dueDate ?? '');
+  if (!isValidCalendarDate(dueDate)) return false;
+  return compareCalendarDates(dueDate, today) < 0;
+}
+
+/** Completa una actividad registrando la fecha de cierre (sin reabrirla). */
+export function completeActivity(activity, now = new Date().toISOString()) {
+  if (!activity) throw new Error('La actividad no existe');
+  if (activity.status === 'completada') return { ...activity };
+  return { ...activity, status: 'completada', completedAt: now, updatedAt: now };
+}
+
+function reportIssue(issues, collection, item, field, message) {
+  const reference =
+    collection === 'entities'
+      ? item && (item.code || item.name)
+      : collection === 'documents'
+        ? item && `${item.series || 'OPP'}/${item.folio}`
+        : (item && (item.name || item.subject || item.id)) || null;
+  issues.push({
+    collection,
+    id: item && item.id ? item.id : null,
+    reference: reference || null,
+    field,
+    message
+  });
+}
+
+function uniqueValues(items, key, normalize) {
+  const seen = new Map();
+  const duplicates = [];
+  for (const item of items) {
+    const value = normalize(item[key]);
+    if (!value) continue;
+    if (seen.has(value)) duplicates.push(item);
+    else seen.set(value, item);
+  }
+  return duplicates;
+}
+
+/**
+ * Verifica la integridad estructural de una instantánea completa sin corregir
+ * datos: estructura, versión, obligatorios base, tipos, unicidad de
+ * identificadores, códigos y `series+folio`, y referencias huérfanas.
+ */
+export function validateIntegrity(snapshot = {}) {
+  const issues = [];
+  const collections = ['entities', 'documents', 'tickets', 'contacts', 'activities'];
+  for (const name of collections) {
+    if (snapshot[name] !== undefined && !Array.isArray(snapshot[name])) {
+      issues.push({
+        collection: name,
+        id: null,
+        reference: null,
+        field: name,
+        message: `La colección ${name} debe ser un arreglo`
+      });
+    }
+  }
+  const entities = Array.isArray(snapshot.entities) ? snapshot.entities : [];
+  const documents = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+  const tickets = Array.isArray(snapshot.tickets) ? snapshot.tickets : [];
+  const contacts = Array.isArray(snapshot.contacts) ? snapshot.contacts : [];
+  const activities = Array.isArray(snapshot.activities) ? snapshot.activities : [];
+  const entityIds = new Set(entities.map((entity) => entity && entity.entity_id));
+
+  for (const entity of entities) {
+    if (!entity || typeof entity !== 'object') {
+      reportIssue(issues, 'entities', null, 'entity', 'Hay un cliente con estructura inválida');
+      continue;
+    }
+    if (isBlank(entity.id)) reportIssue(issues, 'entities', entity, 'id', 'El cliente no tiene identificador');
+    if (isBlank(entity.entity_id))
+      reportIssue(issues, 'entities', entity, 'entity_id', 'El cliente no tiene identificador público');
+    if (isBlank(entity.name)) reportIssue(issues, 'entities', entity, 'name', 'El cliente no tiene nombre');
+    if (isBlank(entity.code)) reportIssue(issues, 'entities', entity, 'code', 'El cliente no tiene código');
+  }
+  for (const duplicated of uniqueValues(entities, 'id', (value) => String(value ?? '').trim())) {
+    reportIssue(issues, 'entities', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
+  }
+  for (const duplicated of uniqueValues(entities, 'entity_id', (value) => String(value ?? '').trim())) {
+    reportIssue(issues, 'entities', duplicated, 'entity_id', `El identificador público está repetido`);
+  }
+  for (const duplicated of uniqueValues(entities, 'code', (value) => normalizeCode(value))) {
+    reportIssue(issues, 'entities', duplicated, 'code', `El código ${duplicated.code} está duplicado`);
+  }
+
+  for (const document of documents) {
+    if (!document || typeof document !== 'object') {
+      reportIssue(issues, 'documents', null, 'document', 'Hay una oportunidad con estructura inválida');
+      continue;
+    }
+    if (isBlank(document.id)) reportIssue(issues, 'documents', document, 'id', 'La oportunidad no tiene identificador');
+    const folio = Number(document.folio);
+    if (!Number.isInteger(folio) || folio <= 0) {
+      reportIssue(issues, 'documents', document, 'folio', 'La oportunidad no tiene un folio entero positivo');
+    }
+    if (isBlank(document.entity_id)) {
+      reportIssue(issues, 'documents', document, 'entity_id', 'La oportunidad no indica su cliente');
+    } else if (!entityIds.has(document.entity_id)) {
+      reportIssue(
+        issues,
+        'documents',
+        document,
+        'entity_id',
+        `La oportunidad ${document.series || 'OPP'}/${document.folio} referencia un cliente inexistente`
+      );
+    }
+    if (document.totalAmount !== undefined && document.totalAmount !== null && document.totalAmount !== '') {
+      const amount = Number(document.totalAmount);
+      if (!Number.isFinite(amount) || amount < 0) {
+        reportIssue(issues, 'documents', document, 'totalAmount', 'El monto de la oportunidad no es válido');
+      }
+    }
+    if (!isBlank(document.startDate) && !isValidCalendarDate(String(document.startDate))) {
+      reportIssue(issues, 'documents', document, 'startDate', 'La fecha de apertura no es válida');
+    }
+    if (!isBlank(document.endDate) && !isValidCalendarDate(String(document.endDate))) {
+      reportIssue(issues, 'documents', document, 'endDate', 'La fecha de cierre no es válida');
+    }
+  }
+  for (const duplicated of uniqueValues(documents, 'id', (value) => String(value ?? '').trim())) {
+    reportIssue(issues, 'documents', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
+  }
+  const folioKeys = new Map();
+  for (const document of documents) {
+    if (!document || isBlank(document.folio)) continue;
+    const key = `${String(document.series ?? '').trim()}|${Number(document.folio)}`;
+    if (folioKeys.has(key)) {
+      reportIssue(
+        issues,
+        'documents',
+        document,
+        'folio',
+        `La pareja serie/folio ${document.series || 'OPP'}/${document.folio} está repetida`
+      );
+    } else {
+      folioKeys.set(key, document);
+    }
+  }
+
+  for (const ticket of tickets) {
+    if (!ticket || typeof ticket !== 'object') {
+      reportIssue(issues, 'tickets', null, 'ticket', 'Hay un ticket con estructura inválida');
+      continue;
+    }
+    if (isBlank(ticket.id)) reportIssue(issues, 'tickets', ticket, 'id', 'El ticket no tiene identificador');
+    if (isBlank(ticket.entity_id)) {
+      reportIssue(issues, 'tickets', ticket, 'entity_id', 'El ticket no indica su cliente');
+    } else if (!entityIds.has(ticket.entity_id)) {
+      reportIssue(issues, 'tickets', ticket, 'entity_id', 'El ticket referencia un cliente inexistente');
+    }
+    if (isBlank(ticket.reason)) reportIssue(issues, 'tickets', ticket, 'reason', 'El ticket no tiene motivo');
+    if (isBlank(ticket.description))
+      reportIssue(issues, 'tickets', ticket, 'description', 'El ticket no tiene descripción');
+    if (isBlank(ticket.priority)) reportIssue(issues, 'tickets', ticket, 'priority', 'El ticket no tiene prioridad');
+    if (!TICKET_STATUSES.includes(String(ticket.status ?? '').trim())) {
+      reportIssue(issues, 'tickets', ticket, 'status', 'El estado del ticket no es válido');
+    }
+    if (
+      ticket.status === 'Resuelto' &&
+      isBlank(ticket.resolutionSummary) &&
+      ticket.legacyResolutionIncomplete !== true
+    ) {
+      reportIssue(
+        issues,
+        'tickets',
+        ticket,
+        'resolutionSummary',
+        'Un ticket resuelto sin resumen debe identificarse como histórico mediante migración'
+      );
+    }
+  }
+  for (const duplicated of uniqueValues(tickets, 'id', (value) => String(value ?? '').trim())) {
+    reportIssue(issues, 'tickets', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
+  }
+
+  const contactIds = new Set(contacts.map((contact) => contact && contact.id));
+  const contactsByEntity = new Map();
+  for (const contact of contacts) {
+    if (!contact || typeof contact !== 'object') {
+      reportIssue(issues, 'contacts', null, 'contact', 'Hay un contacto con estructura inválida');
+      continue;
+    }
+    if (isBlank(contact.id)) reportIssue(issues, 'contacts', contact, 'id', 'El contacto no tiene identificador');
+    if (isBlank(contact.name)) reportIssue(issues, 'contacts', contact, 'name', 'El contacto no tiene nombre');
+    if (isBlank(contact.entity_id)) {
+      reportIssue(issues, 'contacts', contact, 'entity_id', 'El contacto no indica su cliente');
+    } else if (!entityIds.has(contact.entity_id)) {
+      reportIssue(issues, 'contacts', contact, 'entity_id', 'El contacto referencia un cliente inexistente');
+    } else {
+      const list = contactsByEntity.get(contact.entity_id) || [];
+      list.push(contact);
+      contactsByEntity.set(contact.entity_id, list);
+    }
+  }
+  for (const duplicated of uniqueValues(contacts, 'id', (value) => String(value ?? '').trim())) {
+    reportIssue(issues, 'contacts', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
+  }
+  for (const [entityId, list] of contactsByEntity.entries()) {
+    const primaries = list.filter((contact) => contact.isPrimary === true);
+    if (primaries.length !== 1) {
+      reportIssue(
+        issues,
+        'contacts',
+        primaries[0] || list[0],
+        'isPrimary',
+        `El cliente ${entityId} debe tener exactamente un contacto principal`
+      );
+    }
+  }
+
+  const documentById = new Map(documents.map((document) => [document && document.id, document]));
+  for (const activity of activities) {
+    if (!activity || typeof activity !== 'object') {
+      reportIssue(issues, 'activities', null, 'activity', 'Hay una actividad con estructura inválida');
+      continue;
+    }
+    if (isBlank(activity.id)) reportIssue(issues, 'activities', activity, 'id', 'La actividad no tiene identificador');
+    if (isBlank(activity.subject))
+      reportIssue(issues, 'activities', activity, 'subject', 'La actividad no tiene asunto');
+    if (isBlank(activity.entity_id)) {
+      reportIssue(issues, 'activities', activity, 'entity_id', 'La actividad no indica su cliente');
+    } else if (!entityIds.has(activity.entity_id)) {
+      reportIssue(issues, 'activities', activity, 'entity_id', 'La actividad referencia un cliente inexistente');
+    }
+    if (!ACTIVITY_TYPES.includes(String(activity.type ?? '').trim())) {
+      reportIssue(issues, 'activities', activity, 'type', 'El tipo de actividad no es válido');
+    }
+    if (String(activity.type ?? '').trim() === 'tarea' && isBlank(activity.dueDate)) {
+      reportIssue(issues, 'activities', activity, 'dueDate', 'La tarea no tiene vencimiento');
+    }
+    if (!isBlank(activity.dueDate) && !isValidCalendarDate(String(activity.dueDate))) {
+      reportIssue(issues, 'activities', activity, 'dueDate', 'El vencimiento de la actividad no es válido');
+    }
+    if (!isBlank(activity.contactId) && !contactIds.has(activity.contactId)) {
+      reportIssue(issues, 'activities', activity, 'contactId', 'La actividad referencia un contacto inexistente');
+    }
+    if (!isBlank(activity.documentId)) {
+      const linked = documentById.get(activity.documentId);
+      if (!linked) {
+        reportIssue(
+          issues,
+          'activities',
+          activity,
+          'documentId',
+          'La actividad referencia una oportunidad inexistente'
+        );
+      } else if (linked.entity_id !== activity.entity_id) {
+        reportIssue(
+          issues,
+          'activities',
+          activity,
+          'documentId',
+          'La actividad y la oportunidad pertenecen a clientes distintos'
+        );
+      }
+    }
+  }
+  for (const duplicated of uniqueValues(activities, 'id', (value) => String(value ?? '').trim())) {
+    reportIssue(issues, 'activities', duplicated, 'id', `El identificador ${duplicated.id} está repetido`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+/** Protege los identificadores inmutables al actualizar un registro. */
+export function assertImmutableIdentity(previous, next) {
+  if (!previous || !next) return { valid: true, errors: [] };
+  const errors = [];
+  if (previous.id !== next.id) errors.push('El identificador no puede cambiar');
+  if (previous.entity_id !== next.entity_id) errors.push('El cliente asociado no puede reasignarse');
+  return { valid: errors.length === 0, errors, error: errors[0] };
+}
+
+/**
+ * Compara un cambio de etapa con la versión anterior: rechaza saltos no
+ * declarados, reaperturas y pérdidas sin motivo.
+ */
+export function assertStatusTransition(previous, next) {
+  if (!previous || !next || previous.status === next.status) return { valid: true };
+  return validateStatusChange(previous.status, next.status, next.lossReason);
+}
+
+/** Diferencia real entre dos borradores: ignora diferencias de vacío y espacios. */
+export function hasRealChanges(initial = {}, current = {}) {
+  const keys = new Set([...Object.keys(initial || {}), ...Object.keys(current || {})]);
+  for (const key of keys) {
+    const before = String(initial && initial[key] !== undefined && initial[key] !== null ? initial[key] : '').trim();
+    const after = String(current && current[key] !== undefined && current[key] !== null ? current[key] : '').trim();
+    if (before !== after) return true;
+  }
+  return false;
 }

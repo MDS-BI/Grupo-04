@@ -73,7 +73,7 @@ afterEach(() => {
   dom.window.close();
 });
 
-describe('T062 — accesibilidad (jsdom; validación manual en navegadores pendiente)', () => {
+describe('T062 â€” accesibilidad (jsdom; validaciÃ³n manual en navegadores pendiente)', () => {
   it('associates a label with every visible form control', () => {
     qs('nav-entities').click();
     const controls = [
@@ -151,7 +151,7 @@ describe('T062 — accesibilidad (jsdom; validación manual en navegadores pendi
     });
   });
 
-  it('expone el drawer como diálogo modal, atrapa el foco y lo devuelve al disparador', () => {
+  it('expone el drawer como diÃ¡logo modal, atrapa el foco y lo devuelve al disparador', () => {
     const trigger = qs('nav-entities-new');
     trigger.focus();
     trigger.click();
@@ -210,5 +210,103 @@ describe('T062 — accesibilidad (jsdom; validación manual en navegadores pendi
     confirm.querySelector('[data-confirm-discard]').click();
     expect(document.querySelector('#overlay-root [role="dialog"]')).toBeNull();
     expect(qs('document-form').closest('.card').parentElement).toBe(qs('view-documents'));
+  });
+});
+
+describe('T138 — accesibilidad de la ampliación', () => {
+  async function seed() {
+    const storage = await import('../../src/storage.js');
+    const client = storage.addEntity({
+      name: 'Empresa Accesible',
+      code: 'CLI-ACC-001',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    });
+    const opportunity = storage.addDocument({
+      entityId: client.entity_id,
+      folio: 3001,
+      opportunityTitle: 'Compra accesible',
+      opportunityOwner: 'Ejecutivo A',
+      totalAmount: 1000,
+      startDate: '2026-11-02',
+      endDate: '2026-11-30'
+    });
+    return { storage, client, opportunity };
+  }
+
+  it('asocia etiquetas a los controles de contactos y actividades', async () => {
+    await seed();
+    const ids = ['contact-name', 'contact-role', 'contact-email', 'contact-phone', 'contact-primary'];
+    for (const id of ids) {
+      const control = qs(id);
+      expect(control).not.toBeNull();
+      expect(labelTextFor(control)).not.toBe('');
+    }
+    const activityIds = [
+      'activity-entity',
+      'activity-type',
+      'activity-owner',
+      'activity-subject',
+      'activity-due-date',
+      'activity-contact',
+      'activity-document',
+      'activity-notes'
+    ];
+    for (const id of activityIds) {
+      expect(labelTextFor(qs(id))).not.toBe('');
+    }
+  });
+
+  it('asocia los errores de actividad con aria-describedby y aria-invalid', async () => {
+    const { client } = await seed();
+    qs('nav-activities').click();
+    qs('activity-entity').value = client.entity_id;
+    qs('activity-entity').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    qs('activity-type').value = 'tarea';
+    qs('activity-type').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    qs('activity-subject').value = 'Tarea sin fecha';
+    qs('activity-owner').value = 'Ejecutivo A';
+    qs('activity-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(qs('activity-due-date').getAttribute('aria-describedby')).toBe('error-activity-due-date');
+    expect(qs('activity-due-date').getAttribute('aria-invalid')).toBe('true');
+    expect(qs('error-activity-due-date').textContent).toMatch(/vencimiento/i);
+  });
+
+  it('ofrece el menú de movimiento del Kanban con etiqueta y anuncios aria-live', async () => {
+    const { opportunity } = await seed();
+    qs('nav-dashboard').click();
+    const select = document.querySelector(`.board-move[data-move-opportunity="${opportunity.id}"]`);
+    expect(select).not.toBeNull();
+    expect(labelTextFor(select)).toMatch(/mover/i);
+    expect(qs('board-announcement').getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('mantiene el foco en el diálogo de motivo de pérdida y permite cancelar con Escape', async () => {
+    const { storage, opportunity } = await seed();
+    qs('nav-dashboard').click();
+    const select = document.querySelector(`.board-move[data-move-opportunity="${opportunity.id}"]`);
+    select.value = 'Perdida';
+    select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const dialog = qs('loss-reason-dialog');
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(document.activeElement).toBe(qs('loss-reason-dialog-input'));
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(qs('loss-reason-dialog')).toBeNull();
+    expect(storage.loadDocuments()[0].status).toBe('Nueva');
+  });
+
+  it('expone acciones de papelera como botones alcanzables', async () => {
+    const { storage, client } = await seed();
+    storage.deleteEntity(client.id);
+    qs('nav-trash').click();
+    const restore = qs('trash-list-items').querySelector('[data-restore-trash]');
+    const purge = qs('trash-list-items').querySelector('[data-purge-trash]');
+    expect(restore.tagName).toBe('BUTTON');
+    expect(purge.tagName).toBe('BUTTON');
+    restore.focus();
+    expect(document.activeElement).toBe(restore);
   });
 });

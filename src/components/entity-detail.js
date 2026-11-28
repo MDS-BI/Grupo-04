@@ -1,4 +1,7 @@
 import { getTargetDateStatus, todayLocal } from '../crm-rules.js';
+import { renderTimeline } from './timeline.js';
+import { createContactItem } from './contact-list.js';
+import { createActivityItem } from './activity-list.js';
 
 const SIN_INFORMACION = 'sin información';
 
@@ -37,6 +40,31 @@ function formatAmount(document) {
 
 function folioLabel(document) {
   return `${document.series ? `${document.series}-` : ''}${document.folio}`;
+}
+
+function appendListSection(container, { heading, id, items, emptyText, renderItem, emptyCta }) {
+  container.appendChild(sectionHeading(heading));
+  if (!items || items.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = emptyText;
+    if (emptyCta) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'link-button';
+      button.dataset.emptyCta = emptyCta.action;
+      if (emptyCta.entityId) button.dataset.entityId = emptyCta.entityId;
+      button.textContent = emptyCta.label;
+      empty.append(' ', button);
+    }
+    container.appendChild(empty);
+    return;
+  }
+  const list = document.createElement('ul');
+  list.className = 'entity-list';
+  list.id = id;
+  for (const item of items) list.appendChild(renderItem(item));
+  container.appendChild(list);
 }
 
 /** Ficha del cliente en modo lectura, con sus oportunidades asociadas. */
@@ -85,7 +113,58 @@ export function renderEntityDetail(container, client, opportunities = [], today 
     ticket.textContent = 'Nuevo ticket';
     actions.appendChild(ticket);
   }
+  if (options.showContactAction) {
+    const contact = document.createElement('button');
+    contact.type = 'button';
+    contact.className = 'secondary';
+    contact.dataset.newContact = client.entity_id || '';
+    contact.textContent = 'Nuevo contacto';
+    actions.appendChild(contact);
+  }
+  if (options.showActivityAction) {
+    const activity = document.createElement('button');
+    activity.type = 'button';
+    activity.className = 'secondary';
+    activity.dataset.newActivity = client.entity_id || '';
+    activity.textContent = 'Nueva actividad';
+    actions.appendChild(activity);
+  }
   container.appendChild(actions);
+
+  if (options.showContactAction) {
+    appendListSection(container, {
+      heading: 'Contactos',
+      id: 'detail-contact-list',
+      items: options.contacts || [],
+      emptyText: 'Este cliente aún no tiene contactos.',
+      renderItem: createContactItem,
+      emptyCta: { action: 'new-contact', entityId: client.entity_id, label: 'Agregar el primero' }
+    });
+  }
+
+  if (options.showActivityAction) {
+    appendListSection(container, {
+      heading: 'Actividades',
+      id: 'detail-activity-list',
+      items: options.activities || [],
+      emptyText: 'Este cliente aún no tiene actividades.',
+      renderItem: (activity) => createActivityItem(activity, today),
+      emptyCta: { action: 'new-activity', entityId: client.entity_id, label: 'Registrar la primera' }
+    });
+  }
+
+  if (options.timeline) {
+    container.appendChild(sectionHeading('Timeline'));
+    const timeline = document.createElement('div');
+    timeline.id = 'detail-timeline';
+    container.appendChild(timeline);
+    renderTimeline(timeline, {
+      events: options.timeline.events || [],
+      filters: options.timeline.filters || {},
+      onChange: options.timeline.onChange,
+      onSelect: options.timeline.onSelect
+    });
+  }
 
   container.appendChild(sectionHeading('Oportunidades asociadas'));
   if (!opportunities || opportunities.length === 0) {
@@ -122,7 +201,7 @@ export function renderEntityDetail(container, client, opportunities = [], today 
 }
 
 /** Detalle de una oportunidad en modo lectura. No abre el formulario de edición. */
-export function renderOpportunityDetail(container, opportunity, client) {
+export function renderOpportunityDetail(container, opportunity, client, options = {}) {
   container.innerHTML = '';
   const dl = document.createElement('dl');
   dl.className = 'detail-grid';
@@ -136,4 +215,17 @@ export function renderOpportunityDetail(container, opportunity, client) {
   row(dl, 'Cliente', client ? `${client.name} (${client.code})` : SIN_INFORMACION);
   row(dl, 'Notas', opportunity.notes);
   container.appendChild(dl);
+
+  if (options.timeline) {
+    container.appendChild(sectionHeading('Timeline de la oportunidad'));
+    const timeline = document.createElement('div');
+    timeline.id = 'opportunity-timeline';
+    container.appendChild(timeline);
+    renderTimeline(timeline, {
+      events: options.timeline.events || [],
+      filters: options.timeline.filters || {},
+      onChange: options.timeline.onChange,
+      onSelect: options.timeline.onSelect
+    });
+  }
 }

@@ -23,6 +23,7 @@ export const CRM_ACQUISITION_SOURCES = Object.freeze(['Sitio web', 'Referido', '
 export const CRM_CATEGORIES = Object.freeze(['Prospecto', 'Activo', 'Inactivo']);
 export const CRM_TICKET_PRIORITIES = Object.freeze(['Alta', 'Media', 'Baja']);
 export const CRM_TICKET_REASONS = Object.freeze(['soporte', 'reclamo', 'consulta']);
+export const CRM_ACTIVITY_TYPES = Object.freeze(['llamada', 'correo', 'reunion', 'nota', 'tarea']);
 
 // Perfil CRM — Clientes y Oportunidades (MVP P1).
 export const userConfig = {
@@ -31,7 +32,12 @@ export const userConfig = {
     entity: 'Cliente',
     entities: 'Clientes',
     document: 'Oportunidad',
-    documents: 'Oportunidades'
+    documents: 'Oportunidades',
+    contact: 'Contacto',
+    contacts: 'Contactos',
+    activity: 'Actividad',
+    activities: 'Actividades',
+    trash: 'Papelera'
   },
   customFields: [
     { target: 'entity', key: 'contactName', label: 'Contacto principal', type: 'text', required: false },
@@ -68,7 +74,8 @@ export const userConfig = {
     opportunityOwner: [...CRM_ACCOUNT_OWNERS],
     acquisitionSource: [...CRM_ACQUISITION_SOURCES],
     priority: [...CRM_TICKET_PRIORITIES],
-    reason: [...CRM_TICKET_REASONS]
+    reason: [...CRM_TICKET_REASONS],
+    activityTypes: [...CRM_ACTIVITY_TYPES]
   },
   statusLifecycle: {
     statuses: ['Nueva', 'Contactada', 'Propuesta', 'Negociación', 'Ganada', 'Perdida'],
@@ -94,7 +101,12 @@ export const DEFAULT_CONFIG = Object.freeze({
     entity: 'Entidad',
     entities: 'Entidades',
     document: 'Documento',
-    documents: 'Documentos'
+    documents: 'Documentos',
+    contact: 'Contacto',
+    contacts: 'Contactos',
+    activity: 'Actividad',
+    activities: 'Actividades',
+    trash: 'Papelera'
   }),
   customFields: Object.freeze([]),
   catalogs: Object.freeze({}),
@@ -304,7 +316,17 @@ export function normalizeConfig(raw) {
   if (raw.labels !== undefined) {
     if (typeof raw.labels !== 'object' || raw.labels === null) errors.push('labels debe ser un objeto');
     else {
-      for (const key of ['entity', 'entities', 'document', 'documents']) {
+      for (const key of [
+        'entity',
+        'entities',
+        'document',
+        'documents',
+        'contact',
+        'contacts',
+        'activity',
+        'activities',
+        'trash'
+      ]) {
         if (raw.labels[key] === undefined) continue;
         if (!isNonEmptyString(raw.labels[key])) {
           errors.push(`labels.${key} debe ser una cadena no vacía`);

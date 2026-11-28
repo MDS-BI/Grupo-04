@@ -22,15 +22,41 @@ import {
   loadTickets,
   addTicket,
   updateTicket,
-  countTicketsForEntity
+  resolveTicket as resolveTicketStorage,
+  countTicketsForEntity,
+  loadContacts,
+  saveContacts,
+  addContact,
+  updateContact,
+  deleteContact,
+  loadActivities,
+  addActivity,
+  updateActivity,
+  deleteActivity,
+  completeActivityById,
+  loadTrash,
+  loadSnapshot,
+  restoreFromTrash,
+  purgeTrashEntry,
+  recoverPendingOperation,
+  isWriteBlocked,
+  isCrmStorageKey,
+  getStoredSchemaVersion,
+  requestMigration,
+  applyMigration,
+  SCHEMA_VERSION
 } from './storage.js';
 import {
   validateClient,
   validateOpportunity,
   validateTicket,
+  validateContact,
+  validateActivity,
+  migrateLegacyContactName,
   searchClients,
   searchOpportunities
 } from './crm-rules.js';
+import { buildTimeline } from './crm-timeline.js';
 import { clearEntityForm, startEntityEdit, collectEntityPayload, showEntityErrors } from './components/entity-form.js';
 import { createEntityItem, renderClientTable } from './components/entity-list.js';
 import {
@@ -45,7 +71,13 @@ import { renderDashboard } from './components/dashboard.js';
 import { setupSearchBar, readSearchFilters, clearSearchFilters } from './components/search-bar.js';
 import { renderSearchResults } from './components/search-results.js';
 import { renderEntityDetail, renderOpportunityDetail } from './components/entity-detail.js';
-import { openOverlay, closeOverlay, getTopOverlay } from './components/ui-overlay.js';
+import {
+  openOverlay,
+  closeOverlay,
+  getTopOverlay,
+  openTextDialog,
+  openLossReasonDialog
+} from './components/ui-overlay.js';
 import { renderEmptyState } from './components/ui.js';
 import { renderFilterChips, syncFilterChips } from './components/filter-chips.js';
 import { openQuickCreateClient } from './components/quick-create-client.js';
@@ -57,6 +89,23 @@ import {
   showTicketErrors
 } from './components/ticket-form.js';
 import { renderTicketList } from './components/ticket-list.js';
+import {
+  clearContactForm,
+  startContactEdit,
+  collectContactPayload,
+  showContactErrors
+} from './components/contact-form.js';
+import {
+  prepareActivityForm,
+  populateActivityLinks,
+  clearActivityForm,
+  startActivityEdit,
+  collectActivityPayload,
+  showActivityErrors,
+  syncDueDateRequirement
+} from './components/activity-form.js';
+import { renderActivityList } from './components/activity-list.js';
+import { renderTrashList } from './components/trash-list.js';
 
 function qs(id) {
   return document.getElementById(id);
@@ -76,7 +125,9 @@ const VIEW_IDS = {
   dashboard: 'view-dashboard',
   entities: 'view-entities',
   documents: 'view-documents',
-  search: 'view-search'
+  search: 'view-search',
+  activities: 'view-activities',
+  trash: 'view-trash'
 };
 
 let wired = false;
@@ -84,12 +135,15 @@ let currentView = null;
 let currentClientEntityId = null;
 let dirty = false;
 let staleStorage = false;
+let integrityBlocked = false;
 let openFormOverlay = null;
 let filtersExpanded = false;
 let clientSort = { key: 'name', direction: 'asc' };
 let opportunitySort = { key: 'folio', direction: 'asc' };
 let searchClientSort = { key: 'name', direction: 'asc' };
 let searchOpportunitySort = { key: 'folio', direction: 'asc' };
+let clientTimelineState = { filters: {} };
+let opportunityTimelineState = { filters: {} };
 
 function nextSortState(state, key) {
   if (state.key === key) {
@@ -105,7 +159,7 @@ function focusSortHeader(container, key) {
 }
 
 function availableViews() {
-  return ['dashboard', 'entities', 'documents', 'search'];
+  return ['dashboard', 'entities', 'documents', 'search', 'activities', 'trash'];
 }
 
 function fallbackView() {
@@ -403,7 +457,7 @@ function showModule(name, opts = {}) {
   const navMode = openFormOverlay && openFormOverlay.module === name ? 'new' : 'list';
   setActiveNav({ view: name, mode: navMode });
 
-  if (name === 'dashboard') renderDashboard();
+  if (name === 'dashboard') renderDashboard({ onMove: moveOpportunity });
   if (name === 'entities') {
     populateEditEntitySelect();
     renderClientList();
@@ -421,6 +475,12 @@ function showModule(name, opts = {}) {
     refreshSearch();
     const searchInput = qs('global-search-input');
     if (searchInput && typeof searchInput.focus === 'function') searchInput.focus();
+  }
+  if (name === 'activities') {
+    renderActivityView(opts);
+  }
+  if (name === 'trash') {
+    renderTrashView();
   }
 
   if (!opts.skipHistory) updateHash(name, opts.replaceHash);
@@ -756,7 +816,7 @@ function refreshSearch() {
   let opportunities = [];
   try {
     const entities = loadEntities();
-    clients = searchClients(term, filters, entities);
+    clients = searchClients(term, filters, entities, loadContacts());
     opportunities = searchOpportunities(term, filters, loadDocuments(), entities);
   } catch (error) {
     reportDataError(error);
@@ -782,46 +842,462 @@ function refreshSearch() {
   });
 }
 
-function showClientDetail(entityId) {
+function showClientDetail(entityId, timelineFilters = clientTimelineState.filters) {
   let entity;
   let opportunities = [];
+  let contacts = [];
+  let activities = [];
+  let tickets = [];
+  let timelineEvents = [];
   try {
     entity = loadEntities().find((e) => e.entity_id === entityId);
-    if (entity) opportunities = loadDocuments().filter((d) => d.entity_id === entityId);
+    if (!entity) return;
+    opportunities = loadDocuments().filter((d) => d.entity_id === entityId);
+    contacts = loadContacts().filter((c) => c.entity_id === entityId);
+    activities = loadActivities().filter((a) => a.entity_id === entityId);
+    tickets = loadTickets().filter((t) => t.entity_id === entityId);
+    const migration = migrateLegacyContactName(entity, contacts);
+    if (migration.migrated) {
+      saveContacts(migration.contacts);
+      contacts = migration.contacts;
+    }
+    timelineEvents = buildTimeline({ activities, tickets, entityId }, timelineFilters);
   } catch (error) {
     reportDataError(error);
     return;
   }
-  if (!entity) return;
   currentClientEntityId = entityId;
+  clientTimelineState = { filters: timelineFilters };
   renderEntityDetail(qs('entity-detail-body'), entity, opportunities, undefined, {
-    showTicketAction: isCrmProfile(getConfig())
+    showTicketAction: isCrmProfile(getConfig()),
+    showContactAction: isCrmProfile(getConfig()),
+    showActivityAction: isCrmProfile(getConfig()),
+    contacts,
+    activities,
+    timeline: {
+      events: timelineEvents,
+      filters: timelineFilters,
+      onChange: (filters) => showClientDetail(entityId, filters),
+      onSelect: null
+    }
   });
   qs('entity-detail').hidden = false;
   qs('opportunity-detail').hidden = true;
   const ticketSection = qs('ticket-section');
   if (ticketSection) ticketSection.hidden = !isCrmProfile(getConfig());
+  const contactSection = qs('contact-section');
+  if (contactSection) contactSection.hidden = !isCrmProfile(getConfig());
   if (isCrmProfile(getConfig())) {
     clearTicketForm();
     populateTicketEntitySelect(entityId);
     renderClientTickets(entityId);
+    clearContactForm();
+    const contactForm = qs('contact-form');
+    if (contactForm) contactForm.hidden = true;
+    if (qs('contact-entity-id')) qs('contact-entity-id').value = entityId;
   }
 }
 
-function showOpportunityDetail(documentId) {
+function showOpportunityDetail(documentId, timelineFilters = opportunityTimelineState.filters) {
   let document_;
   let client;
+  let activities = [];
+  let timelineEvents = [];
   try {
     document_ = loadDocuments().find((d) => d.id === documentId);
-    if (document_) client = loadEntities().find((e) => e.entity_id === document_.entity_id);
+    if (!document_) return;
+    client = loadEntities().find((e) => e.entity_id === document_.entity_id);
+    activities = loadActivities().filter((a) => a.documentId === documentId);
+    timelineEvents = buildTimeline({ activities, documentId }, timelineFilters);
   } catch (error) {
     reportDataError(error);
     return;
   }
-  if (!document_) return;
-  renderOpportunityDetail(qs('opportunity-detail-body'), document_, client);
+  opportunityTimelineState = { filters: timelineFilters };
+  renderOpportunityDetail(qs('opportunity-detail-body'), document_, client, {
+    timeline: {
+      events: timelineEvents,
+      filters: timelineFilters,
+      onChange: (filters) => showOpportunityDetail(documentId, filters),
+      onSelect: null
+    }
+  });
   qs('opportunity-detail').hidden = false;
   qs('entity-detail').hidden = true;
+}
+
+function writesAllowed(messageId) {
+  if (integrityBlocked) {
+    showFormMessage(
+      messageId,
+      'La información guardada no es válida. Corrige o migra los datos antes de guardar.',
+      'error'
+    );
+    return false;
+  }
+  if (isWriteBlocked()) {
+    showFormMessage(
+      messageId,
+      'Las escrituras están bloqueadas hasta completar la recuperación de la operación interrumpida. Recarga la aplicación.',
+      'error'
+    );
+    return false;
+  }
+  if (staleStorage) {
+    showFormMessage(messageId, 'Los datos cambiaron en otra pestaña. Recarga la página antes de guardar.', 'error');
+    return false;
+  }
+  return true;
+}
+
+function populateActivityEntitySelect(selected) {
+  const select = qs('activity-entity');
+  if (!select) return;
+  const previous = selected || select.value;
+  select.innerHTML = '';
+  let entities = [];
+  try {
+    entities = loadEntities();
+  } catch (error) {
+    reportDataError(error);
+  }
+  entities.forEach((entity) => {
+    const option = document.createElement('option');
+    option.value = entity.entity_id;
+    option.textContent = `${entity.name} — ${entity.code}`;
+    select.appendChild(option);
+  });
+  if (previous && [...select.options].some((option) => option.value === previous)) select.value = previous;
+}
+
+function populateActivityLinkOptions(entityId) {
+  try {
+    const contacts = loadContacts().filter((contact) => contact.entity_id === entityId);
+    const documents = loadDocuments().filter((document) => document.entity_id === entityId);
+    populateActivityLinks(contacts, documents);
+  } catch (error) {
+    reportDataError(error);
+  }
+}
+
+function renderActivityView(opts = {}) {
+  prepareActivityForm();
+  populateActivityEntitySelect(opts.entityId);
+  const entityId = qs('activity-entity') ? qs('activity-entity').value : '';
+  if (qs('activity-entity-id')) qs('activity-entity-id').value = entityId;
+  populateActivityLinkOptions(entityId);
+  clearActivityForm();
+  let activities = [];
+  let entities = [];
+  try {
+    activities = loadActivities();
+    entities = loadEntities();
+  } catch (error) {
+    reportDataError(error);
+  }
+  const nameFor = (activity) => {
+    const entity = entities.find((item) => item.entity_id === activity.entity_id);
+    return entity ? entity.name : 'Cliente no disponible';
+  };
+  const listEl = qs('activity-list-items');
+  const emptyEl = qs('activity-list-empty');
+  const rendered = renderActivityList(listEl, activities, undefined, nameFor);
+  if (emptyEl) emptyEl.hidden = rendered;
+  if (opts.editActivity) {
+    startActivityEdit(opts.editActivity);
+    populateActivityLinkOptions(opts.editActivity.entity_id);
+    qs('activity-contact').value = opts.editActivity.contactId || '';
+    qs('activity-document').value = opts.editActivity.documentId || '';
+  }
+  if (opts.focusForm && qs('activity-subject')) qs('activity-subject').focus();
+}
+
+function renderTrashView() {
+  let entries = [];
+  try {
+    entries = loadTrash();
+  } catch (error) {
+    reportDataError(error);
+  }
+  const listEl = qs('trash-list-items');
+  const emptyEl = qs('trash-empty');
+  const rendered = renderTrashList(listEl, entries, {
+    onRestore: (entry) => {
+      if (
+        !confirm(
+          `¿Restaurar el cliente ${entry.entity && entry.entity.name ? entry.entity.name : ''} con todas sus relaciones?`
+        )
+      )
+        return;
+      if (!writesAllowed('trash-message')) return;
+      try {
+        restoreFromTrash(entry.id);
+        showFormMessage('trash-message', 'Cliente restaurado correctamente.');
+        refreshAll();
+        renderTrashView();
+      } catch (error) {
+        showFormMessage('trash-message', error.message, 'error');
+      }
+    },
+    onPurge: (entry) => {
+      if (!confirm('¿Purgar definitivamente este elemento? Esta acción no se puede deshacer.')) return;
+      if (!writesAllowed('trash-message')) return;
+      try {
+        purgeTrashEntry(entry.id);
+        showFormMessage('trash-message', 'Elemento purgado definitivamente.');
+        renderTrashView();
+      } catch (error) {
+        showFormMessage('trash-message', error.message, 'error');
+      }
+    }
+  });
+  if (emptyEl) emptyEl.hidden = rendered;
+}
+
+function openContactForm(entityId) {
+  const form = qs('contact-form');
+  if (!form) return;
+  qs('contact-entity-id').value = entityId || currentClientEntityId || '';
+  form.hidden = false;
+  if (qs('contact-name')) qs('contact-name').focus();
+}
+
+function handleContactSubmit(event) {
+  event.preventDefault();
+  if (!writesAllowed('contact-message')) return;
+  const messageId = 'contact-message';
+  const id = qs('contact-id').value;
+  const payload = collectContactPayload();
+  let entities = [];
+  try {
+    entities = loadEntities();
+  } catch (error) {
+    showFormMessage(messageId, error.message, 'error');
+    return;
+  }
+  const errors = validateContact(payload, { entities }).errors;
+  showContactErrors(errors);
+  if (Object.keys(errors).length > 0) {
+    showFormMessage(messageId, `${Object.values(errors)[0]} Revisa los campos marcados.`, 'error');
+    focusFirstInvalid(qs('contact-form'));
+    return;
+  }
+  try {
+    if (id) updateContact(id, payload);
+    else addContact(payload);
+    showFormMessage(messageId, id ? 'Contacto actualizado correctamente.' : 'Contacto agregado correctamente.');
+    clearContactForm();
+    if (currentClientEntityId) showClientDetail(currentClientEntityId);
+    refreshAll();
+  } catch (error) {
+    showFormMessage(messageId, error.message, 'error');
+  }
+}
+
+function editContactById(contactId) {
+  let contact;
+  try {
+    contact = loadContacts().find((item) => item.id === contactId);
+  } catch (error) {
+    showFormMessage('contact-message', error.message, 'error');
+    return;
+  }
+  if (!contact) return;
+  startContactEdit(contact);
+  openContactForm(contact.entity_id);
+}
+
+function deleteContactById(contactId) {
+  let contact;
+  let related = 0;
+  try {
+    contact = loadContacts().find((item) => item.id === contactId);
+    related = contact ? loadActivities().filter((activity) => activity.contactId === contact.id).length : 0;
+  } catch (error) {
+    showFormMessage('contact-message', error.message, 'error');
+    return;
+  }
+  if (!contact) return;
+  const extra = related > 0 ? ` Se quitará el vínculo de ${related} actividades.` : '';
+  if (!confirm(`¿Eliminar el contacto ${contact.name}?${extra}`)) return;
+  if (!writesAllowed('contact-message')) return;
+  try {
+    deleteContact(contact.id);
+    showFormMessage('contact-message', 'Contacto eliminado correctamente.');
+    if (currentClientEntityId) showClientDetail(currentClientEntityId);
+    refreshAll();
+  } catch (error) {
+    showFormMessage('contact-message', error.message, 'error');
+  }
+}
+
+function handleActivitySubmit(event) {
+  event.preventDefault();
+  if (!writesAllowed('activity-message')) return;
+  const id = qs('activity-id').value;
+  const payload = collectActivityPayload();
+  let entities = [];
+  let contacts = [];
+  let documents = [];
+  try {
+    entities = loadEntities();
+    contacts = loadContacts();
+    documents = loadDocuments();
+  } catch (error) {
+    showFormMessage('activity-message', error.message, 'error');
+    return;
+  }
+  const errors = validateActivity(payload, { entities, contacts, documents, mode: id ? 'update' : 'create' }).errors;
+  showActivityErrors(errors);
+  if (Object.keys(errors).length > 0) {
+    showFormMessage('activity-message', `${Object.values(errors)[0]} Revisa los campos marcados.`, 'error');
+    focusFirstInvalid(qs('activity-form'));
+    return;
+  }
+  try {
+    if (id) updateActivity(id, payload);
+    else addActivity(payload);
+    showFormMessage(
+      'activity-message',
+      id ? 'Actividad actualizada correctamente.' : 'Actividad registrada correctamente.'
+    );
+    renderActivityView();
+    refreshAll();
+  } catch (error) {
+    showFormMessage('activity-message', error.message, 'error');
+  }
+}
+
+function editActivityById(activityId) {
+  let activity;
+  try {
+    activity = loadActivities().find((item) => item.id === activityId);
+  } catch (error) {
+    showFormMessage('activity-message', error.message, 'error');
+    return;
+  }
+  if (!activity) return;
+  if (!showModule('activities')) return;
+  renderActivityView({ editActivity: activity, entityId: activity.entity_id });
+}
+
+function completeActivityFromList(activityId) {
+  if (!writesAllowed('activity-message')) return;
+  try {
+    completeActivityById(activityId);
+    showFormMessage('activity-message', 'Actividad marcada como completada.');
+    renderActivityView();
+    refreshAll();
+  } catch (error) {
+    showFormMessage('activity-message', error.message, 'error');
+  }
+}
+
+function deleteActivityById(activityId) {
+  if (!confirm('¿Eliminar esta actividad?')) return;
+  if (!writesAllowed('activity-message')) return;
+  try {
+    deleteActivity(activityId);
+    showFormMessage('activity-message', 'Actividad eliminada correctamente.');
+    renderActivityView();
+    refreshAll();
+  } catch (error) {
+    showFormMessage('activity-message', error.message, 'error');
+  }
+}
+
+function applyOpportunityMove(id, to, lossReason) {
+  try {
+    updateDocument(id, lossReason ? { status: to, lossReason } : { status: to });
+    const announcement = document.getElementById('board-announcement');
+    if (announcement) announcement.textContent = `Oportunidad movida a ${to}.`;
+    showFormMessage('opportunity-message', `Oportunidad movida a ${to}.`);
+  } catch (error) {
+    showFormMessage('opportunity-message', error.message, 'error');
+  }
+  renderDashboard({ onMove: moveOpportunity });
+  if (currentView === 'documents') renderOpportunityPanel();
+  if (currentView === 'search') refreshSearch();
+}
+
+/** Mueve una oportunidad desde el Kanban validando la transición. */
+function moveOpportunity(id, to) {
+  if (!writesAllowed('opportunity-message')) {
+    renderDashboard({ onMove: moveOpportunity });
+    return;
+  }
+  if (to === 'Perdida') {
+    openLossReasonDialog({
+      returnFocus: document.querySelector(`.commercial-card[data-opportunity-id="${id}"]`),
+      onConfirm: (reason) => {
+        if (isWriteBlocked()) return 'Las escrituras están bloqueadas; recarga la aplicación.';
+        applyOpportunityMove(id, to, reason);
+        return true;
+      }
+    });
+    return;
+  }
+  applyOpportunityMove(id, to);
+}
+
+/** Diálogo de resolución de ticket con resumen obligatorio (US-11). */
+function openTicketResolution(ticketId) {
+  if (!writesAllowed('ticket-message')) return;
+  openTextDialog({
+    id: 'ticket-resolution-dialog',
+    title: 'Resolver ticket',
+    label: 'Resumen de la solución aplicada',
+    confirmLabel: 'Resolver ticket',
+    requiredMessage: 'El resumen de la solución es obligatorio',
+    returnFocus: document.activeElement,
+    onConfirm: (summary) => {
+      try {
+        const updated = resolveTicketStorage(ticketId, summary);
+        currentClientEntityId = updated.entity_id || currentClientEntityId;
+        renderClientTickets(currentClientEntityId);
+        showFormMessage('ticket-message', 'Ticket marcado como resuelto.');
+        return true;
+      } catch (error) {
+        return error.message;
+      }
+    }
+  });
+}
+
+function offerMigrationIfNeeded() {
+  let stored;
+  try {
+    stored = getStoredSchemaVersion();
+  } catch (error) {
+    showStorageWarning(error.message);
+    return;
+  }
+  if (stored >= SCHEMA_VERSION) return;
+  const plan = requestMigration(stored, SCHEMA_VERSION);
+  const banner = qs('migration-banner');
+  if (!banner) return;
+  banner.innerHTML = '';
+  const text = document.createElement('span');
+  text.textContent = `Los datos guardados usan el formato v${stored}. ${plan.steps.join(' ')} `;
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className = 'btn btn-secondary';
+  action.textContent = 'Revisar y migrar';
+  action.addEventListener('click', () => {
+    if (!confirm(`Se creará una versión recuperable y luego se aplicará la migración.\n\n${plan.steps.join('\n')}`)) {
+      return;
+    }
+    if (!writesAllowed('storage-warning')) return;
+    try {
+      applyMigration();
+      banner.hidden = true;
+      showStorageWarning('Migración aplicada. Recarga la aplicación para continuar.');
+    } catch (error) {
+      showStorageWarning(error.message);
+    }
+  });
+  banner.append(text, action);
+  banner.hidden = false;
 }
 
 function editEntityById(entityId) {
@@ -1040,6 +1516,21 @@ function applyLabels(config) {
   qs('search-opportunities-heading').textContent = documents;
   qs('entity-detail-heading').textContent = `Ficha ${deArticulo(entity)} ${entity.toLowerCase()}`;
   qs('opportunity-detail-heading').textContent = `Detalle ${deArticulo(document_)} ${document_.toLowerCase()}`;
+
+  const activitiesHeading = qs('activities-view-heading');
+  if (activitiesHeading) activitiesHeading.textContent = config.labels.activities || 'Actividades';
+  const activityFormHeading = qs('activity-form-heading');
+  if (activityFormHeading)
+    activityFormHeading.textContent = `Registrar / Editar ${(config.labels.activity || 'actividad').toLowerCase()}`;
+  const activityListHeading = qs('activity-list-heading');
+  if (activityListHeading) activityListHeading.textContent = `${config.labels.activities || 'Actividades'} registradas`;
+  const trashHeading = qs('trash-view-heading');
+  if (trashHeading) trashHeading.textContent = config.labels.trash || 'Papelera';
+  const contactHeading = qs('contact-heading');
+  if (contactHeading) contactHeading.textContent = config.labels.contacts || 'Contactos';
+  const activityLabel = qs('activity-form-heading');
+  if (activityLabel)
+    activityLabel.textContent = `Registrar / Editar ${(config.labels.activity || 'actividad').toLowerCase()}`;
 }
 
 function onEditEntityChange() {
@@ -1094,7 +1585,12 @@ function handleDeleteSelectedEntity() {
     dirty = false;
     qs('error-edit-entity').textContent = '';
     clearEntityForm();
-    showFormMessage('entity-message', `${labelFor('entity')} eliminado correctamente.`);
+    showFormMessage(
+      'entity-message',
+      `${labelFor('entity')} eliminado correctamente. Puedes restaurarlo desde la Papelera.`
+    );
+    const viewTrash = qs('view-trash-action');
+    if (viewTrash) viewTrash.hidden = false;
   } catch (error) {
     showFormMessage('entity-message', error.message, 'error');
   }
@@ -1148,20 +1644,33 @@ function refreshAll() {
   renderClientList();
   renderOpportunityPanel();
   if (currentClientEntityId) renderClientTickets(currentClientEntityId);
-  if (currentView === 'dashboard') renderDashboard();
+  if (currentView === 'dashboard') renderDashboard({ onMove: moveOpportunity });
   if (currentView === 'search') refreshSearch();
+  if (currentView === 'activities') {
+    const entitySelect = qs('activity-entity');
+    populateActivityEntitySelect(entitySelect ? entitySelect.value : undefined);
+    const entityId = qs('activity-entity') ? qs('activity-entity').value : '';
+    try {
+      const activities = loadActivities();
+      const entities = loadEntities();
+      const listEl = qs('activity-list-items');
+      const emptyEl = qs('activity-list-empty');
+      const rendered = renderActivityList(listEl, activities, undefined, (activity) => {
+        const entity = entities.find((item) => item.entity_id === activity.entity_id);
+        return entity ? entity.name : 'Cliente no disponible';
+      });
+      if (emptyEl) emptyEl.hidden = rendered;
+    } catch (error) {
+      reportDataError(error);
+    }
+    populateActivityLinkOptions(entityId);
+  }
+  if (currentView === 'trash') renderTrashView();
 }
 
 function handleEntitySubmit(ev) {
   ev.preventDefault();
-  if (staleStorage) {
-    showFormMessage(
-      'entity-message',
-      'Los datos cambiaron en otra pestaña. Recarga la página antes de guardar.',
-      'error'
-    );
-    return;
-  }
+  if (!writesAllowed('entity-message')) return;
   const id = qs('entity-id').value;
   const payload = collectEntityPayload();
   const errors = { ...validateEntity(payload).errors };
@@ -1200,14 +1709,7 @@ function handleEntitySubmit(ev) {
 
 function handleDocumentSubmit(ev) {
   ev.preventDefault();
-  if (staleStorage) {
-    showFormMessage(
-      'opportunity-message',
-      'Los datos cambiaron en otra pestaña. Recarga la página antes de guardar.',
-      'error'
-    );
-    return;
-  }
+  if (!writesAllowed('opportunity-message')) return;
   const id = qs('document-id').value;
   const payload = collectDocumentPayload();
   let existing;
@@ -1269,26 +1771,26 @@ function handleDocumentSubmit(ev) {
 
 function handleTicketSubmit(ev) {
   ev.preventDefault();
-  if (staleStorage) {
-    showFormMessage(
-      'ticket-message',
-      'Los datos cambiaron en otra pestaña. Recarga la página antes de guardar.',
-      'error'
-    );
-    return;
-  }
+  if (!writesAllowed('ticket-message')) return;
   if (!isCrmProfile(getConfig())) return;
   const id = qs('ticket-id').value;
   const payload = collectTicketPayload();
   let entities = [];
+  let existingTicket = null;
   try {
     entities = loadEntities();
+    if (id) existingTicket = loadTickets().find((ticket) => ticket.id === id) || null;
   } catch (error) {
     showFormMessage('ticket-message', error.message, 'error');
     return;
   }
   const errors = validateTicket(
-    { ...payload, status: id ? payload.status : 'En proceso' },
+    {
+      ...(existingTicket || {}),
+      ...payload,
+      entityId: payload.entityId,
+      status: id ? payload.status : 'En proceso'
+    },
     { entities, mode: id ? 'update' : 'create' }
   ).errors;
   showTicketErrors(errors);
@@ -1316,22 +1818,7 @@ function handleTicketSubmit(ev) {
 
 function resolveTicketById(ticketId) {
   if (!ticketId) return;
-  if (staleStorage) {
-    showFormMessage(
-      'ticket-message',
-      'Los datos cambiaron en otra pestaña. Recarga la página antes de actualizar.',
-      'error'
-    );
-    return;
-  }
-  try {
-    const updated = updateTicket(ticketId, { status: 'Resuelto' });
-    currentClientEntityId = updated.entity_id || currentClientEntityId;
-    renderClientTickets(currentClientEntityId);
-    showFormMessage('ticket-message', 'Ticket marcado como resuelto.');
-  } catch (error) {
-    showFormMessage('ticket-message', error.message, 'error');
-  }
+  openTicketResolution(ticketId);
 }
 
 function openNewTicketDrawer(entityId) {
@@ -1363,12 +1850,10 @@ function editTicketById(ticketId) {
 
 function onStorageChange(event) {
   const key = event && event.key;
+  // Solo las claves del CRM (o el borrado total) invalidan los formularios.
+  if (!isCrmStorageKey(key)) return;
   staleStorage = true;
-  showStorageWarning(
-    key
-      ? 'Los datos cambiaron en otra pestaña. Recarga la página antes de seguir editando.'
-      : 'Los datos cambiaron en otra pestaña. Recarga la página antes de seguir editando.'
-  );
+  showStorageWarning('Los datos cambiaron en otra pestaña. Recarga la página antes de seguir editando.');
 }
 
 function onLocationChange() {
@@ -1433,14 +1918,46 @@ function wireEvents() {
     const edit = event.target.closest ? event.target.closest('[data-edit-ticket]') : null;
     if (edit) editTicketById(edit.dataset.editTicket);
   });
+  qs('contact-form').addEventListener('submit', handleContactSubmit);
+  qs('contact-cancel').addEventListener('click', () => {
+    clearContactForm();
+    qs('contact-form').hidden = true;
+  });
+  qs('activity-form').addEventListener('submit', handleActivitySubmit);
+  qs('activity-cancel').addEventListener('click', () => renderActivityView());
+  qs('activity-type').addEventListener('change', syncDueDateRequirement);
+  qs('activity-entity').addEventListener('change', () => {
+    const entityId = qs('activity-entity').value;
+    if (qs('activity-entity-id')) qs('activity-entity-id').value = entityId;
+    populateActivityLinkOptions(entityId);
+  });
+  qs('activity-list-items').addEventListener('click', (event) => {
+    const complete = event.target.closest ? event.target.closest('[data-complete-activity]') : null;
+    if (complete) {
+      completeActivityFromList(complete.dataset.completeActivity);
+      return;
+    }
+    const edit = event.target.closest ? event.target.closest('[data-edit-activity]') : null;
+    if (edit) {
+      editActivityById(edit.dataset.editActivity);
+      return;
+    }
+    const remove = event.target.closest ? event.target.closest('[data-delete-activity]') : null;
+    if (remove) deleteActivityById(remove.dataset.deleteActivity);
+  });
   qs('document-no-clients-action').addEventListener('click', () => {
     openQuickCreateClient({
       returnFocus: qs('document-entity') || document.activeElement,
+      isBlocked: () => staleStorage || integrityBlocked || isWriteBlocked(),
       onCreated: (created) => {
         populateDocumentEntitySelect();
         const select = qs('document-entity');
         if (select && created) select.value = created.entity_id;
         if (select) select.focus();
+        showFormMessage(
+          'opportunity-message',
+          'Cliente creado y seleccionado. Cancelar la oportunidad no elimina al cliente.'
+        );
       }
     });
   });
@@ -1494,6 +2011,42 @@ function wireEvents() {
       openNewTicketDrawer(ticket.dataset.newTicket);
       return;
     }
+    const newContact = event.target.closest ? event.target.closest('[data-new-contact]') : null;
+    if (newContact) {
+      clearContactForm();
+      openContactForm(newContact.dataset.newContact);
+      return;
+    }
+    const emptyContact = event.target.closest ? event.target.closest('[data-empty-cta="new-contact"]') : null;
+    if (emptyContact) {
+      clearContactForm();
+      openContactForm(emptyContact.dataset.entityId);
+      return;
+    }
+    const editContact = event.target.closest ? event.target.closest('[data-edit-contact]') : null;
+    if (editContact) {
+      editContactById(editContact.dataset.editContact);
+      return;
+    }
+    const deleteContactButton = event.target.closest ? event.target.closest('[data-delete-contact]') : null;
+    if (deleteContactButton) {
+      deleteContactById(deleteContactButton.dataset.deleteContact);
+      return;
+    }
+    const newActivity = event.target.closest ? event.target.closest('[data-new-activity]') : null;
+    if (newActivity) {
+      if (showModule('activities', { entityId: newActivity.dataset.newActivity })) {
+        renderActivityView({ entityId: newActivity.dataset.newActivity, focusForm: true });
+      }
+      return;
+    }
+    const emptyActivity = event.target.closest ? event.target.closest('[data-empty-cta="new-activity"]') : null;
+    if (emptyActivity) {
+      if (showModule('activities', { entityId: emptyActivity.dataset.entityId })) {
+        renderActivityView({ entityId: emptyActivity.dataset.entityId, focusForm: true });
+      }
+      return;
+    }
     const create = event.target.closest ? event.target.closest('[data-new-opportunity]') : null;
     if (!create) return;
     showModule('documents', { newRecord: true });
@@ -1519,6 +2072,7 @@ function wireEvents() {
   qs('edit-entity').addEventListener('change', onEditEntityChange);
   qs('edit-document').addEventListener('change', onEditDocumentChange);
   qs('delete-entity').addEventListener('click', handleDeleteSelectedEntity);
+  qs('view-trash-action').addEventListener('click', () => showModule('trash'));
   qs('delete-document').addEventListener('click', handleDeleteSelectedDocument);
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('storage', onStorageChange);
@@ -1528,6 +2082,7 @@ function wireEvents() {
 }
 
 export function initApp(resolved) {
+  const recovery = recoverPendingOperation();
   showConfigErrors(resolved.errors, resolved.conflicts);
   setActiveConfig(resolved.config);
   applyTheme(resolved.config);
@@ -1540,13 +2095,34 @@ export function initApp(resolved) {
   applyProfileVisibility();
   wireEvents();
   prepareTicketForm();
+  prepareActivityForm();
   clearEntityForm();
   clearDocumentForm();
   clearTicketForm();
+  clearContactForm();
+  clearActivityForm();
+  try {
+    loadSnapshotForIntegrity();
+  } catch (error) {
+    integrityBlocked = true;
+    showStorageWarning(`${error.message} Las escrituras están bloqueadas hasta corregir o migrar los datos.`);
+  }
+  if (recovery.error) {
+    integrityBlocked = true;
+    showStorageWarning(recovery.error);
+  } else if (recovery.recovered) {
+    showStorageWarning('Se recuperó la última versión íntegra tras una operación interrumpida.');
+  }
   const initial = readViewFromHash();
   currentView = null;
   showModule(initial, { skipGuard: true, replaceHash: true });
   refreshAll();
+  offerMigrationIfNeeded();
+}
+
+function loadSnapshotForIntegrity() {
+  // Valida la instantánea completa (estructura, unicidad y referencias).
+  loadSnapshot();
 }
 
 export async function boot(overrideConfig) {

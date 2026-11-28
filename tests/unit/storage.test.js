@@ -488,7 +488,7 @@ describe('schema, identity and recovery (T005)', () => {
     addEntity({ name: 'Acme', code: 'AC-001' });
     const raw = globalThis.localStorage.getItem(SCHEMA_KEY);
     expect(raw).not.toBeNull();
-    expect(JSON.parse(raw).schemaVersion).toBe(1);
+    expect(JSON.parse(raw).schemaVersion).toBe(3);
   });
 
   it('reports corrupt JSON without deleting the stored data', () => {

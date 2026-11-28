@@ -212,9 +212,39 @@ Recorrido: crear cliente → crear oportunidad → buscar → abrir ficha → av
 - **Recorrido del Escenario 1 de `quickstart.md`**: ejecutado a nivel DOM con jsdom sobre `index.html` y el perfil CRM (buscar `CLI-DEMO-003`, llegar a resultados, expandir Clientes y Oportunidades, abrir “Nuevo” con foco en el primer campo, navegar con cambios y ver el modal, “Seguir editando” y “Descartar”, enlace directo `#/search`, ruta inválida con respaldo, vaciar el criterio conservando filtros y comprobar la lupa decorativa). **La validación en navegador real sigue pendiente (T051)**; no se declara ejecutada.
 - **Desviación declarada**: `tests/integration/dashboard.test.js` conserva su migración completa para T041, pero se ajustó **una sola línea** (`qs('search-input')` → `qs('global-search-input')`) en el caso del foco de `#action-find`, porque T012/T017 eliminan el input de la vista y, sin ese ajuste, la suite heredada no podía quedar en verde. No se añadieron los asertos de `hidden` de T041.
 
+### Evidencias de la iteración 4 — US-08 a US-16 (2026-11-28)
+
+**Responsables por historia** (se completan con la convención de la tabla de integrantes; los nombres siguen pendientes en AMB-01):
+
+| Historia | Alcance implementado | Archivos principales | Responsable |
+|---|---|---|---|
+| US-08 | Versión recuperable, recuperación al iniciar y migración explícita | `src/storage-recovery.js`, `src/storage.js`, `src/components/ui.js` | `[integrante]` |
+| US-09 | Integridad estructural, unicidad y referencias huérfanas | `src/crm-rules.js` (`validateIntegrity`), `src/storage.js` | `[integrante]` |
+| US-10 | Alta rápida protegida, descarte y pestaña obsoleta filtrada | `src/components/quick-create-client.js`, `src/app.js` | `[integrante]` |
+| US-11 | Resolución de tickets con equipo, solución y fecha | `src/crm-rules.js`, `src/storage.js`, `src/components/ticket-form.js`, `ticket-list.js` | `[integrante]` |
+| US-12 | Contactos múltiples y migración de `contactName` | `src/components/contact-form.js`, `contact-list.js`, `src/crm-rules.js`, `src/storage.js` | `[integrante]` |
+| US-13 | Actividades y tareas con vencimiento y panel | `src/components/activity-form.js`, `activity-list.js`, `src/crm-metrics.js` | `[integrante]` |
+| US-14 | Timeline por cliente y oportunidad | `src/crm-timeline.js`, `src/components/timeline.js` | `[integrante]` |
+| US-15 | Kanban editable con transiciones y motivo de pérdida | `src/components/commercial-board.js`, `src/app.js`, `src/components/ui-overlay.js` | `[integrante]` |
+| US-16 | Papelera FIFO de 50 con restauración y purga | `src/crm-trash.js`, `src/components/trash-list.js`, `src/storage.js` | `[integrante]` |
+
+**Pruebas agregadas**: recuperación (`storage-recovery`), migración (`storage-migration`), integridad, contactos, actividades, timeline, Kanban, resolución de tickets, papelera y estado del alta rápida; además se ampliaron accesibilidad, seguridad de renderizado, rendimiento y alta rápida. Nombres de archivo en `tests/unit/` y `tests/integration/` según `tasks.md`.
+
+**Verificación ejecutada**:
+
+| Comando | Resultado |
+|---|---|
+| `npm run lint` | Sin hallazgos de ESLint. |
+| `npm run format:check` | `All matched files use Prettier code style!` |
+| `npm test -- --run` | 57 archivos y 443 pruebas aprobadas (86,85 s; transform 660 ms, setup 733 ms, import 1,73 s). |
+| `npm run build` | Vite correcto: HTML 38,37 kB (gzip 5,74 kB), CSS 17,77 kB (gzip 4,30 kB), JS 151,78 kB (gzip 39,58 kB); 598 ms. |
+
+**Decisiones de alcance declaradas**: `SCHEMA_VERSION = 3` (1→2 agrega contactos, actividades, papelera y recuperación; 2→3 agrega resolución de tickets). Las ampliaciones son aditivas y no reemplazan `entities`, `documents` ni `tickets`. La migración de tickets históricos exige confirmación, conserva respaldo recuperable y no inventa solución ni fecha. La ejecución manual de los escenarios 8 a 16 de `quickstart.md` en navegadores reales queda pendiente (T142), igual que T066 y T069.
+
 ### Pendientes declarados
 
 - **T066 (manual, navegadores)**: pendiente. Requiere Chrome y Firefox actuales (y Edge/Safari si están disponibles), además de la tabla de validaciones transversales de `quickstart.md`. No se marca como completada.
+- **T142 (manual, escenarios 8–16)**: pendiente. Requiere recorrer los escenarios de la ampliación en navegadores reales, incluidos reinicio, dos pestañas, cuota agotada y navegación solo por teclado. No se declara ejecutado.
 - **T069 (usabilidad)**: pendiente. Requiere 5 participantes y la medición de SC-001 a SC-004. No se inventan participantes ni resultados.
 - **Nombres de integrantes (AMB-01)**: la tabla de integrantes sigue con `[completar]`; el equipo debe completarla. No se inventan nombres.
 - **Entorno de las pruebas**: Node.js con jsdom (Vitest). La accesibilidad, el rendimiento, los tickets y el panel se verificaron a nivel de DOM y de funciones; el contraste se calculó sobre los tokens CSS. La comprobación con navegador real sigue pendiente en T066, y los escenarios 5 y 7 de `quickstart.md` deben recorrerse manualmente en esa misma validación.
@@ -235,6 +265,7 @@ Las pruebas del template ERP se conservan, pero algunas fijaban supuestos del m�
 La parte técnica se desarrolla con asistencia de IA, conforme al feedback del curso.
 
 - **Generado con IA**: propuesta de implementación de Fase 2, US1, US2, US4, US5, US6, US3 y US7, y pulido P1/P2 (`src/storage.js`, `src/module-config.js`, `src/crm-rules.js`, `src/crm-metrics.js`, `src/app.js`, componentes —incluidos `ticket-form.js` y `ticket-list.js`— y pruebas asociadas), redacción de esta sección de evidencias y de las notas de adaptación.
+- **Iteración 4 generada con IA**: `src/storage-recovery.js`, `src/crm-trash.js`, `src/crm-timeline.js`, componentes de contactos, actividades, timeline y papelera, ampliación de `storage.js`, `crm-rules.js`, Kanban editable, resolución de tickets y las pruebas nuevas. Revisado manualmente el alcance frente a `spec.md` (US-08 a US-16), las reglas de migración no destructiva y los criterios de integridad; todas las cifras de prueba provienen de comandos ejecutados.
 - **Revisado manualmente**: alcance P1 frente a `spec.md` y `tasks.md`, textos de interfaz en español, criterios de eliminación en cascada, ciclo de vida y decisión de dejar T066/T069 como pendientes.
 - **Verificado con pruebas**: todos los resultados de la tabla anterior provienen de comandos ejecutados en este repositorio (Vitest, ESLint, Prettier y build de Vite). No se declaran pruebas, participantes ni validación empresarial que no se hayan ejecutado.
 
@@ -247,6 +278,14 @@ Se contrastaron `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstar
 - Catálogos: `data-model.md` indica que tipo, responsables y orígenes viven en la configuración; se materializaron en la clave `catalogs` de `ModuleConfig` (extensión de implementación, no cambio de contrato).
 - Divergencia detectada y no corregida (por regla de alcance): el ejemplo JSON de `data-model.md` muestra las colecciones dentro de un único documento, mientras `contracts/entity-storage.md` y la implementación usan claves separadas (`erp_base_module:entities`, `:documents`, `:schemaVersion`). Prevalece el contrato; se deja constancia para la revisión documental.
 - El MER enumera las claves y relaciones usadas por la aplicación; los tickets permanecen declarados para P2.
+
+**Actualización de la iteración 4 (2026-11-28)**:
+
+- `data-model.md` describe Contacto, Actividad y Elemento de papelera, los campos ampliados de Ticket y las fórmulas de actividades; el MER incluye las relaciones con CLIENTE y OPORTUNIDAD.
+- `contracts/entity-storage.md` declara las claves `crmContacts`, `crmActivities`, `crmTrash` y `crmRecovery`, las operaciones nuevas, `SCHEMA_VERSION = 2`/`3` y las invariantes de cascada y papelera; la implementación usa esas mismas claves y firmas.
+- `research.md` documenta las decisiones de capa CRM adicional, recuperación previa a escritura, migración explícita, integridad y Kanban basado en `canTransition`.
+- `plan.md` agrega la estructura de archivos y el orden de incrementos de US-08 a US-16; `quickstart.md` agrega los escenarios 8 a 16.
+- La implementación mantiene `entities`, `documents` y `tickets` sin reemplazo y conserva `entity_id` como clave de relación. La migración de esquema es aditiva y la marcación de tickets históricos es explícita.
 
 ## Documentación
 

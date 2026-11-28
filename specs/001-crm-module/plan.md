@@ -181,6 +181,70 @@ Separar repositorio de datos, reglas e interfaz; mantener `entity_id` estable. E
 
 Se conservan dos colecciones base para que el MVP sea realizable sobre el template: Cliente (`Entity`) y Oportunidad (`Document`). Los tickets P2 agregan una colección adicional y se implementan en la segunda iteración. Las extensiones indispensables son reglas de dominio, métricas, búsqueda de oportunidades y terminología. No se presenta la adaptación completa como un simple cambio de etiquetas: requiere implementación y pruebas.
 
+## Ampliación 2026-11-28: US-08 a US-16
+
+**Estructura de archivos agregada**
+
+```text
+src/
+  storage-recovery.js      # versión recuperable y migración explícita (US-08)
+  crm-timeline.js          # eventos ordenados de actividades y tickets (US-14)
+  crm-trash.js             # agregado, FIFO 50, restauración y purga (US-16)
+  components/
+    contact-form.js        # US-12
+    contact-list.js        # US-12
+    activity-form.js       # US-13
+    activity-list.js       # US-13
+    timeline.js            # US-14
+    trash-list.js          # US-16
+tests/
+  unit/
+    storage-recovery.test.js
+    storage-migration.test.js
+    integrity.test.js
+    contact-rules.test.js
+    activity-rules.test.js
+    timeline.test.js
+    kanban.test.js
+    ticket-resolution.test.js
+    trash.test.js
+    quick-create-state.test.js
+  integration/
+    storage-recovery.test.js
+    integrity.test.js
+    contacts.test.js
+    activities.test.js
+    timeline.test.js
+    kanban.test.js
+    ticket-resolution.test.js
+    trash.test.js
+    quick-create-client.test.js   # ampliado
+```
+
+**Orden de incrementos**
+
+1. Fase 11 (T071–T079): documentación, instantánea de seis colecciones, etiquetas y navegación.
+2. US-08 y US-09 (T080–T092): recuperación e integridad antes de agregar colecciones nuevas.
+3. US-10 (T093–T098): protección del alta rápida.
+4. US-12 (T099–T106): contactos múltiples y migración de `contactName`.
+5. US-13 (T107–T114): actividades y tarjetas del panel.
+6. US-14 (T115–T119): timeline de cliente y oportunidad.
+7. US-15 (T120–T124): Kanban editable con transiciones validadas.
+8. US-11 (T125–T130): resolución de tickets con resumen y equipo.
+9. US-16 (T131–T137): papelera con cascada y restauración.
+10. Polish (T138–T145): accesibilidad, seguridad, rendimiento, evidencia y coherencia.
+
+**Validación de la ampliación**
+
+| Nivel | Evidencia |
+|---|---|
+| Unitario | Recuperación, migración explícita, integridad, contactos, actividades, timeline, Kanban, resolución de tickets y papelera |
+| Integración | Interrupción y reinicio, huérfanos detectados sin corrección, alta rápida protegida, contactos y actividades en la ficha, timeline, arrastre y teclado, resolución persistente y ciclo eliminar-restaurar |
+| Rendimiento | Búsqueda por contacto, timeline extenso y panel con actividades: 19 de 20 mediciones bajo 500 ms |
+| Documental | Coherencia de Contacto, Actividad, Ticket ampliado y Elemento de papelera entre `spec.md`, `data-model.md`, contrato, `tasks.md` y MER |
+
+La ampliación no reemplaza las colecciones base ni aplica migraciones destructivas. `SCHEMA_VERSION = 3` es aditivo; la marcación de tickets históricos exige confirmación y respaldo recuperable. Ninguna tarea se declara terminada sin pruebas ejecutadas y registradas.
+
 ## Integración visual del CRM — 15/11/2026
 
 Se incorporan las mejoras visuales preparadas tras el feedback «casi idéntico al template» sobre `ad0f421`, conservando la implementación P1/P2 del equipo: tickets, seis indicadores, reglas, persistencia y pruebas. No se aplica la instantánea de almacenamiento alternativa del borrador local.

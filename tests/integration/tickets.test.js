@@ -166,8 +166,15 @@ describe('US3 — tickets de soporte', () => {
     expect(resolve).not.toBeNull();
     resolve.click();
 
+    const dialogInput = document.getElementById('ticket-resolution-dialog-input');
+    expect(dialogInput).not.toBeNull();
+    dialogInput.value = 'Se reemplazó el filtro';
+    document.querySelector('[data-dialog-confirm]').click();
+
     const resolved = storage.loadTickets()[0];
     expect(resolved.status).toBe('Resuelto');
+    expect(resolved.resolutionSummary).toBe('Se reemplazó el filtro');
+    expect(resolved.resolvedAt).toBeTruthy();
     expect(qs('ticket-list-items').textContent).toContain('Resuelto');
     expect(qs('ticket-message').textContent).toMatch(/resuelto/i);
 
@@ -181,7 +188,7 @@ describe('US3 — tickets de soporte', () => {
     fillTicket({ entityId: client.entity_id });
     submitForm('ticket-form');
     const created = storage.loadTickets()[0];
-    storage.updateTicket(created.id, { status: 'Resuelto' });
+    storage.resolveTicket(created.id, 'Se reemplazó el filtro');
 
     openClientDetail(client);
     qs('ticket-list-items').querySelector('[data-edit-ticket]').click();
@@ -264,7 +271,7 @@ describe('US3 — tickets de soporte', () => {
     openClientDetail(client);
     fillTicket({ entityId: client.entity_id });
     submitForm('ticket-form');
-    storage.updateTicket(storage.loadTickets()[0].id, { status: 'Resuelto' });
+    storage.resolveTicket(storage.loadTickets()[0].id, 'Se reemplazó el filtro');
 
     const previous = snapshotStorage();
     dom.window.close();

@@ -158,6 +158,30 @@ Este documento resuelve las decisiones técnicas necesarias antes del diseño. E
 - Exigir `productId` siempre: impediría la demo mientras no exista el módulo Producto.
 - Permitir reapertura de tickets: el MVP la excluye explícitamente.
 
+## Ampliación 2026-11-28: contactos, actividades, timeline, Kanban, recuperación y papelera
+
+**Decisión: capa CRM adicional sin reemplazar colecciones.** Contactos, actividades y papelera viven en claves propias (`crmContacts`, `crmActivities`, `crmTrash`) y la instantánea se amplía a seis colecciones. `entities`, `documents` y `tickets` conservan su forma.
+
+- Justificación: cumple el carácter aditivo de `spec.md` y evita migraciones destructivas (`NFR-008`).
+- Alternativa descartada: añadir contactos y actividades dentro de `Entity`, que mezclaría agregados y rompería el contrato base.
+
+**Decisión: versión recuperable previa a toda escritura.** `storage-recovery.js` escribe una instantánea completa en `erp_base_module:crmRecovery` antes de reemplazar datos; solo confirma tras persistir y detecta operaciones interrumpidas al iniciar. Si no hay espacio para el respaldo, la escritura se rechaza antes de tocar la versión vigente.
+
+- Justificación: `CA-08-01` a `CA-08-05` exigen que ninguna escritura parcial se presente como exitosa.
+- Alternativa descartada: confiar en que varias escrituras `localStorage` son transaccionales; no lo son.
+
+**Decisión: migración explícita y aditiva.** `SCHEMA_VERSION` sube de 1 a 3: la v2 agrega colecciones y la v3 la resolución de tickets. Las ampliaciones de colecciones son no destructivas; la marcación de tickets históricos resueltos sin resumen (`legacyResolutionIncomplete`) requiere confirmación y respaldo recuperable (`requestMigration`/`applyMigration`/`cancelMigration`).
+
+- Justificación: `CA-08-06`, `CA-08-07` y `CA-11-09` prohíben inventar datos de resolución y convertir en silencio.
+
+**Decisión: integridad estructural compartida.** `validateIntegrity` revisa estructura, obligatorios base, tipos conocidos, unicidad de identificadores, códigos normalizados, `series+folio` y referencias huérfanas antes de cargar y antes de guardar. No corrige datos ni exige reconstruir transiciones históricas de oportunidades cerradas (`CA-09-09`).
+
+**Decisión: papelera como agregado atómico de 50.** `crm-trash.js` construye el elemento con cliente, oportunidades, tickets, contactos y actividades; `trimTrash` descarta el más antiguo por `deletedAt`. Restaurar detecta conflictos de identificadores antes de escribir; purgar exige confirmación.
+
+**Decisión: Kanban apoyado en `canTransition`.** El tablero reutiliza el ciclo de vida existente para derivar destinos válidos; el arrastre y el menú "Mover a…" llaman a la misma validación y a `updateDocument`. Pasar a Perdida solicita `lossReason` en un diálogo cancelable.
+
+**Decisión: `contactName` migrado una vez al primer contacto.** `migrateLegacyContactName` es idempotente, conserva el valor heredado y no duplica un contacto existente con el mismo nombre normalizado.
+
 ## Resumen de decisiones
 
 | Tema | Decisión | Requisitos relacionados |

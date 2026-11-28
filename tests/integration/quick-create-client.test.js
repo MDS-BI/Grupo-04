@@ -132,6 +132,10 @@ describe('US-UX-02 — alta de cliente al vuelo desde la oportunidad', () => {
     value('qc-name', 'Borrador descartado');
     qs('quick-create-client').querySelector('[data-quick-create-cancel]').click();
 
+    // Con cambios reales se solicita confirmación antes de descartar.
+    expect(qs('confirm-discard')).not.toBeNull();
+    qs('confirm-discard').querySelector('[data-confirm-discard]').click();
+
     expect(quickCreate()).toBeNull();
     expect(storage.loadEntities().length).toBe(0);
     expect(qs('document-entity').options.length).toBe(0);
@@ -157,5 +161,52 @@ describe('US-UX-02 — alta de cliente al vuelo desde la oportunidad', () => {
     expect(document.activeElement).toBe(qs('qc-name'));
     expect(qs('folio').value).toBe('3001');
     expect(drawer()).not.toBeNull();
+  });
+
+  it('cierra sin confirmación cuando no hay cambios y conserva la oportunidad al descartar', () => {
+    openEmptyOpportunityDrawer();
+    fillOpportunity();
+    qs('document-no-clients-action').click();
+    qs('quick-create-client').querySelector('[data-quick-create-cancel]').click();
+    expect(qs('confirm-discard')).toBeNull();
+    expect(quickCreate()).toBeNull();
+    expect(drawer()).not.toBeNull();
+    expect(qs('cf-opportunityTitle').value).toBe('Adquisición de compresor industrial');
+
+    qs('document-no-clients-action').click();
+    value('qc-name', 'Borrador');
+    qs('quick-create-client').querySelector('[data-quick-create-cancel]').click();
+    qs('confirm-discard').querySelector('[data-confirm-discard]').click();
+    expect(quickCreate()).toBeNull();
+    expect(drawer()).not.toBeNull();
+    expect(qs('folio').value).toBe('3001');
+    expect(storage.loadEntities().length).toBe(0);
+  });
+
+  it('ignora cambios de claves ajenas al CRM y bloquea el guardado ante cambios relevantes', () => {
+    openEmptyOpportunityDrawer();
+    fillOpportunity();
+    qs('document-no-clients-action').click();
+    fillQuickClient();
+
+    const foreign = new dom.window.Event('storage');
+    Object.defineProperty(foreign, 'key', { value: 'otro_modulo:preferencias' });
+    window.dispatchEvent(foreign);
+
+    submitForm('quick-create-form');
+    expect(storage.loadEntities().length).toBe(1);
+    expect(quickCreate()).toBeNull();
+
+    qs('document-no-clients-action').click();
+    fillQuickClient({ name: 'Empresa Bloqueada', code: 'CLI-DEMO-099' });
+    const relevant = new dom.window.Event('storage');
+    Object.defineProperty(relevant, 'key', { value: 'erp_base_module:entities' });
+    window.dispatchEvent(relevant);
+
+    submitForm('quick-create-form');
+    expect(quickCreate()).not.toBeNull();
+    expect(storage.loadEntities().length).toBe(1);
+    expect(qs('quick-create-message').textContent).toMatch(/otra pestaña|bloqueada/i);
+    expect(qs('qc-name').value).toBe('Empresa Bloqueada');
   });
 });

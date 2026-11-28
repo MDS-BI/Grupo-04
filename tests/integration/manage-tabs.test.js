@@ -35,7 +35,7 @@ afterEach(() => {
 describe('User Story 4 - manage entities and documents via the workspace sidebar', () => {
   it('shows a persistent module navigation with Panel and the two expandable domain groups', () => {
     const panel = [...document.querySelectorAll('.nav-module')];
-    expect(panel.map((b) => b.dataset.module)).toEqual(['dashboard']);
+    expect(panel.map((b) => b.dataset.module)).toEqual(['dashboard', 'activities', 'trash']);
 
     const sections = [...document.querySelectorAll('.nav-section')];
     expect(sections.map((section) => section.dataset.module)).toEqual(['entities', 'documents']);

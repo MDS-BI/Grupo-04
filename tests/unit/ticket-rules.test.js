@@ -91,10 +91,25 @@ describe('validateTicket', () => {
 
   it('allows editing fields of a Resuelto ticket without changing its status', () => {
     const result = validateTicket(
-      ticket({ status: 'Resuelto', description: 'Se reemplazó el filtro', priority: 'Media' }),
+      ticket({
+        status: 'Resuelto',
+        resolutionSummary: 'Se reemplazó el filtro',
+        resolvedAt: '2026-11-20T10:00:00.000Z',
+        description: 'Se reemplazó el filtro',
+        priority: 'Media'
+      }),
       { entities, mode: 'update' }
     );
     expect(result.valid).toBe(true);
+  });
+
+  it('rejects a resolved ticket without resolution summary', () => {
+    const result = validateTicket(ticket({ status: 'Resuelto', description: 'Se reemplazó el filtro' }), {
+      entities,
+      mode: 'update'
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.resolutionSummary).toMatch(/resumen/i);
   });
 });
 

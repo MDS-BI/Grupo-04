@@ -118,7 +118,9 @@ export function applyShellLabels() {
   const labels = {
     'nav-dashboard-label': 'Panel',
     'nav-entities-label': config.labels.entities,
-    'nav-documents-label': config.labels.documents
+    'nav-documents-label': config.labels.documents,
+    'nav-activities-label': config.labels.activities || 'Actividades',
+    'nav-trash-label': config.labels.trash || 'Papelera'
   };
   Object.entries(labels).forEach(([id, text]) => {
     const label = document.getElementById(id);
@@ -131,6 +133,18 @@ export function applyShellLabels() {
     dashboard.setAttribute('aria-label', 'Panel');
     dashboard.setAttribute('title', 'Panel');
   }
+  const activities = document.getElementById('nav-activities');
+  if (activities) {
+    const text = config.labels.activities || 'Actividades';
+    activities.setAttribute('aria-label', text);
+    activities.setAttribute('title', text);
+  }
+  const trash = document.getElementById('nav-trash');
+  if (trash) {
+    const text = config.labels.trash || 'Papelera';
+    trash.setAttribute('aria-label', text);
+    trash.setAttribute('title', text);
+  }
 
   renderNav();
 }
@@ -138,6 +152,8 @@ export function applyShellLabels() {
 function clearActiveNavigation() {
   const controls = [
     document.getElementById('nav-dashboard'),
+    document.getElementById('nav-activities'),
+    document.getElementById('nav-trash'),
     document.getElementById('global-search-input'),
     ...['entities', 'documents'].flatMap((module) => [
       document.getElementById(`nav-section-${module}`),
@@ -174,6 +190,11 @@ export function setActiveNav({ view, mode = 'list' } = {}) {
   if (view === 'search') {
     const input = document.getElementById('global-search-input');
     if (input) input.setAttribute('aria-current', 'page');
+    return;
+  }
+
+  if (view === 'activities' || view === 'trash') {
+    markCurrent(document.getElementById(`nav-${view}`));
     return;
   }
 

@@ -42,9 +42,9 @@
 
 - [x] `tasks.md` regenerado desde las historias y requisitos, con T004A (lint/formato), T054A (edición de ticket), T069 (usabilidad) y T070 (recorrido completo).
 - [ ] Los nombres de los integrantes deben completarse en la tabla de organización por integrante.
-- [ ] La versión integrada debe ejecutar `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build`, y registrar los resultados reales.
-- [ ] El diagrama Mermaid de `data-model.md` debe coincidir con las tablas de entidades y relaciones.
-- [ ] SC-001 a SC-004 deben medirse o declararse pendientes; no se reportan como cumplidos sin evidencia.
+- [x] La versión integrada debe ejecutar `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build`, y registrar los resultados reales.
+- [x] El diagrama Mermaid de `data-model.md` debe coincidir con las tablas de entidades y relaciones.
+- [x] SC-001 a SC-004 deben medirse o declararse pendientes; no se reportan como cumplidos sin evidencia.
 
 ## Hallazgos aceptados o diferidos
 

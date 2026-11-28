@@ -43,6 +43,7 @@ export function clearTicketForm() {
   qs('ticket-id').value = '';
   qs('ticket-product-id').value = '';
   qs('ticket-product-name').value = '';
+  if (qs('ticket-equipment')) qs('ticket-equipment').value = '';
   if (qs('ticket-reason')) qs('ticket-reason').value = '';
   qs('ticket-description').value = '';
   if (qs('ticket-priority')) qs('ticket-priority').value = '';
@@ -62,6 +63,7 @@ export function startTicketEdit(ticket) {
   if (qs('ticket-entity')) qs('ticket-entity').value = ticket.entity_id || '';
   qs('ticket-product-id').value = ticket.productId || '';
   qs('ticket-product-name').value = ticket.productName || '';
+  if (qs('ticket-equipment')) qs('ticket-equipment').value = ticket.equipmentReference || '';
   if (qs('ticket-reason')) qs('ticket-reason').value = ticket.reason || '';
   qs('ticket-description').value = ticket.description || '';
   if (qs('ticket-priority')) qs('ticket-priority').value = ticket.priority || '';
@@ -81,6 +83,7 @@ export function collectTicketPayload() {
     entityId: qs('ticket-entity') ? qs('ticket-entity').value : '',
     productId: qs('ticket-product-id').value,
     productName: qs('ticket-product-name').value,
+    equipmentReference: qs('ticket-equipment') ? qs('ticket-equipment').value : '',
     reason: qs('ticket-reason') ? qs('ticket-reason').value : '',
     description: qs('ticket-description').value,
     priority: qs('ticket-priority') ? qs('ticket-priority').value : '',

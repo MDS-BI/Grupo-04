@@ -163,6 +163,87 @@ Si se parte de almacenamiento vacío, crear primero estos registros y anotar en 
 
 **Resultado esperado**: el ticket conserva cliente, producto, motivo, prioridad, estado y fecha; solo se aceptan Alta, Media y Baja; el estado final no se reabre; los datos persisten tras recargar.
 
+## Escenario 8 — Recuperar una operación interrumpida (US-08)
+
+1. Crear `Empresa Demo 10` (`CLI-DEMO-010`) con una oportunidad `OPP/3101` y un ticket.
+2. En la consola del navegador, escribir en `erp_base_module:crmRecovery` un marcador con `pending: true` y una instantánea anterior de clientes y oportunidades.
+3. Recargar la aplicación.
+4. Comprobar el aviso de recuperación y que clientes, oportunidades y tickets vuelven a la versión anterior completa.
+
+**Resultado esperado**: no se acepta una combinación parcial de versiones; las escrituras quedan habilitadas solo después de recuperar una versión íntegra. Si el marcador no puede leerse, los guardados se bloquean y se informa el problema.
+
+## Escenario 9 — Verificar integridad (US-09)
+
+1. Con datos sintéticos, escribir a mano una oportunidad que referencia `cli_inexistente` y un ticket con la misma pareja `series+folio` que otro.
+2. Recargar la aplicación.
+3. Revisar el aviso de integridad.
+
+**Resultado esperado**: se identifican la referencia huérfana y el folio repetido; los registros originales se conservan sin corrección ni borrado automático y no se guarda un conjunto inválido.
+
+## Escenario 10 — Alta rápida protegida (US-10)
+
+1. Abrir una oportunidad y completar asunto y folio.
+2. Pulsar “Crear cliente ahora”, escribir datos y cerrar con `Escape` o con Cancelar.
+3. Elegir “Seguir editando” y luego “Descartar”.
+4. Repetir, guardar el cliente y comprobar que queda seleccionado sin borrar los campos de la oportunidad.
+
+**Resultado esperado**: la confirmación aparece solo si hay cambios; cancelar la oportunidad conserva el cliente creado; un cambio de otra pestaña bloquea el guardado y conserva lo escrito.
+
+## Escenario 11 — Contactos múltiples (US-12)
+
+1. Abrir la ficha de `Empresa Demo 1` y agregar dos contactos: `Contacto Demo A` (principal) y `Contacto Demo B`.
+2. Marcar `Contacto Demo B` como principal.
+3. Buscar por el correo de `Contacto Demo A`.
+4. Recargar y abrir la ficha.
+
+**Resultado esperado**: aparece el cliente asociado, ambos contactos siguen visibles, existe exactamente un principal (`Contacto Demo B`) y el antiguo `contactName` se migró una sola vez sin duplicarse.
+
+## Escenario 12 — Actividades y tareas (US-13)
+
+1. Crear una tarea `Llamar a compras` con vencimiento de ayer para `Empresa Demo 1`.
+2. Crear una nota sin vencimiento.
+3. Intentar guardar una tarea sin vencimiento.
+4. Marcar la tarea como completada y revisar el panel.
+
+**Resultado esperado**: la tarea sin vencimiento se rechaza; la vencida aparece como “Vencida” y cuenta en el panel; al completarla deja de contar como pendiente y permanece visible.
+
+## Escenario 13 — Timeline por cliente y oportunidad (US-14)
+
+1. Abrir un cliente con dos actividades y un ticket.
+2. Aplicar un filtro por tipo y otro por fecha.
+3. Seleccionar un evento.
+4. Abrir una oportunidad vinculada.
+
+**Resultado esperado**: el orden es descendente, los filtros dejan solo los eventos que cumplen, el detalle es de solo lectura y la oportunidad muestra únicamente sus actividades.
+
+## Escenario 14 — Kanban editable (US-15)
+
+1. Arrastrar una oportunidad de `Nueva` a `Contactada`.
+2. Intentar mover directamente `Nueva` a `Ganada`.
+3. Mover a `Perdida` y cancelar el motivo.
+4. Repetir con el menú “Mover a…”.
+
+**Resultado esperado**: la transición válida se guarda y recalcula totales; el salto inválido devuelve la tarjeta a su columna; cancelar el motivo no modifica nada; el menú permite la misma operación con teclado.
+
+## Escenario 15 — Resolución de tickets (US-11)
+
+1. Crear dos tickets de una empresa ficticia para el mismo producto con referencias `EQ-001` y `EQ-002`.
+2. Resolver el primero con resumen `Se reemplazó el filtro`.
+3. Intentar resolver el segundo con resumen vacío.
+4. Recargar y consultar ambos.
+
+**Resultado esperado**: el resumen vacío se rechaza y conserva lo escrito; el ticket resuelto guarda solución, fecha y referencia; el ticket sin referencia muestra “Equipo no individualizado”; los datos persisten tras recargar.
+
+## Escenario 16 — Papelera con cascada (US-16)
+
+1. Eliminar un cliente con una oportunidad, un ticket, un contacto y una actividad.
+2. Revisar la papelera.
+3. Restaurar el elemento.
+4. Eliminar de nuevo y purgar con confirmación.
+5. Repetir la eliminación hasta superar 50 elementos en una copia de prueba.
+
+**Resultado esperado**: el agregado aparece con tipo, fecha y cantidad de registros; restaurar recupera el 100% de relaciones o informa conflictos de identificadores; la purga es definitiva; al superar 50 se descarta el más antiguo y se advierte que la papelera es local y limitada.
+
 ## Validaciones transversales
 
 | Aspecto | Cómo comprobarlo | Resultado esperado |

@@ -8,6 +8,7 @@
   <body>
     <div id="config-errors" class="config-error" role="alert" hidden></div>
     <div id="storage-warning" class="storage-warning" role="alert" hidden></div>
+    <div id="migration-banner" class="storage-warning" role="status" hidden></div>
 
     <div class="workspace">
       <header class="topbar">
@@ -168,6 +169,48 @@
               </svg>
             </button>
           </div>
+
+          <button type="button" class="nav-module" data-module="activities" id="nav-activities">
+            <svg
+              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="4" width="14" height="13" rx="1.5"></rect>
+              <path d="M3 8h14"></path>
+              <path d="M7 2.5v3"></path>
+              <path d="M13 2.5v3"></path>
+              <path d="m7.5 12.5 1.6 1.6 3.4-3.4"></path>
+            </svg>
+            <span class="nav-label" id="nav-activities-label">Actividades</span>
+          </button>
+
+          <button type="button" class="nav-module" data-module="trash" id="nav-trash">
+            <svg
+              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 6h12"></path>
+              <path d="M8 6V4h4v2"></path>
+              <path d="M5.5 6 6 17h8l.5-11"></path>
+              <path d="M8.5 9v5"></path>
+              <path d="M11.5 9v5"></path>
+            </svg>
+            <span class="nav-label" id="nav-trash-label">Papelera</span>
+          </button>
         </nav>
       </aside>
 
@@ -211,6 +254,14 @@
             <div class="stat-card">
               <span class="stat-value" id="stat-close-rate">Sin datos</span>
               <span class="stat-label" id="stat-close-rate-label">Tasa de cierre</span>
+            </div>
+            <div class="stat-card" id="stat-activities-card">
+              <span class="stat-value" id="stat-activities-today">0</span>
+              <span class="stat-label" id="stat-activities-label">Actividades para hoy</span>
+            </div>
+            <div class="stat-card" id="stat-activities-overdue-card">
+              <span class="stat-value" id="stat-activities-overdue">0</span>
+              <span class="stat-label" id="stat-activities-overdue-label">Actividades vencidas</span>
             </div>
           </div>
 
@@ -258,6 +309,7 @@
             <div class="board-scroll" role="region" aria-label="Tablero comercial por etapa" tabindex="0">
               <div id="commercial-columns" class="commercial-columns"></div>
             </div>
+            <p id="board-announcement" class="sr-only" aria-live="polite"></p>
           </section>
           <h2 id="quick-actions-heading">Acciones rápidas</h2>
           <div class="action-grid">
@@ -366,6 +418,7 @@
               <label for="edit-entity">Selecciona una entidad</label>
               <select id="edit-entity"></select>
               <button type="button" id="delete-entity" class="danger">Eliminar la entidad seleccionada</button>
+              <button type="button" id="view-trash-action" class="secondary" hidden>Ver papelera</button>
             </div>
             <div class="error" id="error-edit-entity" aria-live="polite"></div>
             <div id="client-list-empty" hidden></div>
@@ -583,6 +636,10 @@
                     <div class="error" id="error-ticket-product" aria-live="polite"></div>
                   </div>
                 </div>
+                <div>
+                  <label for="ticket-equipment">Referencia del equipo</label>
+                  <input id="ticket-equipment" placeholder="Número de serie o código interno (opcional)" />
+                </div>
                 <div class="field-row">
                   <div>
                     <label for="ticket-reason">Motivo *</label>
@@ -615,11 +672,131 @@
               <div class="empty" id="ticket-list-empty" hidden>Este cliente aún no tiene tickets.</div>
               <ul id="ticket-list-items" class="ticket-list" aria-live="polite"></ul>
             </section>
+
+            <section class="contact-section" id="contact-section" aria-labelledby="contact-heading" hidden>
+              <h3 id="contact-heading">Contactos</h3>
+              <form id="contact-form" novalidate hidden>
+                <input type="hidden" id="contact-id" />
+                <input type="hidden" id="contact-entity-id" />
+                <div class="field-row">
+                  <div>
+                    <label for="contact-name">Nombre *</label>
+                    <input id="contact-name" aria-describedby="error-contact-name" aria-required="true" />
+                    <div class="error" id="error-contact-name" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="contact-role">Cargo</label>
+                    <input id="contact-role" />
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div>
+                    <label for="contact-email">Correo electrónico</label>
+                    <input id="contact-email" aria-describedby="error-contact-email" />
+                    <div class="error" id="error-contact-email" aria-live="polite"></div>
+                  </div>
+                  <div>
+                    <label for="contact-phone">Teléfono</label>
+                    <input id="contact-phone" />
+                  </div>
+                </div>
+                <div>
+                  <label for="contact-primary">
+                    <input type="checkbox" id="contact-primary" /> Contacto principal
+                  </label>
+                </div>
+                <div class="message" id="contact-message" role="status" aria-live="polite"></div>
+                <div class="form-actions">
+                  <button type="submit" id="contact-submit" class="primary">Agregar contacto</button>
+                  <button type="button" id="contact-cancel" class="secondary" hidden>Cancelar edición</button>
+                </div>
+              </form>
+            </section>
           </section>
 
           <section class="card detail" id="opportunity-detail" aria-labelledby="opportunity-detail-heading" hidden>
             <h2 id="opportunity-detail-heading">Detalle de la oportunidad</h2>
             <div id="opportunity-detail-body"></div>
+          </section>
+        </section>
+
+        <section id="view-activities" class="view" aria-labelledby="activities-view-heading" hidden>
+          <h1 id="activities-view-heading">Actividades</h1>
+
+          <section class="card" aria-labelledby="activity-form-heading">
+            <h2 id="activity-form-heading">Registrar / Editar actividad</h2>
+            <form id="activity-form" novalidate>
+              <input type="hidden" id="activity-id" />
+              <input type="hidden" id="activity-entity-id" />
+              <div>
+                <label for="activity-entity">Cliente *</label>
+                <select id="activity-entity" aria-describedby="error-activity-entity" aria-required="true"></select>
+                <div class="error" id="error-activity-entity" aria-live="polite"></div>
+              </div>
+              <div class="field-row">
+                <div>
+                  <label for="activity-type">Tipo *</label>
+                  <select id="activity-type" aria-describedby="error-activity-type" aria-required="true"></select>
+                  <div class="error" id="error-activity-type" aria-live="polite"></div>
+                </div>
+                <div>
+                  <label for="activity-owner">Responsable *</label>
+                  <select id="activity-owner" aria-describedby="error-activity-owner" aria-required="true"></select>
+                  <div class="error" id="error-activity-owner" aria-live="polite"></div>
+                </div>
+              </div>
+              <div>
+                <label for="activity-subject">Asunto *</label>
+                <input id="activity-subject" aria-describedby="error-activity-subject" aria-required="true" />
+                <div class="error" id="error-activity-subject" aria-live="polite"></div>
+              </div>
+              <div class="field-row">
+                <div>
+                  <label for="activity-due-date">Vencimiento</label>
+                  <input id="activity-due-date" type="date" aria-describedby="error-activity-due-date" />
+                  <div class="error" id="error-activity-due-date" aria-live="polite"></div>
+                </div>
+                <div>
+                  <label for="activity-contact">Contacto</label>
+                  <select id="activity-contact" aria-describedby="error-activity-contact"></select>
+                  <div class="error" id="error-activity-contact" aria-live="polite"></div>
+                </div>
+              </div>
+              <div>
+                <label for="activity-document">Oportunidad</label>
+                <select id="activity-document" aria-describedby="error-activity-document"></select>
+                <div class="error" id="error-activity-document" aria-live="polite"></div>
+              </div>
+              <div>
+                <label for="activity-notes">Notas</label>
+                <textarea id="activity-notes" rows="2"></textarea>
+              </div>
+              <div class="message" id="activity-message" role="status" aria-live="polite"></div>
+              <div class="form-actions">
+                <button type="submit" id="activity-submit" class="primary">Registrar actividad</button>
+                <button type="button" id="activity-cancel" class="secondary" hidden>Cancelar edición</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="card" aria-labelledby="activity-list-heading">
+            <h2 id="activity-list-heading">Actividades registradas</h2>
+            <p class="empty" id="activity-list-empty" hidden>Aún no hay actividades registradas.</p>
+            <ul id="activity-list-items" class="entity-list" aria-live="polite"></ul>
+          </section>
+        </section>
+
+        <section id="view-trash" class="view" aria-labelledby="trash-view-heading" hidden>
+          <h1 id="trash-view-heading">Papelera</h1>
+          <section class="card" aria-labelledby="trash-list-heading">
+            <h2 id="trash-list-heading">Clientes eliminados</h2>
+            <p class="notice" id="trash-notice">
+              La papelera es local y conserva como máximo 50 clientes eliminados con sus relaciones. No sustituye un
+              respaldo externo.
+            </p>
+            <div class="message" id="trash-message" role="status" aria-live="polite"></div>
+            <p class="empty" id="trash-empty" hidden>No hay clientes en la papelera.</p>
+            <ul id="trash-list-items" class="entity-list" aria-live="polite"></ul>
           </section>
         </section>
       </main>

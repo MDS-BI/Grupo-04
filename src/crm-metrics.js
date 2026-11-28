@@ -84,6 +84,25 @@ export function formatCloseRate(rate) {
   return rate === null || rate === undefined ? 'Sin datos' : `${rate}%`;
 }
 
+/** Actividades para hoy: pendientes con vencimiento igual al día local. */
+export function activitiesToday(activities = [], today = todayLocal()) {
+  if (!Array.isArray(activities)) return 0;
+  return activities.filter(
+    (activity) => activity && activity.status !== 'completada' && activity.dueDate && String(activity.dueDate) === today
+  ).length;
+}
+
+/** Actividades vencidas: pendientes con vencimiento anterior al día local. */
+export function overdueActivities(activities = [], today = todayLocal()) {
+  if (!Array.isArray(activities)) return 0;
+  return activities.filter((activity) => {
+    if (!activity || activity.status === 'completada') return false;
+    const dueDate = String(activity.dueDate ?? '');
+    if (!isValidCalendarDate(dueDate)) return false;
+    return compareCalendarDates(dueDate, today) < 0;
+  }).length;
+}
+
 /**
  * Distribución de oportunidades por estado del ciclo de vida.
  *

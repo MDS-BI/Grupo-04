@@ -343,3 +343,99 @@ export function getTopOverlay() {
 export function hasDirtyOverlay() {
   return stack.some((record) => typeof record.isDirty === 'function' && record.isDirty());
 }
+
+/**
+ * Diálogo de texto de una sola acción (p. ej. motivo de pérdida o resumen de
+ * resolución). `onConfirm(value)` devuelve `true` para cerrar o un mensaje de
+ * error para conservar lo escrito y seguir en el diálogo.
+ */
+export function openTextDialog({
+  id = 'text-dialog',
+  title = '',
+  label = '',
+  confirmLabel = 'Confirmar',
+  cancelLabel = 'Cancelar',
+  requiredMessage = 'Este campo es obligatorio',
+  initialValue = '',
+  returnFocus = null,
+  onConfirm = null,
+  onCancel = null
+} = {}) {
+  const content = document.createElement('div');
+  content.className = 'overlay__confirm';
+
+  const fieldWrap = document.createElement('div');
+  const fieldLabel = document.createElement('label');
+  fieldLabel.setAttribute('for', `${id}-input`);
+  fieldLabel.textContent = label;
+  const input = document.createElement('textarea');
+  input.id = `${id}-input`;
+  input.rows = 3;
+  input.value = initialValue;
+  input.setAttribute('aria-describedby', `${id}-error`);
+  const error = document.createElement('div');
+  error.className = 'error';
+  error.id = `${id}-error`;
+  error.setAttribute('aria-live', 'polite');
+  fieldWrap.append(fieldLabel, input, error);
+  content.appendChild(fieldWrap);
+
+  const actions = document.createElement('div');
+  actions.className = 'overlay__actions';
+  const cancel = button(cancelLabel, 'btn btn-secondary', { 'data-dialog-cancel': '' });
+  const confirm = button(confirmLabel, 'btn btn-primary', { 'data-dialog-confirm': '' });
+  actions.append(cancel, confirm);
+  content.appendChild(actions);
+
+  const record = openOverlay({
+    id,
+    variant: 'modal',
+    title,
+    content,
+    returnFocus: returnFocus || document.activeElement,
+    isDirty: false,
+    onClose: (reason) => {
+      if (reason !== 'confirm' && typeof onCancel === 'function') onCancel();
+    }
+  });
+
+  cancel.addEventListener('click', () => closeOverlay(id, { force: true, reason: 'cancel' }));
+
+  confirm.addEventListener('click', () => {
+    const value = String(input.value || '').trim();
+    if (!value) {
+      error.textContent = requiredMessage;
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+      return;
+    }
+    let outcome = true;
+    if (typeof onConfirm === 'function') outcome = onConfirm(value);
+    if (outcome === true) {
+      closeOverlay(id, { force: true, reason: 'confirm' });
+      return;
+    }
+    if (typeof outcome === 'string') {
+      error.textContent = outcome;
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+    }
+  });
+
+  input.focus();
+  return record;
+}
+
+/** Solicita el motivo de pérdida al mover una oportunidad a Perdida. */
+export function openLossReasonDialog({ onConfirm = null, onCancel = null, returnFocus = null } = {}) {
+  return openTextDialog({
+    id: 'loss-reason-dialog',
+    title: 'Motivo de pérdida',
+    label: 'Indica el motivo por el que se pierde la oportunidad',
+    confirmLabel: 'Marcar como Perdida',
+    requiredMessage: 'El motivo de pérdida es obligatorio',
+    returnFocus,
+    onConfirm,
+    onCancel
+  });
+}

@@ -80,7 +80,7 @@ function runSearch(query) {
 
 function expectedOpenSummary() {
   const documents = JSON.parse(localStorage.getItem('erp_base_module:documents'));
-  const open = documents.filter((doc) => ['Nueva', 'Contactada', 'Propuesta', 'Negociación'].includes(doc.status));
+  const open = documents.filter((doc) => ['Nueva', 'Contactada', 'Propuesta', 'NegociaciÃ³n'].includes(doc.status));
   return {
     clients: JSON.parse(localStorage.getItem('erp_base_module:entities')).length,
     open: open.length,
@@ -88,7 +88,7 @@ function expectedOpenSummary() {
   };
 }
 
-describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidades', () => {
+describe('T063 â€” rendimiento de bÃºsqueda con 500 clientes y 1000 oportunidades', () => {
   it('renders 20 searches correctly and keeps 19 of 20 under 500 ms', () => {
     const measurements = [];
     const queries = [];
@@ -116,7 +116,7 @@ describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidade
     expect(measurements.length).toBe(20);
     expect(underBudget).toBeGreaterThanOrEqual(19);
     console.info(
-      `[T063] búsquedas: ${underBudget}/20 bajo 500 ms; más lenta ${Math.max(...measurements).toFixed(1)} ms`
+      `[T063] bÃºsquedas: ${underBudget}/20 bajo 500 ms; mÃ¡s lenta ${Math.max(...measurements).toFixed(1)} ms`
     );
   });
 
@@ -139,7 +139,7 @@ describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidade
     expect(measurements.length).toBe(20);
     expect(underBudget).toBeGreaterThanOrEqual(19);
     console.info(
-      `[T063] panel: ${underBudget}/20 recálculos bajo 500 ms; más lento ${Math.max(...measurements).toFixed(1)} ms`
+      `[T063] panel: ${underBudget}/20 recÃ¡lculos bajo 500 ms; mÃ¡s lento ${Math.max(...measurements).toFixed(1)} ms`
     );
   });
 });
@@ -147,7 +147,7 @@ describe('T063 — rendimiento de búsqueda con 500 clientes y 1000 oportunidade
 const clientSortColumns = [
   { key: 'name', label: 'Cliente', sortable: true },
   { key: 'accountOwner', label: 'Responsable', sortable: true },
-  { key: 'targetDate', label: 'Próximo contacto', sortable: true, numeric: true }
+  { key: 'targetDate', label: 'PrÃ³ximo contacto', sortable: true, numeric: true }
 ];
 
 const opportunitySortColumns = [
@@ -165,7 +165,7 @@ function storageSnapshot() {
   return data;
 }
 
-describe('T030 — rendimiento de ordenamiento con 500 clientes y 1000 oportunidades', () => {
+describe('T030 â€” rendimiento de ordenamiento con 500 clientes y 1000 oportunidades', () => {
   it('sorts 20 times with 19 of 20 under 500 ms and without touching localStorage', () => {
     const clients = buildClients();
     const documents = buildDocuments();
@@ -192,7 +192,103 @@ describe('T030 — rendimiento de ordenamiento con 500 clientes y 1000 oportunid
     expect(measurements.length).toBe(20);
     expect(underBudget).toBeGreaterThanOrEqual(19);
     console.info(
-      `[T030] ordenamientos: ${underBudget}/20 bajo 500 ms; más lento ${Math.max(...measurements).toFixed(1)} ms`
+      `[T030] ordenamientos: ${underBudget}/20 bajo 500 ms; mÃ¡s lento ${Math.max(...measurements).toFixed(1)} ms`
     );
+  });
+});
+
+describe('T140 — rendimiento de la ampliación', () => {
+  function seedContacts(count) {
+    const contacts = Array.from({ length: count }, (_, index) => ({
+      id: `con_${index}`,
+      entity_id: `cli_${index}`,
+      name: `Contacto ${index}`,
+      role: 'Compras',
+      email: `contacto${index}@example.com`,
+      phone: `+56 9 ${String(10000000 + index).slice(-8)}`,
+      isPrimary: true,
+      createdAt: '2026-11-03T12:00:00.000Z',
+      updatedAt: '2026-11-03T12:00:00.000Z'
+    }));
+    localStorage.setItem('erp_base_module:crmContacts', JSON.stringify(contacts));
+    return contacts;
+  }
+
+  it('busca por contacto en 20 mediciones, 19 bajo 500 ms', () => {
+    seedContacts(500);
+    const measurements = [];
+    for (let index = 0; index < 20; index += 1) {
+      const target = (index * 23) % 500;
+      const start = performance.now();
+      const input = qs('global-search-input');
+      input.value = `contacto${target}@example.com`;
+      input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+      measurements.push(performance.now() - start);
+      expect(qs('search-results-list').textContent).toContain(`Cliente Industrial ${String(target).padStart(3, '0')}`);
+    }
+    const underBudget = measurements.filter((value) => value < 500).length;
+    expect(underBudget).toBeGreaterThanOrEqual(19);
+    console.info(`[T140] búsqueda por contacto: ${underBudget}/20 bajo 500 ms`);
+  });
+
+  it('recalcula el panel con 200 actividades en 20 mediciones, 19 bajo 500 ms', () => {
+    const iso = (offset) => {
+      const date = new Date();
+      date.setDate(date.getDate() + offset);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    const activities = Array.from({ length: 200 }, (_, index) => ({
+      id: `act_${index}`,
+      entity_id: `cli_${index % 500}`,
+      type: 'tarea',
+      subject: `Tarea ${index}`,
+      dueDate: index % 2 === 0 ? iso(-1) : iso(0),
+      owner: 'Ejecutivo A',
+      status: 'pendiente',
+      createdAt: '2026-11-03T12:00:00.000Z',
+      updatedAt: '2026-11-03T12:00:00.000Z'
+    }));
+    localStorage.setItem('erp_base_module:crmActivities', JSON.stringify(activities));
+    const measurements = [];
+    for (let index = 0; index < 20; index += 1) {
+      const start = performance.now();
+      qs('nav-dashboard').click();
+      measurements.push(performance.now() - start);
+      expect(qs('stat-activities-overdue').textContent).toBe('100');
+    }
+    const underBudget = measurements.filter((value) => value < 500).length;
+    expect(underBudget).toBeGreaterThanOrEqual(19);
+    console.info(`[T140] panel con actividades: ${underBudget}/20 bajo 500 ms`);
+  });
+
+  it('construye un timeline de 400 eventos en 20 mediciones, 19 bajo 500 ms', async () => {
+    const { buildTimeline } = await import('../../src/crm-timeline.js');
+    const activityList = Array.from({ length: 300 }, (_, index) => ({
+      id: `act_${index}`,
+      entity_id: 'cli_1',
+      type: 'llamada',
+      subject: `Llamada ${index}`,
+      dueDate: `2026-11-${String((index % 28) + 1).padStart(2, '0')}`,
+      owner: 'Ejecutivo A',
+      status: 'pendiente'
+    }));
+    const ticketList = Array.from({ length: 100 }, (_, index) => ({
+      id: `tkt_${index}`,
+      entity_id: 'cli_1',
+      reason: 'soporte',
+      description: 'Falla',
+      status: 'En proceso',
+      createdAt: `2026-11-${String((index % 28) + 1).padStart(2, '0')}T10:00:00.000Z`
+    }));
+    const measurements = [];
+    for (let index = 0; index < 20; index += 1) {
+      const start = performance.now();
+      const events = buildTimeline({ activities: activityList, tickets: ticketList, entityId: 'cli_1' });
+      measurements.push(performance.now() - start);
+      expect(events.length).toBe(400);
+    }
+    const underBudget = measurements.filter((value) => value < 500).length;
+    expect(underBudget).toBeGreaterThanOrEqual(19);
+    console.info(`[T140] timeline: ${underBudget}/20 bajo 500 ms`);
   });
 });

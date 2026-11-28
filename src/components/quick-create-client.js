@@ -1,5 +1,5 @@
 import { getConfig } from '../module-config.js';
-import { validateClient } from '../crm-rules.js';
+import { validateClient, hasRealChanges } from '../crm-rules.js';
 import { loadEntities, addEntity } from '../storage.js';
 import { openOverlay, closeOverlay } from './ui-overlay.js';
 
@@ -104,6 +104,15 @@ function readValues() {
   };
 }
 
+/** Diferencias reales del alta rápida: ignora vacíos y espacios sobrantes. */
+export function hasQuickCreateChanges(initial, current) {
+  return hasRealChanges(initial, current);
+}
+
+export function collectQuickCreateValues() {
+  return readValues();
+}
+
 function showErrors(errors = {}) {
   REQUIRED_FIELDS.forEach(([key, inputId, errorId]) => {
     const error = document.getElementById(errorId);
@@ -174,7 +183,7 @@ function buildForm() {
   cancel.setAttribute('data-quick-create-cancel', '');
   cancel.textContent = 'Cancelar';
   cancel.addEventListener('click', () => {
-    closeOverlay(ID, { force: true });
+    closeOverlay(ID);
   });
 
   actions.append(save, cancel);
@@ -186,17 +195,28 @@ function buildForm() {
  * Abre el modal de alta mínima. Devuelve el registro del overlay o `null` si
  * no hay un perfil CRM configurado.
  */
-export function openQuickCreateClient({ onCreated = null, returnFocus = null } = {}) {
+export function openQuickCreateClient({ onCreated = null, returnFocus = null, isBlocked = null } = {}) {
   const form = buildForm();
+  const initialValues = readValues();
+  const blocked = () => (typeof isBlocked === 'function' ? Boolean(isBlocked()) : false);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    const message = document.getElementById('quick-create-message');
+    if (blocked()) {
+      if (message) {
+        message.textContent =
+          'Los datos cambiaron en otra pestaña o la escritura está bloqueada. Recarga la aplicación antes de guardar; puedes revisar y copiar lo escrito.';
+        message.className = 'message message-error';
+      }
+      focusFirstInvalid(form);
+      return;
+    }
     const payload = readValues();
     let entities = [];
     try {
       entities = loadEntities();
     } catch (error) {
-      const message = document.getElementById('quick-create-message');
       if (message) {
         message.textContent = error && error.message ? error.message : 'No se pudo leer la información guardada.';
         message.className = 'message message-error';
@@ -215,7 +235,6 @@ export function openQuickCreateClient({ onCreated = null, returnFocus = null } =
     try {
       created = addEntity(payload);
     } catch (error) {
-      const message = document.getElementById('quick-create-message');
       if (message) {
         message.textContent = error && error.message ? error.message : 'No se pudo guardar el cliente.';
         message.className = 'message message-error';
@@ -234,6 +253,6 @@ export function openQuickCreateClient({ onCreated = null, returnFocus = null } =
     title: 'Nuevo cliente',
     content: form,
     returnFocus: returnFocus || document.activeElement,
-    isDirty: () => false
+    isDirty: () => hasQuickCreateChanges(initialValues, readValues())
   });
 }

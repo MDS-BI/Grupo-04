@@ -235,7 +235,7 @@ description: "Lista de tareas ejecutables para el módulo CRM (Clientes y Oportu
 - [X] T065 Actualizar `README.md` con integrantes responsables por historia, instrucciones de ejecución, comandos de prueba, tabla de evidencias y registro del uso de IA
 - [ ] T066 Ejecutar manualmente los escenarios 1 a 4 y 6 de `specs/001-crm-module/quickstart.md` para el MVP P1; validar los escenarios 5 y 7 al cerrar la segunda iteración. Ejecutar la tabla de validaciones transversales, probar Chrome y Firefox actuales (y Edge/Safari si están disponibles), crear los datos semilla sintéticos de la demo y anotar resultados reales (incluidos los pendientes) en `README.md`
 - [X] T067 Ejecutar `npm test -- --run`, `npm run build`, `npm run lint` y `npm run format:check`, corregir fallos y registrar fecha, comando y resultado real en `README.md`
-- [ ] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores (reabierta el 2026-11-28: se cierra después de T071–T074)
+- [X] T068 Verificar coherencia documental entre `specs/001-crm-module/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/entity-storage.md` y el MER Mermaid, corrigiendo divergencias de campos, estados e indicadores (reabierta el 2026-11-28: se cierra después de T071–T074)
 - [ ] T069 Ejecutar el protocolo de usabilidad de `plan.md`: 5 participantes, 4 tareas (crear, editar, eliminar, buscar) y medición de SC-001 a SC-004 (tiempos de SC-001 a SC-003 y tasa de éxito de SC-004); registrar participantes anonimizados, tiempos, tasa de éxito y resultados reales o declarar la medición como pendiente en `README.md` (meta SC-004: al menos 18 de 20 tareas completadas)
 - [X] T070 [P] Escribir `tests/integration/critical-journey.test.js`: recorrido completo del MVP P1 (cliente → oportunidad → avance de etapa → búsqueda → recarga), arrancando la app real en jsdom y verificando persistencia; el panel se verifica en T056 (P2)
 
@@ -380,15 +380,15 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 **⚠️ CRÍTICO**: ninguna tarea de T080–T145 puede iniciarse sin cerrar esta fase.
 
-- [ ] T071 [P] Actualizar `specs/001-crm-module/data-model.md` con las entidades Contacto (`id`, `entity_id`, `name`, `role`, `email`, `phone`, `isPrimary`, `createdAt`, `updatedAt`), Actividad (`id`, `entity_id`, `type`, `subject`, `notes`, `dueDate`, `owner`, `contactId`, `documentId`, `status`, `completedAt`) y Elemento de papelera; agregar los campos de Ticket de US-11 (`equipmentReference`, `resolutionSummary`, `resolvedAt`, `legacyResolutionIncomplete`), las fórmulas de actividades para hoy/vencidas y el MER actualizado
-- [ ] T072 [P] Actualizar `specs/001-crm-module/contracts/entity-storage.md` con las claves `erp_base_module:crmContacts`, `:crmActivities`, `:crmTrash` y `:crmRecovery`, las operaciones nuevas (contactos, actividades, papelera, recuperación) y las invariantes de cascada y papelera, declarando `SCHEMA_VERSION = 2`
-- [ ] T073 [P] Documentar en `specs/001-crm-module/research.md` las decisiones de la ampliación: capa CRM separada, papelera de 50 elementos como agregado atómico, migración explícita de `contactName`, recuperación previa a toda escritura y Kanban apoyado en `canTransition`
-- [ ] T074 [P] Actualizar `specs/001-crm-module/plan.md` con la estructura de archivos, el orden de incrementos y la validación de US-08 a US-16
-- [ ] T075 [P] Agregar en `specs/001-crm-module/quickstart.md` los escenarios 8 a 16 (recuperación, integridad, alta rápida, contactos, actividades, timeline, Kanban editable, resolución de tickets y papelera) con datos sintéticos y resultados esperados
-- [ ] T076 [P] Extender `tests/unit/storage.test.js` con la instantánea de cinco colecciones, `SCHEMA_VERSION = 2` y el rechazo de migración silenciosa (debe fallar antes de T077)
-- [ ] T077 Extender `src/storage.js` con las constantes de las claves nuevas, la inclusión de `contacts`, `activities` y `trash` en `saveSnapshot`, `SCHEMA_VERSION = 2` y el helper `isCrmStorageKey(key)`
-- [ ] T078 Extender `src/module-config.js` con las etiquetas `contact`/`contacts`, `activity`/`activities`, `trash` y el catálogo `activityTypes` (`llamada`, `correo`, `reunion`, `nota`, `tarea`)
-- [ ] T079 Agregar en `index.html` y `src/components/shell.js` las secciones y entradas de navegación “Actividades” y “Papelera” (`nav-activities`, `nav-trash`), con `aria-current` y resaltado de la vista activa
+- [X] T071 [P] Actualizar `specs/001-crm-module/data-model.md` con las entidades Contacto (`id`, `entity_id`, `name`, `role`, `email`, `phone`, `isPrimary`, `createdAt`, `updatedAt`), Actividad (`id`, `entity_id`, `type`, `subject`, `notes`, `dueDate`, `owner`, `contactId`, `documentId`, `status`, `completedAt`) y Elemento de papelera; agregar los campos de Ticket de US-11 (`equipmentReference`, `resolutionSummary`, `resolvedAt`, `legacyResolutionIncomplete`), las fórmulas de actividades para hoy/vencidas y el MER actualizado
+- [X] T072 [P] Actualizar `specs/001-crm-module/contracts/entity-storage.md` con las claves `erp_base_module:crmContacts`, `:crmActivities`, `:crmTrash` y `:crmRecovery`, las operaciones nuevas (contactos, actividades, papelera, recuperación) y las invariantes de cascada y papelera, declarando `SCHEMA_VERSION = 2`
+- [X] T073 [P] Documentar en `specs/001-crm-module/research.md` las decisiones de la ampliación: capa CRM separada, papelera de 50 elementos como agregado atómico, migración explícita de `contactName`, recuperación previa a toda escritura y Kanban apoyado en `canTransition`
+- [X] T074 [P] Actualizar `specs/001-crm-module/plan.md` con la estructura de archivos, el orden de incrementos y la validación de US-08 a US-16
+- [X] T075 [P] Agregar en `specs/001-crm-module/quickstart.md` los escenarios 8 a 16 (recuperación, integridad, alta rápida, contactos, actividades, timeline, Kanban editable, resolución de tickets y papelera) con datos sintéticos y resultados esperados
+- [X] T076 [P] Extender `tests/unit/storage.test.js` con la instantánea de cinco colecciones, `SCHEMA_VERSION = 2` y el rechazo de migración silenciosa (debe fallar antes de T077)
+- [X] T077 Extender `src/storage.js` con las constantes de las claves nuevas, la inclusión de `contacts`, `activities` y `trash` en `saveSnapshot`, `SCHEMA_VERSION = 2` y el helper `isCrmStorageKey(key)`
+- [X] T078 Extender `src/module-config.js` con las etiquetas `contact`/`contacts`, `activity`/`activities`, `trash` y el catálogo `activityTypes` (`llamada`, `correo`, `reunion`, `nota`, `tarea`)
+- [X] T079 Agregar en `index.html` y `src/components/shell.js` las secciones y entradas de navegación “Actividades” y “Papelera” (`nav-activities`, `nav-trash`), con `aria-current` y resaltado de la vista activa
 
 **Punto de control**: la aplicación compila con la instantánea extendida, las etiquetas nuevas y la navegación disponible; las historias pueden empezar.
 
@@ -402,16 +402,16 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 8
 
-- [ ] T080 [P] [US8] Escribir `tests/unit/storage-recovery.test.js`: versión recuperable antes de reemplazar, confirmación solo tras persistir el conjunto, detección de operación pendiente, bloqueo de escrituras cuando no puede verificarse la integridad y cuota agotada sin perder la versión anterior (CA-08-01 a CA-08-05, CA-08-08)
-- [ ] T081 [P] [US8] Escribir `tests/unit/storage-migration.test.js`: migración explícita con confirmación, cancelación que conserva el formato original, respaldo previo obligatorio y bloqueo de operaciones incompatibles con el formato cancelado (CA-08-06, CA-08-07)
-- [ ] T082 [P] [US8] Escribir `tests/integration/storage-recovery.test.js`: interrupción a mitad de un alta y de una cascada, reinicio de la aplicación, recuperación antes de habilitar escrituras y fallo durante la propia recuperación sin éxito falso (CA-08-02, CA-08-03, CA-08-04)
+- [X] T080 [P] [US8] Escribir `tests/unit/storage-recovery.test.js`: versión recuperable antes de reemplazar, confirmación solo tras persistir el conjunto, detección de operación pendiente, bloqueo de escrituras cuando no puede verificarse la integridad y cuota agotada sin perder la versión anterior (CA-08-01 a CA-08-05, CA-08-08)
+- [X] T081 [P] [US8] Escribir `tests/unit/storage-migration.test.js`: migración explícita con confirmación, cancelación que conserva el formato original, respaldo previo obligatorio y bloqueo de operaciones incompatibles con el formato cancelado (CA-08-06, CA-08-07)
+- [X] T082 [P] [US8] Escribir `tests/integration/storage-recovery.test.js`: interrupción a mitad de un alta y de una cascada, reinicio de la aplicación, recuperación antes de habilitar escrituras y fallo durante la propia recuperación sin éxito falso (CA-08-02, CA-08-03, CA-08-04)
 
 ### Implementación de la Historia 8
 
-- [ ] T083 [US8] Crear `src/storage-recovery.js` con `prepareSnapshot`, `commitSnapshot`, `restorePreviousSnapshot`, `detectPendingRecovery` y `canWrite`, usando `erp_base_module:crmRecovery` y una instantánea serializada completa
-- [ ] T084 [US8] Integrar la recuperación en `src/storage.js`: `saveSnapshot` prepara la versión recuperable, confirma y limpia el marcador; `recoverPendingOperation()` se ejecuta al cargar; `isWriteBlocked()` expone el bloqueo, sin cambiar las firmas públicas existentes
-- [ ] T085 [US8] Implementar en `src/storage.js` el protocolo de migración `requestMigration(from, to)`, `applyMigration()` y `cancelMigration()` con respaldo recuperable, explicación del cambio y sin conversión silenciosa
-- [ ] T086 [US8] Conectar en `src/app.js` la recuperación y el estado de bloqueo antes del primer render, con aviso recuperable en `src/components/ui.js` y deshabilitación de los guardados mientras no se verifique una versión íntegra
+- [X] T083 [US8] Crear `src/storage-recovery.js` con `prepareSnapshot`, `commitSnapshot`, `restorePreviousSnapshot`, `detectPendingRecovery` y `canWrite`, usando `erp_base_module:crmRecovery` y una instantánea serializada completa
+- [X] T084 [US8] Integrar la recuperación en `src/storage.js`: `saveSnapshot` prepara la versión recuperable, confirma y limpia el marcador; `recoverPendingOperation()` se ejecuta al cargar; `isWriteBlocked()` expone el bloqueo, sin cambiar las firmas públicas existentes
+- [X] T085 [US8] Implementar en `src/storage.js` el protocolo de migración `requestMigration(from, to)`, `applyMigration()` y `cancelMigration()` con respaldo recuperable, explicación del cambio y sin conversión silenciosa
+- [X] T086 [US8] Conectar en `src/app.js` la recuperación y el estado de bloqueo antes del primer render, con aviso recuperable en `src/components/ui.js` y deshabilitación de los guardados mientras no se verifique una versión íntegra
 
 **Punto de control**: US8 verificable de forma aislada; ninguna escritura se confirma sin versión recuperable.
 
@@ -425,15 +425,15 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 9
 
-- [ ] T087 [P] [US9] Escribir `tests/unit/integrity.test.js`: estructura, versión, obligatorios y tipos; ids y códigos duplicados; `series+folio` repetido; referencias huérfanas; campos históricos desconocidos conservados; transiciones comparadas con la versión anterior (CA-09-01 a CA-09-08)
-- [ ] T088 [P] [US9] Escribir `tests/integration/integrity.test.js`: validación al iniciar, huérfanos detectados sin reasignación automática, conjunto inválido no persistido parcialmente y almacenamiento idéntico tras el rechazo (CA-09-02, CA-09-06, CA-09-10)
+- [X] T087 [P] [US9] Escribir `tests/unit/integrity.test.js`: estructura, versión, obligatorios y tipos; ids y códigos duplicados; `series+folio` repetido; referencias huérfanas; campos históricos desconocidos conservados; transiciones comparadas con la versión anterior (CA-09-01 a CA-09-08)
+- [X] T088 [P] [US9] Escribir `tests/integration/integrity.test.js`: validación al iniciar, huérfanos detectados sin reasignación automática, conjunto inválido no persistido parcialmente y almacenamiento idéntico tras el rechazo (CA-09-02, CA-09-06, CA-09-10)
 
 ### Implementación de la Historia 9
 
-- [ ] T089 [US9] Implementar `validateIntegrity(snapshot)` en `src/crm-rules.js`, con incidencias que identifiquen el registro por código de cliente o `series/folio`
-- [ ] T090 [US9] Implementar en `src/crm-rules.js` `assertImmutableIdentity(previous, next)` y `assertStatusTransition(previous, next)` para proteger `id`, `entity_id`, estados finales y saltos no declarados
-- [ ] T091 [US9] Invocar `validateIntegrity` desde `loadSnapshot` y `saveSnapshot` en `src/storage.js`, rechazando el conjunto completo sin escritura parcial y conservando oportunidades cerradas válidas sin reconstruir transiciones (CA-09-09)
-- [ ] T092 [US9] Conectar en `src/app.js` la verificación de integridad al iniciar, antes de habilitar modificaciones, mostrando las incidencias y bloqueando escrituras hasta resolverlas (depende de T086)
+- [X] T089 [US9] Implementar `validateIntegrity(snapshot)` en `src/crm-rules.js`, con incidencias que identifiquen el registro por código de cliente o `series/folio`
+- [X] T090 [US9] Implementar en `src/crm-rules.js` `assertImmutableIdentity(previous, next)` y `assertStatusTransition(previous, next)` para proteger `id`, `entity_id`, estados finales y saltos no declarados
+- [X] T091 [US9] Invocar `validateIntegrity` desde `loadSnapshot` y `saveSnapshot` en `src/storage.js`, rechazando el conjunto completo sin escritura parcial y conservando oportunidades cerradas válidas sin reconstruir transiciones (CA-09-09)
+- [X] T092 [US9] Conectar en `src/app.js` la verificación de integridad al iniciar, antes de habilitar modificaciones, mostrando las incidencias y bloqueando escrituras hasta resolverlas (depende de T086)
 
 **Punto de control**: US9 se valida con datos corruptos sintéticos; ninguna escritura acepta un conjunto inválido.
 
@@ -447,15 +447,15 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 10
 
-- [ ] T093 [P] [US10] Escribir `tests/unit/quick-create-state.test.js`: detección de cambios reales, confirmación solo cuando hay cambios, filtro de claves ajenas al CRM e invalidación por cambio relevante (CA-10-09, CA-10-12)
-- [ ] T094 [P] [US10] Ampliar `tests/integration/quick-create-client.test.js`: conservación del borrador de oportunidad, descarte con Cancelar/Escape/clic fuera, cliente creado seleccionado sin borrar campos, cancelación de la oportunidad conserva el cliente, pestaña obsoleta, foco atrapado/devuelto, error de validación y de almacenamiento (CA-10-01 a CA-10-11)
+- [X] T093 [P] [US10] Escribir `tests/unit/quick-create-state.test.js`: detección de cambios reales, confirmación solo cuando hay cambios, filtro de claves ajenas al CRM e invalidación por cambio relevante (CA-10-09, CA-10-12)
+- [X] T094 [P] [US10] Ampliar `tests/integration/quick-create-client.test.js`: conservación del borrador de oportunidad, descarte con Cancelar/Escape/clic fuera, cliente creado seleccionado sin borrar campos, cancelación de la oportunidad conserva el cliente, pestaña obsoleta, foco atrapado/devuelto, error de validación y de almacenamiento (CA-10-01 a CA-10-11)
 
 ### Implementación de la Historia 10
 
-- [ ] T095 [US10] Implementar en `src/components/quick-create-client.js` el registro de cambios reales (`hasUnsavedChanges()`), la confirmación “Descartar/Seguir editando” y la reutilización de `validateClient` y `addEntity`
-- [ ] T096 [US10] Ajustar en `src/components/ui-overlay.js` la trampa de foco, el cierre con Escape y la devolución del foco al control que abrió el alta rápida
-- [ ] T097 [US10] Implementar en `src/storage.js` y `src/app.js` la detección de obsolescencia limitada a `isCrmStorageKey` y al borrado total del almacenamiento, ignorando claves de otras funcionalidades
-- [ ] T098 [US10] Conectar en `src/app.js` el alta rápida con la oportunidad: conservar el borrador en memoria, seleccionar el cliente recién guardado sin limpiar campos y aclarar que cancelar la oportunidad no elimina al cliente
+- [X] T095 [US10] Implementar en `src/components/quick-create-client.js` el registro de cambios reales (`hasUnsavedChanges()`), la confirmación “Descartar/Seguir editando” y la reutilización de `validateClient` y `addEntity`
+- [X] T096 [US10] Ajustar en `src/components/ui-overlay.js` la trampa de foco, el cierre con Escape y la devolución del foco al control que abrió el alta rápida
+- [X] T097 [US10] Implementar en `src/storage.js` y `src/app.js` la detección de obsolescencia limitada a `isCrmStorageKey` y al borrado total del almacenamiento, ignorando claves de otras funcionalidades
+- [X] T098 [US10] Conectar en `src/app.js` el alta rápida con la oportunidad: conservar el borrador en memoria, seleccionar el cliente recién guardado sin limpiar campos y aclarar que cancelar la oportunidad no elimina al cliente
 
 **Punto de control**: US10 no pierde datos ni crea clientes inexistentes en la oportunidad.
 
@@ -469,17 +469,17 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 12
 
-- [ ] T099 [P] [US12] Escribir `tests/unit/contact-rules.test.js`: nombre obligatorio, correo válido cuando existe, exactamente un principal, correo repetido permitido y migración idempotente de `contactName` (CA-12-01 a CA-12-03)
-- [ ] T100 [P] [US12] Escribir `tests/integration/contacts.test.js`: alta y edición de contactos en la ficha, cambio de principal, migración del contacto heredado sin pérdida, eliminación con reasignación o confirmación, cliente sin contactos y borrado del cliente con contactos (CA-12-04)
+- [X] T099 [P] [US12] Escribir `tests/unit/contact-rules.test.js`: nombre obligatorio, correo válido cuando existe, exactamente un principal, correo repetido permitido y migración idempotente de `contactName` (CA-12-01 a CA-12-03)
+- [X] T100 [P] [US12] Escribir `tests/integration/contacts.test.js`: alta y edición de contactos en la ficha, cambio de principal, migración del contacto heredado sin pérdida, eliminación con reasignación o confirmación, cliente sin contactos y borrado del cliente con contactos (CA-12-04)
 
 ### Implementación de la Historia 12
 
-- [ ] T101 [US12] Implementar en `src/crm-rules.js` `validateContact`, `ensureSinglePrimary` y `migrateLegacyContactName(entity, contacts)`
-- [ ] T102 [US12] Implementar en `src/storage.js` `loadContacts`, `saveContacts`, `addContact`, `updateContact`, `deleteContact` y `deleteContactsForEntity`, con validación previa a la escritura y cascada atómica dentro de la instantánea
-- [ ] T103 [US12] Crear `src/components/contact-form.js` con nombre, cargo, correo, teléfono y marca de principal, errores accesibles y conservación de lo ingresado
-- [ ] T104 [US12] Crear `src/components/contact-list.js` con los contactos de la ficha, distintivo de principal, acciones editar/eliminar y estado vacío
-- [ ] T105 [US12] Extender `searchClients` en `src/crm-rules.js` y `src/components/search-results.js` para que nombre, correo o teléfono de un contacto devuelvan el cliente asociado (CA-12-05)
-- [ ] T106 [US12] Conectar en `src/app.js` y `src/components/entity-detail.js` la sección Contactos, la migración única de `contactName` al abrir la ficha y la eliminación del contacto con reasignación o confirmación
+- [X] T101 [US12] Implementar en `src/crm-rules.js` `validateContact`, `ensureSinglePrimary` y `migrateLegacyContactName(entity, contacts)`
+- [X] T102 [US12] Implementar en `src/storage.js` `loadContacts`, `saveContacts`, `addContact`, `updateContact`, `deleteContact` y `deleteContactsForEntity`, con validación previa a la escritura y cascada atómica dentro de la instantánea
+- [X] T103 [US12] Crear `src/components/contact-form.js` con nombre, cargo, correo, teléfono y marca de principal, errores accesibles y conservación de lo ingresado
+- [X] T104 [US12] Crear `src/components/contact-list.js` con los contactos de la ficha, distintivo de principal, acciones editar/eliminar y estado vacío
+- [X] T105 [US12] Extender `searchClients` en `src/crm-rules.js` y `src/components/search-results.js` para que nombre, correo o teléfono de un contacto devuelvan el cliente asociado (CA-12-05)
+- [X] T106 [US12] Conectar en `src/app.js` y `src/components/entity-detail.js` la sección Contactos, la migración única de `contactName` al abrir la ficha y la eliminación del contacto con reasignación o confirmación
 
 **Punto de control**: US12 completa; la ficha del cliente conserva su comportamiento anterior cuando no hay contactos.
 
@@ -493,17 +493,17 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 13
 
-- [ ] T107 [P] [US13] Escribir `tests/unit/activity-rules.test.js`: tipos válidos, vencimiento obligatorio solo en `tarea`, `completedAt` al completar, cálculo de vencidas con `todayLocal`, vínculos a contacto u oportunidad existentes o nulos (CA-13-01 a CA-13-04)
-- [ ] T108 [P] [US13] Escribir `tests/integration/activities.test.js`: alta, edición, completar, eliminar, tarea sin vencimiento rechazada, actividad vinculada a una oportunidad eliminada y conservación en papelera al borrar el cliente (CA-13-05)
+- [X] T107 [P] [US13] Escribir `tests/unit/activity-rules.test.js`: tipos válidos, vencimiento obligatorio solo en `tarea`, `completedAt` al completar, cálculo de vencidas con `todayLocal`, vínculos a contacto u oportunidad existentes o nulos (CA-13-01 a CA-13-04)
+- [X] T108 [P] [US13] Escribir `tests/integration/activities.test.js`: alta, edición, completar, eliminar, tarea sin vencimiento rechazada, actividad vinculada a una oportunidad eliminada y conservación en papelera al borrar el cliente (CA-13-05)
 
 ### Implementación de la Historia 13
 
-- [ ] T109 [US13] Implementar en `src/crm-rules.js` `validateActivity`, `isActivityOverdue` y `completeActivity`, validando tipo, vencimiento y vínculos
-- [ ] T110 [US13] Implementar en `src/storage.js` `loadActivities`, `saveActivities`, `addActivity`, `updateActivity`, `deleteActivity` y `deleteActivitiesForEntity`, con inclusión en la instantánea y cascada atómica
-- [ ] T111 [US13] Crear `src/components/activity-form.js` con tipo, asunto, notas, fecha, responsable y vínculos opcionales a contacto y oportunidad
-- [ ] T112 [US13] Crear `src/components/activity-list.js` con pendientes, para hoy, vencidas y completadas, orden cronológico y estado vacío con acción para registrar la primera actividad
-- [ ] T113 [US13] Agregar `activitiesToday` y `overdueActivities` en `src/crm-metrics.js` y la tarjeta correspondiente en `src/components/dashboard.js` sin persistir totales (FR-041)
-- [ ] T114 [US13] Conectar en `src/app.js` la vista Actividades, las acciones de completar y eliminar, la sección de actividades de la ficha y el recálculo del panel tras cada mutación
+- [X] T109 [US13] Implementar en `src/crm-rules.js` `validateActivity`, `isActivityOverdue` y `completeActivity`, validando tipo, vencimiento y vínculos
+- [X] T110 [US13] Implementar en `src/storage.js` `loadActivities`, `saveActivities`, `addActivity`, `updateActivity`, `deleteActivity` y `deleteActivitiesForEntity`, con inclusión en la instantánea y cascada atómica
+- [X] T111 [US13] Crear `src/components/activity-form.js` con tipo, asunto, notas, fecha, responsable y vínculos opcionales a contacto y oportunidad
+- [X] T112 [US13] Crear `src/components/activity-list.js` con pendientes, para hoy, vencidas y completadas, orden cronológico y estado vacío con acción para registrar la primera actividad
+- [X] T113 [US13] Agregar `activitiesToday` y `overdueActivities` en `src/crm-metrics.js` y la tarjeta correspondiente en `src/components/dashboard.js` sin persistir totales (FR-041)
+- [X] T114 [US13] Conectar en `src/app.js` la vista Actividades, las acciones de completar y eliminar, la sección de actividades de la ficha y el recálculo del panel tras cada mutación
 
 **Punto de control**: US13 completa y verificable; el panel conserva los seis indicadores originales y agrega el de actividades.
 
@@ -517,14 +517,14 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 14
 
-- [ ] T115 [P] [US14] Escribir `tests/unit/timeline.test.js`: unión de actividades y tickets, orden descendente, filtros por tipo y fecha, exclusión de eventos de sistema y fechas inválidas (CA-14-01 a CA-14-03)
-- [ ] T116 [P] [US14] Escribir `tests/integration/timeline.test.js`: cliente con dos actividades y un ticket, timeline de oportunidad solo con sus actividades, filtros combinados, estado vacío con acción y detalle no editable (CA-14-04, CA-14-05)
+- [X] T115 [P] [US14] Escribir `tests/unit/timeline.test.js`: unión de actividades y tickets, orden descendente, filtros por tipo y fecha, exclusión de eventos de sistema y fechas inválidas (CA-14-01 a CA-14-03)
+- [X] T116 [P] [US14] Escribir `tests/integration/timeline.test.js`: cliente con dos actividades y un ticket, timeline de oportunidad solo con sus actividades, filtros combinados, estado vacío con acción y detalle no editable (CA-14-04, CA-14-05)
 
 ### Implementación de la Historia 14
 
-- [ ] T117 [US14] Crear `src/crm-timeline.js` con `buildTimeline({ activities, tickets, entityId, documentId }, filters)`, función pura que devuelve eventos ordenados y normalizados
-- [ ] T118 [US14] Crear `src/components/timeline.js` con lista accesible, filtros por tipo y fecha, detalle de solo lectura y estado vacío con acción para registrar la primera actividad
-- [ ] T119 [US14] Conectar en `src/app.js` y `src/components/entity-detail.js` el timeline del cliente y de la oportunidad, recalculado tras cada mutación y sin entradas de edición
+- [X] T117 [US14] Crear `src/crm-timeline.js` con `buildTimeline({ activities, tickets, entityId, documentId }, filters)`, función pura que devuelve eventos ordenados y normalizados
+- [X] T118 [US14] Crear `src/components/timeline.js` con lista accesible, filtros por tipo y fecha, detalle de solo lectura y estado vacío con acción para registrar la primera actividad
+- [X] T119 [US14] Conectar en `src/app.js` y `src/components/entity-detail.js` el timeline del cliente y de la oportunidad, recalculado tras cada mutación y sin entradas de edición
 
 **Punto de control**: US14 completa; el timeline no duplica información ni permite mutaciones.
 
@@ -538,14 +538,14 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 15
 
-- [ ] T120 [P] [US15] Escribir `tests/unit/kanban.test.js`: destinos derivados de `canTransition`, rechazo de `Nueva → Ganada`, motivo obligatorio al perder, recálculo de conteos y montos por columna y estado final bloqueado (CA-15-01 a CA-15-03)
-- [ ] T121 [P] [US15] Escribir `tests/integration/kanban.test.js`: arrastre válido, tarjeta devuelta tras salto inválido, solicitud de `lossReason` con cancelación sin cambios, menú de movimiento por teclado y columnas vacías (CA-15-04)
+- [X] T120 [P] [US15] Escribir `tests/unit/kanban.test.js`: destinos derivados de `canTransition`, rechazo de `Nueva → Ganada`, motivo obligatorio al perder, recálculo de conteos y montos por columna y estado final bloqueado (CA-15-01 a CA-15-03)
+- [X] T121 [P] [US15] Escribir `tests/integration/kanban.test.js`: arrastre válido, tarjeta devuelta tras salto inválido, solicitud de `lossReason` con cancelación sin cambios, menú de movimiento por teclado y columnas vacías (CA-15-04)
 
 ### Implementación de la Historia 15
 
-- [ ] T122 [US15] Extender `src/components/commercial-board.js` para ser editable: tarjetas arrastrables, destinos válidos resaltados, menú “Mover a…” accesible por teclado y anuncios `aria-live`
-- [ ] T123 [US15] Implementar `moveOpportunity(id, to, lossReason)` en `src/app.js` usando `validateStatusChange`, `updateDocument` y el recálculo de totales por columna, revirtiendo la tarjeta si la escritura falla
-- [ ] T124 [US15] Implementar en `src/components/ui-overlay.js` el diálogo de `lossReason` al soltar en Perdida, con cancelación que no modifique datos y foco devuelto a la tarjeta
+- [X] T122 [US15] Extender `src/components/commercial-board.js` para ser editable: tarjetas arrastrables, destinos válidos resaltados, menú “Mover a…” accesible por teclado y anuncios `aria-live`
+- [X] T123 [US15] Implementar `moveOpportunity(id, to, lossReason)` en `src/app.js` usando `validateStatusChange`, `updateDocument` y el recálculo de totales por columna, revirtiendo la tarjeta si la escritura falla
+- [X] T124 [US15] Implementar en `src/components/ui-overlay.js` el diálogo de `lossReason` al soltar en Perdida, con cancelación que no modifique datos y foco devuelto a la tarjeta
 
 **Punto de control**: US15 completa; ninguna transición inválida se acepta desde el tablero.
 
@@ -559,15 +559,15 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 11
 
-- [ ] T125 [P] [US11] Escribir `tests/unit/ticket-resolution.test.js`: `equipmentReference` opcional y recortado, `resolutionSummary` obligatorio al resolver, `resolvedAt` generado por el sistema, edición sin pérdida de resolución y `legacyResolutionIncomplete` no editable (CA-11-03 a CA-11-05, CA-11-10)
-- [ ] T126 [P] [US11] Escribir `tests/integration/ticket-resolution.test.js`: dos equipos del mismo producto con referencias distintas, resolución válida, resumen vacío rechazado, “Equipo no individualizado”, persistencia, migración de tickets históricos, error de escritura y renderizado seguro (CA-11-01, CA-11-02, CA-11-06 a CA-11-09, CA-11-11, CA-11-12)
+- [X] T125 [P] [US11] Escribir `tests/unit/ticket-resolution.test.js`: `equipmentReference` opcional y recortado, `resolutionSummary` obligatorio al resolver, `resolvedAt` generado por el sistema, edición sin pérdida de resolución y `legacyResolutionIncomplete` no editable (CA-11-03 a CA-11-05, CA-11-10)
+- [X] T126 [P] [US11] Escribir `tests/integration/ticket-resolution.test.js`: dos equipos del mismo producto con referencias distintas, resolución válida, resumen vacío rechazado, “Equipo no individualizado”, persistencia, migración de tickets históricos, error de escritura y renderizado seguro (CA-11-01, CA-11-02, CA-11-06 a CA-11-09, CA-11-11, CA-11-12)
 
 ### Implementación de la Historia 11
 
-- [ ] T127 [US11] Extender en `src/crm-rules.js` `validateTicket`, `canTransitionTicket` y `resolveTicket(ticket, summary)` con la referencia del equipo, el resumen obligatorio y la generación de `resolvedAt`
-- [ ] T128 [US11] Extender `src/storage.js` con `updateTicket`/`resolveTicket` atómicos (estado, resumen y fecha), conservación de la resolución en ediciones, migración explícita que marca `legacyResolutionIncomplete` y `SCHEMA_VERSION = 3`
-- [ ] T129 [US11] Extender `src/components/ticket-form.js` (referencia del equipo y diálogo de resolución con resumen) y `src/components/ticket-list.js` (referencia, solución, fecha de resolución y “Equipo no individualizado”)
-- [ ] T130 [US11] Conectar en `src/app.js` la acción “Resolver” con validación previa, conservación del resumen ante error y actualización de la ficha del cliente
+- [X] T127 [US11] Extender en `src/crm-rules.js` `validateTicket`, `canTransitionTicket` y `resolveTicket(ticket, summary)` con la referencia del equipo, el resumen obligatorio y la generación de `resolvedAt`
+- [X] T128 [US11] Extender `src/storage.js` con `updateTicket`/`resolveTicket` atómicos (estado, resumen y fecha), conservación de la resolución en ediciones, migración explícita que marca `legacyResolutionIncomplete` y `SCHEMA_VERSION = 3`
+- [X] T129 [US11] Extender `src/components/ticket-form.js` (referencia del equipo y diálogo de resolución con resumen) y `src/components/ticket-list.js` (referencia, solución, fecha de resolución y “Equipo no individualizado”)
+- [X] T130 [US11] Conectar en `src/app.js` la acción “Resolver” con validación previa, conservación del resumen ante error y actualización de la ficha del cliente
 
 **Punto de control**: US11 completa sin reabrir tickets ni alterar el comportamiento P1.
 
@@ -581,16 +581,16 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 ### Pruebas de la Historia 16
 
-- [ ] T131 [P] [US16] Escribir `tests/unit/trash.test.js`: agregado con cliente y relaciones, límite FIFO de 50, detección de conflictos de identificadores al restaurar, purga con confirmación y cliente sin relaciones (CA-16-02 a CA-16-05)
-- [ ] T132 [P] [US16] Escribir `tests/integration/trash.test.js`: eliminación con oportunidad, ticket, contacto y actividad; restauración completa; conflicto de `id` al restaurar; purga definitiva; papelera llena que descarta el más antiguo y advierte su límite local (CA-16-01 a CA-16-05)
+- [X] T131 [P] [US16] Escribir `tests/unit/trash.test.js`: agregado con cliente y relaciones, límite FIFO de 50, detección de conflictos de identificadores al restaurar, purga con confirmación y cliente sin relaciones (CA-16-02 a CA-16-05)
+- [X] T132 [P] [US16] Escribir `tests/integration/trash.test.js`: eliminación con oportunidad, ticket, contacto y actividad; restauración completa; conflicto de `id` al restaurar; purga definitiva; papelera llena que descarta el más antiguo y advierte su límite local (CA-16-01 a CA-16-05)
 
 ### Implementación de la Historia 16
 
-- [ ] T133 [US16] Crear `src/crm-trash.js` con `createTrashEntry`, `restoreTrashEntry`, `purgeTrashEntry`, `trimTrash` y `detectRestoreConflicts`, funciones puras sobre el agregado eliminado
-- [ ] T134 [US16] Implementar en `src/storage.js` `loadTrash`, `moveEntityToTrash`, `restoreFromTrash` y `purgeTrashEntry`, y hacer que `deleteEntity` mueva el agregado a la papelera en una sola instantánea atómica
-- [ ] T135 [US16] Crear `src/components/trash-list.js` con tipo, fecha de eliminación, cantidad de registros asociados, acciones restaurar/purgar con confirmación y aviso de papelera local limitada
-- [ ] T136 [US16] Conectar en `src/app.js` y `src/components/shell.js` la vista Papelera, la acción “Ver papelera” tras eliminar y el refresco de clientes y panel al restaurar
-- [ ] T137 [US16] Actualizar `tests/integration/create-edit-delete-client.test.js` y `tests/integration/tickets.test.js` para el nuevo comportamiento de eliminación con papelera, manteniendo la cascada atómica y sin referencias huérfanas
+- [X] T133 [US16] Crear `src/crm-trash.js` con `createTrashEntry`, `restoreTrashEntry`, `purgeTrashEntry`, `trimTrash` y `detectRestoreConflicts`, funciones puras sobre el agregado eliminado
+- [X] T134 [US16] Implementar en `src/storage.js` `loadTrash`, `moveEntityToTrash`, `restoreFromTrash` y `purgeTrashEntry`, y hacer que `deleteEntity` mueva el agregado a la papelera en una sola instantánea atómica
+- [X] T135 [US16] Crear `src/components/trash-list.js` con tipo, fecha de eliminación, cantidad de registros asociados, acciones restaurar/purgar con confirmación y aviso de papelera local limitada
+- [X] T136 [US16] Conectar en `src/app.js` y `src/components/shell.js` la vista Papelera, la acción “Ver papelera” tras eliminar y el refresco de clientes y panel al restaurar
+- [X] T137 [US16] Actualizar `tests/integration/create-edit-delete-client.test.js` y `tests/integration/tickets.test.js` para el nuevo comportamiento de eliminación con papelera, manteniendo la cascada atómica y sin referencias huérfanas
 
 **Punto de control**: US16 completa; eliminar y restaurar conserva el 100% de registros y relaciones.
 
@@ -600,14 +600,14 @@ Módulos nuevos previstos: `src/storage-recovery.js` (US-08), `src/crm-timeline.
 
 **Propósito**: cubrir accesibilidad, seguridad, rendimiento, evidencia y coherencia documental de las historias nuevas.
 
-- [ ] T138 [P] Ampliar `tests/integration/accessibility.test.js` con contactos, actividades, timeline, Kanban (arrastre y menú por teclado), diálogo de motivo de pérdida, papelera y foco devuelto tras cerrar overlays
-- [ ] T139 [P] Ampliar `tests/unit/security-render.test.js` con nombre, cargo y notas de contacto, asunto y notas de actividad, resumen de solución y textos de papelera renderizados como texto
-- [ ] T140 [P] Ampliar `tests/performance/search-performance.test.js` con búsqueda por contacto, timeline extenso y recálculo del panel con actividades: 20 mediciones y al menos 19 bajo 500 ms, registrando navegador y equipo
-- [ ] T141 [P] Actualizar `README.md` con responsables de US-08 a US-16, comandos, tabla de evidencias, uso de IA y resultados reales o pendientes declarados
+- [X] T138 [P] Ampliar `tests/integration/accessibility.test.js` con contactos, actividades, timeline, Kanban (arrastre y menú por teclado), diálogo de motivo de pérdida, papelera y foco devuelto tras cerrar overlays
+- [X] T139 [P] Ampliar `tests/unit/security-render.test.js` con nombre, cargo y notas de contacto, asunto y notas de actividad, resumen de solución y textos de papelera renderizados como texto
+- [X] T140 [P] Ampliar `tests/performance/search-performance.test.js` con búsqueda por contacto, timeline extenso y recálculo del panel con actividades: 20 mediciones y al menos 19 bajo 500 ms, registrando navegador y equipo
+- [X] T141 [P] Actualizar `README.md` con responsables de US-08 a US-16, comandos, tabla de evidencias, uso de IA y resultados reales o pendientes declarados
 - [ ] T142 Ejecutar manualmente los escenarios 8 a 16 de `quickstart.md` con datos sintéticos, incluidos reinicio, dos pestañas, cuota agotada y navegación solo por teclado, y anotar los resultados reales
-- [ ] T143 Verificar coherencia documental entre `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/entity-storage.md`, `quickstart.md`, `tasks.md` y el MER para Contacto, Actividad, Ticket ampliado y Elemento de papelera
-- [ ] T144 Ejecutar `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build`, corregir fallos y registrar fecha, comando y resultado en `README.md`
-- [ ] T145 Confirmar con `npm test -- --run` que la suite existente de `tests/` (T001–T070) sigue en verde y que `src/storage.js` no aplicó ninguna migración destructiva sobre `entities`, `documents` ni `tickets`
+- [X] T143 Verificar coherencia documental entre `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/entity-storage.md`, `quickstart.md`, `tasks.md` y el MER para Contacto, Actividad, Ticket ampliado y Elemento de papelera
+- [X] T144 Ejecutar `npm run lint`, `npm run format:check`, `npm test -- --run` y `npm run build`, corregir fallos y registrar fecha, comando y resultado en `README.md`
+- [X] T145 Confirmar con `npm test -- --run` que la suite existente de `tests/` (T001–T070) sigue en verde y que `src/storage.js` no aplicó ninguna migración destructiva sobre `entities`, `documents` ni `tickets`
 
 ---
 

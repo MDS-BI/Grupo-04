@@ -39,7 +39,7 @@ afterEach(() => {
 const SCRIPT_NAME = '<img src=x onerror="window.__xss=1">';
 const SCRIPT_TEXT = '<script>window.__xss=2</script>';
 
-describe('T060 — renderizado seguro de texto', () => {
+describe('T060 â€” renderizado seguro de texto', () => {
   it('renders a malicious client name as text without executing it', () => {
     qs('nav-entities').click();
     qs('name').value = SCRIPT_NAME;
@@ -102,6 +102,92 @@ describe('T060 — renderizado seguro de texto', () => {
     expect(detail.textContent).toContain(SCRIPT_TEXT);
     expect(detail.querySelector('img')).toBeNull();
     expect(detail.querySelector('script')).toBeNull();
+    expect(dom.window.__xss).toBeUndefined();
+  });
+});
+
+describe('T139 — renderizado seguro de la ampliación', () => {
+  function openClientDetail(client) {
+    const input = qs('global-search-input');
+    input.value = client.code;
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    qs('search-results-list').querySelector('[data-open-entity]').click();
+  }
+
+  it('muestra nombre, cargo y notas de contacto como texto', () => {
+    const client = storage.addEntity({
+      name: 'Empresa Segura',
+      code: 'CLI-SEG-001',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    });
+    storage.addContact({
+      entityId: client.entity_id,
+      name: SCRIPT_NAME,
+      role: SCRIPT_TEXT,
+      isPrimary: true
+    });
+    openClientDetail(client);
+
+    const body = qs('entity-detail-body');
+    expect(body.textContent).toContain(SCRIPT_NAME);
+    expect(body.textContent).toContain(SCRIPT_TEXT);
+    expect(body.querySelector('img')).toBeNull();
+    expect(body.querySelector('script')).toBeNull();
+    expect(dom.window.__xss).toBeUndefined();
+  });
+
+  it('muestra asunto y notas de actividad como texto', () => {
+    const client = storage.addEntity({
+      name: 'Empresa Segura 2',
+      code: 'CLI-SEG-002',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    });
+    storage.addActivity({
+      entityId: client.entity_id,
+      type: 'nota',
+      subject: SCRIPT_NAME,
+      notes: SCRIPT_TEXT,
+      owner: 'Ejecutivo A'
+    });
+    qs('nav-activities').click();
+
+    const list = qs('activity-list-items');
+    expect(list.textContent).toContain(SCRIPT_NAME);
+    expect(list.textContent).toContain(SCRIPT_TEXT);
+    expect(list.querySelector('img')).toBeNull();
+    expect(list.querySelector('script')).toBeNull();
+    expect(dom.window.__xss).toBeUndefined();
+  });
+
+  it('muestra el resumen de solución y los textos de papelera como texto', () => {
+    const client = storage.addEntity({
+      name: SCRIPT_NAME,
+      code: 'CLI-SEG-003',
+      category: 'Activo',
+      accountOwner: 'Ejecutivo A',
+      acquisitionSource: 'Referido'
+    });
+    const ticket = storage.addTicket({
+      entityId: client.entity_id,
+      productName: SCRIPT_NAME,
+      reason: 'soporte',
+      description: SCRIPT_TEXT,
+      priority: 'Alta',
+      equipmentReference: SCRIPT_NAME
+    });
+    storage.resolveTicket(ticket.id, SCRIPT_TEXT);
+    openClientDetail(client);
+    expect(qs('ticket-list-items').textContent).toContain(SCRIPT_TEXT);
+    expect(qs('ticket-list-items').querySelector('script')).toBeNull();
+
+    storage.deleteEntity(client.id);
+    qs('nav-trash').click();
+    expect(qs('trash-list-items').textContent).toContain(SCRIPT_NAME);
+    expect(qs('trash-list-items').querySelector('img')).toBeNull();
     expect(dom.window.__xss).toBeUndefined();
   });
 });
