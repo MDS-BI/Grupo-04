@@ -2,7 +2,7 @@
 
 **Rama de la funcionalidad**: `main` (sin ramas secundarias, según la instrucción del curso)
 **Creada**: 2026-10-26
-**Actualizada**: 2026-11-23
+**Actualizada**: 2026-11-27
 **Estado**: En revisión
 **Rediseño de interfaz (iteración 3)**: [`specs/002-crm-ui-refresh/spec.md`](../002-crm-ui-refresh/spec.md)
 **Actualización frontend-only (iteración 4)**: contactos múltiples, actividades, timeline y papelera de clientes; ver “Actualización frontend-only del CRM” al final.
@@ -20,6 +20,7 @@ El módulo tiene que resolver un problema bien concreto: hoy las cotizaciones qu
 - **Segunda iteración (P2)**: tickets de soporte (US-03) y panel con indicadores (US-07), que igual quedan especificados aquí y en `data-model.md` para no dejarlos a medias.
 - **Tercera iteración (rediseño de interfaz)**: navegación, drawers, tablas, filtros y panel accionable. Se especifica en [`specs/002-crm-ui-refresh/spec.md`](../002-crm-ui-refresh/spec.md); no modifica entidades, reglas, indicadores ni persistencia.
 - **Fuera del MVP original**: envío de correos o WhatsApp, automatizaciones externas, campañas, agenda con alarmas, registro estructurado de cada interacción, cotizaciones con partidas, facturación, predicción de ventas, sincronización entre computadores y acceso simultáneo. La actualización frontend-only de la iteración 4 incorpora contactos, actividades, timeline y papelera; no incorpora envío de correos, automatizaciones, campañas, facturación ni sincronización.
+- **Ampliación comercial propuesta (US-17 a US-22)**: [campañas, partidas y descuentos](../003-crm-campanas/spec.md). Amplía el alcance original para campañas locales y partidas. Para nuevas oportunidades del esquema comercial, US-19 y US-20 sustituyen la captura manual de US-04 por un total calculado en CLP. FR-016 sigue aplicando al resultado. US-20 y US-21 precisan FR-023: al cerrar se congelan las condiciones económicas. Los casos históricos se migran explícitamente.
 - **Solo frontend**: los datos viven en `localStorage` del mismo navegador. No hay backend, autenticación ni permisos reales.
 - **Datos sintéticos**: la demo usa únicamente empresas, contactos y oportunidades ficticios. No se afirma que el caso haya sido investigado ni validado con una empresa real.
 - **Una oportunidad no es una factura ni un pedido**: el monto es una expectativa comercial, no un ingreso contable.
@@ -27,7 +28,7 @@ El módulo tiene que resolver un problema bien concreto: hoy las cotizaciones qu
 ### Roles
 
 - **Ejecutivo comercial** y **ejecutivo de ventas** designan el mismo rol operativo: registra clientes, oportunidades y seguimientos. En este documento se usa “ejecutivo” cuando el criterio aplica a ambos.
-- **Jefe comercial** es el rol que consulta el panel y la cartera; no ejecuta el alta de registros en esta especificación.
+- **Jefe comercial** es el rol que consulta el panel y la cartera. En la ampliación US-17 también administra campañas y sus condiciones; el ejecutivo sigue a cargo de las oportunidades.
 - **Técnico de soporte** registra y resuelve tickets (P2).
 - Los roles describen personas de diseño, no permisos de acceso: la demo no implementa autenticación ni restringe vistas. Por eso el panel ofrece accesos rápidos a “Nuevo cliente” y “Nueva oportunidad” sin validar el rol.
 
@@ -1131,3 +1132,4 @@ La oportunidad conserva sus campos actuales; `lossReason` sigue siendo texto lib
 - [ ] `spec.md`, `plan.md`, `data-model.md`, las tareas y los contratos describen las mismas entidades y reglas.
 - [ ] La suite existente sigue pasando y se agregan pruebas para contactos, actividades, timeline, Kanban y papelera.
 - [ ] `npm test` y `npm run build` se ejecutan y sus resultados quedan registrados.
+

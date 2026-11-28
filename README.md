@@ -25,7 +25,8 @@ La empresa vende equipos industriales a otras empresas de la Región del Biobío
 
 - **P1**: clientes, oportunidades, búsqueda, ciclo de vida, terminología y persistencia.
 - **P2**: tickets de soporte y panel con indicadores.
-- **Fuera del MVP**: correo real, campañas, facturación, cotizaciones con partidas, predicción y sincronización multiusuario.
+- **Fuera del MVP original**: correo real, campañas, facturación, cotizaciones con partidas, predicción y sincronización multiusuario.
+- **Ampliación especificada, pendiente de implementación**: [campañas y condiciones comerciales (US-17 a US-22)](specs/003-crm-campanas/spec.md). Incluye campañas locales, partidas de oportunidad, descuentos y control de usos.
 
 ## Cronograma y división del trabajo
 
@@ -268,3 +269,4 @@ Se incorporan las mejoras visuales preparadas tras el feedback «casi idéntico 
 - Imagen del MER vigente: [crm-mer.svg](specs/001-crm-module/assets/crm-mer.svg).
 - Pruebas de interacción del tablero, representación segura del texto y fallback genérico.
 - Continúan pendientes el ensayo visual en navegadores y la validación de usabilidad; no se declaran realizados.
+
