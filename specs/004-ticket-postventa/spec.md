@@ -588,7 +588,7 @@ Son metas de aceptación pendientes de medir, no resultados obtenidos. No se inv
 | SC-016 | Crear y clasificar un ticket desde la bandeja global en menos de 2 minutos, con datos conocidos | Recorrido con cliente y catálogos precargados |
 | SC-017 | 100% de los tickets nuevos tienen folio válido y único; 0 folios editados o duplicados | Pruebas de dominio, persistencia e integración |
 | SC-018 | 0 transiciones inválidas aceptadas por la interfaz o el almacenamiento | Pruebas de la máquina de estados |
-| SC-019 | 100% de los tickets resueltos tienen resumen no vacío y `resolvedAt` generado | Pruebas de resolución y persistencia |
+| SC-019 | 100% de los tickets resueltos con reglas v4 tienen resumen no vacío y `resolvedAt` generado; los tickets históricos marcados `legacyResolutionIncomplete` quedan fuera de esta meta | Pruebas de resolución y persistencia, incluido un ticket migrado `Resuelto` sin resumen |
 | SC-020 | 100% de los cambios auditados generan su entrada de historial en la misma escritura; 0 entradas parciales | Pruebas unitarias e integración con fallo simulado |
 | SC-021 | Los indicadores de soporte coinciden exactamente con la muestra de control y no producen división por cero | Cálculo manual contra el panel con fixture |
 | SC-022 | 100% de los tickets con satisfacción válida se promedian correctamente; notas fuera de rango rechazadas | Pruebas de validación y panel |

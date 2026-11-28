@@ -130,13 +130,15 @@ El detalle es un drawer de solo lectura construido con `openOverlay({ variant: '
 |---|---|---|---|---|---|---|
 | Editar | `#ticket-detail-edit` | Sí | Sí | Sí | Sí (campos permitidos) | No |
 | Asignar | `#ticket-detail-assign` | Sí | Sí | Sí | No | No |
-| Cambiar estado | `#ticket-detail-status` | Sí (`En proceso`) | Sí (`En espera`, `Resuelto`) | Sí (`En proceso`, `Resuelto`) | Sí (`Cerrado`) | No |
+| Cambiar estado | `#ticket-detail-change-status` | Sí (`En proceso`) | Sí (`En espera`, `Resuelto`) | Sí (`En proceso`, `Resuelto`) | Sí (`Cerrado`) | No |
 | Resolver | `#ticket-detail-resolve` | No | Sí | Sí | No | No |
 | Cerrar | `#ticket-detail-close` | No | No | No | Sí | No |
 | Eliminar | `#ticket-detail-delete` | Sí | Sí | Sí | Sí | Sí |
 | Registrar satisfacción | `#ticket-detail-satisfaction-action` | No | No | No | Sí (si no existe) | No |
 
 “Editar” abre el drawer existente con `startTicketEdit`; no hay un segundo formulario. “Asignar”, “Cambiar estado”, “Resolver”, “Cerrar” y la satisfacción usan diálogos de `ui-overlay`; “Eliminar” usa la confirmación accesible. Todas las acciones respetan las reglas de `ticket-storage.md` y muestran el error sin cerrar el diálogo cuando la validación falla.
+
+`#ticket-detail-status` es únicamente el texto de estado (no interactivo); la acción “Cambiar estado” usa `#ticket-detail-change-status` y nunca comparte `id` con el texto de estado.
 
 ### Diálogos
 
